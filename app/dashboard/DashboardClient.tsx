@@ -107,8 +107,8 @@ const pctColor = (n: number | undefined | null): string => {
   return "cell-amber";
 };
 
-const cleanTikr = (tikr: string): string => {
-  if (!tikr) return "";
+const cleanTikr = (tikr: string | null | undefined): string => {
+  if (!tikr || typeof tikr !== "string") return "";
   // Clean up compound tickers like "ELECON ENGINEERING COMPANY LIMITED (XNSE:ELECON)"
   if (tikr.includes("(XNSE:")) {
     const match = tikr.match(/\(XNSE:(\w+)\)/);
@@ -125,7 +125,8 @@ const cleanTikr = (tikr: string): string => {
 };
 
 const getCompanyShort = (stock: Stock): string => {
-  const name = stock.company_name || stock._source_file || stock.tikr;
+  const name = String(stock.company_name || stock._source_file || stock.tikr || "");
+  if (!name) return cleanTikr(stock.tikr);
   // Extract from "COMPANY NAME LIMITED (XNSE:TICKER)" or filename
   if (name.includes("(XNSE:") || name.includes("(XBOM:")) {
     return name.split("(")[0].replace(" LIMITED", "").replace(" LTD", "").trim();
@@ -227,7 +228,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   // Enrich stocks with live CMP
   const enrichedStocks = useMemo(() => {
     return liveStocks.map((s) => {
-      const q = quotes[s.tikr];
+      const tikrKey = s.tikr || "";
+      const q = tikrKey ? quotes[tikrKey] : undefined;
       const liveCmp = q?.price || s.cmp;
       const bear = s.bear_current;
       const base = s.base_current;
