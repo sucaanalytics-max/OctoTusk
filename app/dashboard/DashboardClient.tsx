@@ -103,7 +103,7 @@ const fmt = (n: number | undefined | null, d = 0): string => {
 
 const fmtPct = (n: number | undefined | null): string => {
   if (n == null || isNaN(n)) return "—";
-  const p = Math.abs(n) < 1 ? n * 100 : n;
+  const p = n * 100;
   return `${p >= 0 ? "+" : ""}${p.toFixed(1)}%`;
 };
 
@@ -119,10 +119,25 @@ const fmtLakhs = (n: number | undefined | null): string => {
 
 const pctColor = (n: number | undefined | null): string => {
   if (n == null) return "";
-  const v = Math.abs(n) < 1 ? n * 100 : n;
+  const v = n * 100;
   if (v > 5) return "cell-green";
   if (v < -5) return "cell-red";
   return "cell-amber";
+};
+
+/** Conditional formatting: returns inline style with graduated bg + text color based on upside % */
+const pctBgStyle = (n: number | undefined | null): Record<string, string | number> => {
+  if (n == null) return {};
+  const v = n * 100; // always decimal → percentage
+  // Graduated intensity: higher magnitude = stronger background
+  const intensity = Math.min(Math.abs(v) / 50, 1); // max out at ±50%
+  const alpha = 0.04 + intensity * 0.12; // range from 0.04 to 0.16
+  if (v > 15) return { color: "var(--color-positive)", background: `rgba(5, 150, 105, ${alpha.toFixed(2)})`, fontWeight: 600 };
+  if (v > 5) return { color: "var(--color-positive)", background: `rgba(5, 150, 105, ${(alpha * 0.6).toFixed(2)})` };
+  if (v > 0) return { color: "var(--color-positive)" };
+  if (v > -5) return { color: "var(--color-negative)" };
+  if (v > -15) return { color: "var(--color-negative)", background: `rgba(220, 38, 38, ${(alpha * 0.6).toFixed(2)})` };
+  return { color: "var(--color-negative)", background: `rgba(220, 38, 38, ${alpha.toFixed(2)})`, fontWeight: 600 };
 };
 
 const cleanTikr = (tikr: string | null | undefined): string => {
@@ -624,8 +639,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         {/* Metrics Grid */}
         <div className="grid grid-cols-4 gap-4 mb-4 metrics-grid">
           {[
-            { label: "1Y Target", value: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", sub: s.upside_1y != null ? fmtPct(s.upside_1y) : undefined, subColor: s.upside_1y != null ? ((Math.abs(s.upside_1y) < 1 ? s.upside_1y * 100 : s.upside_1y) >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
-            { label: "2Y Target", value: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", sub: s.upside_2y != null ? fmtPct(s.upside_2y) : undefined, subColor: s.upside_2y != null ? ((Math.abs(s.upside_2y) < 1 ? s.upside_2y * 100 : s.upside_2y) >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
+            { label: "1Y Target", value: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", sub: s.upside_1y != null ? fmtPct(s.upside_1y) : undefined, subColor: s.upside_1y != null ? (s.upside_1y >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
+            { label: "2Y Target", value: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", sub: s.upside_2y != null ? fmtPct(s.upside_2y) : undefined, subColor: s.upside_2y != null ? (s.upside_2y >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
             { label: "Dividend Yield", value: s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : "—" },
             { label: "Score", value: String(s.score ?? "—"), sub: s.score_adj_1y != null ? `1Y adj: ${s.score_adj_1y}` : undefined },
           ].map((m, idx) => (
@@ -824,19 +839,26 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       </td>
                       <td className="font-semibold" style={{ whiteSpace: "normal", minWidth: 180, maxWidth: 220, color: "var(--color-text-primary)" }}>{s.companyShort}</td>
                       <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
-                      <td className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
-                      <td className={pctColor(s.upsideBearCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
-                      <td className={pctColor(s.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
-                      <td className={pctColor(s.upsideBullCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
-                      <td className={pctColor(s.upside_1y)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</td>
-                      <td className={pctColor(s.upside_2y)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
-                      <td className="text-center font-semibold">{s.conviction ?? "—"}</td>
+                      <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
+                        {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
+                        {s.liveChangePct != null && (
+                          <div style={{ fontSize: "0.625rem", color: s.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)", lineHeight: 1, marginTop: 1 }}>
+                            {s.liveChangePct >= 0 ? "▲" : "▼"} {Math.abs(s.liveChangePct).toFixed(1)}%
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upsideBearCalc) }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", fontWeight: 600, ...pctBgStyle(s.upsideBaseCalc) }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upsideBullCalc) }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside_1y) }}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside_2y) }}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
+                      <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
                       <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"}</td>
                       <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.sa || "—"}</td>
                     </tr>
