@@ -458,7 +458,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       <div className="space-y-2">
         {sorted.map(([sec, d]) => (
           <div key={sec} className="flex items-center gap-3">
-            <span className="min-w-[130px] text-right truncate" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{sec}</span>
+            <span className="min-w-[130px] text-right truncate sector-label" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{sec}</span>
             <div className="flex-1 relative" style={{ height: 22, background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>
               <div className="sector-bar" style={{ width: `${(d.count / max) * 100}%` }}>
                 {d.count}
@@ -480,7 +480,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const s = detailStock;
     const convLabel: Record<number, string> = { 5: "Very High", 4: "High", 3: "Medium", 2: "Low", 1: "Very Low" };
     return (
-      <div className="max-w-[1400px] mx-auto px-5 py-5 animate-fade-in">
+      <div className="max-w-[1400px] mx-auto px-5 py-5 dash-wrapper animate-fade-in">
         <button onClick={() => setDetailStock(null)} className="btn btn-ghost btn-sm mb-4" aria-label="Go back to previous view">
           <span aria-hidden="true">←</span> Back to {activeTab === "octopus" ? "Octopus" : activeTab === "comparison" ? "Comparison" : "Decision Support"}
         </button>
@@ -503,7 +503,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </div>
             </div>
             <div className="text-right">
-              <div className="font-bold" style={{ fontSize: "var(--text-3xl)", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
+              <div className="font-bold detail-header-price" style={{ fontSize: "var(--text-3xl)", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
                 {s.liveCmp ? <>₹<CountUp value={s.liveCmp} decimals={2} /></> : "—"}
               </div>
               <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>Current Market Price</div>
@@ -519,7 +519,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </div>
 
         {/* Scenario Cards */}
-        <div className="grid grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-3 gap-4 mb-4 scenario-grid">
           {[
             { label: "Bear Case", price: s.bear_current, upside: s.upsideBearCalc, borderColor: "var(--color-negative)", bgColor: "var(--color-negative-bg)" },
             { label: "Base Case", price: s.base_current, upside: s.upsideBaseCalc, borderColor: "var(--color-warning)", bgColor: "var(--color-warning-bg)" },
@@ -540,7 +540,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </div>
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-4 gap-4 mb-4 metrics-grid">
           {[
             { label: "1Y Target", value: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", sub: s.upside_1y != null ? fmtPct(s.upside_1y) : undefined, subColor: s.upside_1y != null ? ((Math.abs(s.upside_1y) < 1 ? s.upside_1y * 100 : s.upside_1y) >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
             { label: "2Y Target", value: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", sub: s.upside_2y != null ? fmtPct(s.upside_2y) : undefined, subColor: s.upside_2y != null ? ((Math.abs(s.upside_2y) < 1 ? s.upside_2y * 100 : s.upside_2y) >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
@@ -605,7 +605,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   //  MAIN DASHBOARD
   // ══════════════════════════════════════════════════════════
   return (
-    <div className="max-w-[1600px] mx-auto px-5 py-4">
+    <div className="max-w-[1600px] mx-auto px-5 py-4 dash-wrapper">
 
       {/* ── KPI SUMMARY BAR (ZONE A) ── */}
       <div className="grid grid-cols-5 gap-3 mb-4">
@@ -627,7 +627,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </p>
               <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>across {decisionData.totalWithCmp} stocks</p>
             </div>
-            <div className="kpi-card kpi-negative animate-fade-in-up delay-3" role="status" aria-label="Average bear case downside">
+            <div className="kpi-card kpi-negative animate-fade-in-up delay-3 kpi-hide-sm" role="status" aria-label="Average bear case downside">
               <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Avg Bear Downside</p>
               <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>
                 <CountUp value={decisionData.avgBearDownside} suffix="%" decimals={1} />
@@ -640,7 +640,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </p>
               <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>near bear price</p>
             </div>
-            <div className="kpi-card kpi-accent animate-fade-in-up delay-5" role="status" aria-label="Holdings value">
+            <div className="kpi-card kpi-accent animate-fade-in-up delay-5 kpi-hide-sm" role="status" aria-label="Holdings value">
               <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Holdings Value</p>
               <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>
                 {decisionData.totalHoldingsValue > 0 ? fmtLakhs(decisionData.totalHoldingsValue) : "—"}
@@ -652,7 +652,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       </div>
 
       {/* ── TAB NAVIGATION ── */}
-      <div className="flex items-center gap-1 mb-4 rounded-xl px-2" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
+      <div className="flex items-center gap-1 mb-4 rounded-xl px-2 tab-bar" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
         <nav className="flex gap-1" role="tablist" aria-label="Dashboard sections">
           {([
             { key: "octopus" as const, label: "Octopus" },
@@ -665,7 +665,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </button>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2 pr-2 py-2">
+        <div className="ml-auto flex items-center gap-2 pr-2 py-2 tab-controls">
           {dataLastRefreshed && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Data: {new Date(dataLastRefreshed).toLocaleTimeString("en-IN")}</span>}
           <button onClick={refreshData} disabled={dataRefreshing} className="btn btn-primary btn-sm" aria-label="Refresh stock data">
             {dataRefreshing ? "Refreshing..." : "Refresh Data"}
@@ -686,17 +686,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {/* ═══════════════════ TAB 1: OCTOPUS ═══════════════════ */}
       {activeTab === "octopus" && (
         <div id="panel-octopus" role="tabpanel" aria-labelledby="tab-octopus" className="animate-fade-in">
-          <div className="flex flex-wrap items-center gap-3 mb-3">
+          <div className="flex flex-wrap items-center gap-3 mb-3 filter-bar">
             <input type="text" placeholder="Search company, sector, VP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 min-w-[250px] max-w-md" aria-label="Search stocks" />
             <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector"><option value="all">All Sectors</option>{filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}</select>
             <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst"><option value="all">All VAs</option>{filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}</select>
             <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}</option>)}</select>
             {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
-            <span className="ml-auto" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
+            <span className="ml-auto filter-stats" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
             <button onClick={exportCSV} className="btn btn-success btn-sm" aria-label="Export data as CSV">Export CSV</button>
           </div>
 
-          <div className="rounded-xl overflow-auto" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)" }}>
+          <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)" }}>
             <table className="data-table w-full" role="table" aria-label="Stock data table">
               <thead><tr>
                 <Th col="companyShort" label="Company" /><Th col="sector" label="Sector" /><Th col="liveCmp" label="CMP" />
@@ -774,7 +774,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </>);
                 })()}
               </div>
-              <div className="rounded-xl overflow-auto" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 340px)" }}>
+              <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 340px)" }}>
                 <table className="data-table w-full" role="table" aria-label="Holdings data">
                   <thead><tr><th>Stock</th><th>Qty</th><th>Avg Cost</th><th>CMP</th><th>Invested</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Bear</th><th>Base</th><th>Bull</th><th>↑ Bear</th><th>↑ Base</th><th>↑ Bull</th></tr></thead>
                   <tbody>
@@ -823,7 +823,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </div>
             </div>
             {selectedCompare.length < 4 && (
-              <div className="grid grid-cols-6 gap-2 max-h-[200px] overflow-y-auto">
+              <div className="grid grid-cols-6 gap-2 max-h-[200px] overflow-y-auto compare-grid">
                 {compareFilteredStocks.slice(0, 30).map(s => (
                   <button key={s.tikr} onClick={() => setSelectedCompare([...selectedCompare, s.tikr])} className="text-left p-2 rounded-lg transition-all" style={{ border: "1px solid var(--color-border)", background: "var(--color-bg-primary)", fontSize: "var(--text-xs)" }} onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--color-accent-blue)"; e.currentTarget.style.background = "var(--color-info-bg)"; }} onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--color-border)"; e.currentTarget.style.background = "var(--color-bg-primary)"; }} aria-label={`Add ${s.companyShort} to comparison`}>
                     <div className="font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{s.companyShort}</div>

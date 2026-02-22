@@ -21,9 +21,9 @@ export default async function DashboardPage() {
     <div className="min-h-screen" style={{ background: "var(--color-bg-primary)" }}>
       {/* Header */}
       <header style={{ background: "var(--color-bg-secondary)", borderBottom: "1px solid var(--color-border)" }}>
-        <div className="max-w-[1600px] mx-auto px-5 py-3 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-5 py-3 flex items-center justify-between app-header-inner">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent-tusk)" }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-accent-tusk)" }}>
               <span className="text-white font-bold text-base" style={{ fontFamily: "var(--font-sans)" }}>T</span>
             </div>
             <div>
@@ -31,8 +31,8 @@ export default async function DashboardPage() {
               <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{db.metadata.unique_stocks} Equities &middot; {db.holdings.length} Holdings</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>{userEmail}</span>
+          <div className="flex items-center gap-4 app-header-actions">
+            <span className="truncate" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)", maxWidth: 200 }}>{userEmail}</span>
             <form
               action={async () => {
                 "use server";
