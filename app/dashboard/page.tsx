@@ -18,21 +18,21 @@ export default async function DashboardPage() {
   const userEmail = String(session.user.email || "");
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className="min-h-screen" style={{ background: "var(--color-bg-primary)" }}>
       {/* Header */}
-      <header className="bg-tusk-dark text-white shadow-lg">
-        <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">
+      <header style={{ background: "var(--color-bg-secondary)", borderBottom: "1px solid var(--color-border)" }}>
+        <div className="max-w-[1600px] mx-auto px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-tusk-accent rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">T</span>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--color-accent-tusk)" }}>
+              <span className="text-white font-bold text-base" style={{ fontFamily: "var(--font-sans)" }}>T</span>
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-tight">Tusk Dashboard</h1>
-              <p className="text-gray-400 text-xs">{db.metadata.unique_stocks} Stocks &middot; {db.holdings.length} Holdings</p>
+              <h1 className="font-bold leading-tight" style={{ fontSize: "var(--text-lg)", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>OctoTusk</h1>
+              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{db.metadata.unique_stocks} Equities &middot; {db.holdings.length} Holdings</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-300">{userEmail}</span>
+            <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}>{userEmail}</span>
             <form
               action={async () => {
                 "use server";
@@ -41,7 +41,8 @@ export default async function DashboardPage() {
             >
               <button
                 type="submit"
-                className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md transition-colors"
+                className="btn btn-ghost btn-sm"
+                aria-label="Sign out of dashboard"
               >
                 Sign Out
               </button>
@@ -51,9 +52,9 @@ export default async function DashboardPage() {
       </header>
 
       <DashboardClient
-        stocks={db.stocks as any}
-        tickerMap={db.ticker_map as any}
-        metadata={db.metadata as any}
+        stocks={db.stocks as unknown as Parameters<typeof DashboardClient>[0]["stocks"]}
+        tickerMap={db.ticker_map as Record<string, string>}
+        metadata={db.metadata as Record<string, unknown>}
       />
     </div>
   );

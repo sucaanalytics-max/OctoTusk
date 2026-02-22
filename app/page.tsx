@@ -14,14 +14,14 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-tusk-dark to-tusk-blue">
-      <div className="bg-white rounded-2xl shadow-2xl p-10 max-w-md w-full mx-4 text-center">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, #1a1040 100%)" }}>
+      <div className="rounded-2xl p-10 max-w-md w-full mx-4 text-center" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-elevated)" }}>
         <div className="mb-6">
-          <div className="w-16 h-16 bg-tusk-dark rounded-xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-white text-2xl font-bold">T</span>
+          <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "var(--color-accent-tusk)" }}>
+            <span className="text-white text-2xl font-bold" style={{ fontFamily: "var(--font-sans)" }}>T</span>
           </div>
-          <h1 className="text-2xl font-bold text-tusk-dark">Tusk Dashboard</h1>
-          <p className="text-gray-500 mt-2 text-sm">Portfolio Intelligence Platform</p>
+          <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>OctoTusk</h1>
+          <p className="mt-2" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>Portfolio Intelligence Platform</p>
         </div>
 
         <form
@@ -32,7 +32,7 @@ export default async function LoginPage() {
         >
           <button
             type="submit"
-            className="w-full bg-tusk-dark hover:bg-tusk-blue text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-3"
+            className="w-full font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-3 login-btn"
           >
             <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
               <rect width="10" height="10" fill="#F25022" />
@@ -44,7 +44,7 @@ export default async function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-xs text-gray-400">
+        <p className="mt-6" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
           Restricted to @tuskinvest.com accounts
         </p>
       </div>
