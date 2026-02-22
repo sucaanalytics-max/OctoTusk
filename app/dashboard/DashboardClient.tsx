@@ -65,6 +65,18 @@ interface QuoteData {
   timestamp: string;
 }
 
+interface EnrichedStock extends Stock {
+  liveCmp?: number;
+  liveChange?: number;
+  liveChangePct?: number;
+  liveVolume?: number;
+  upsideBearCalc?: number;
+  upsideBaseCalc?: number;
+  upsideBullCalc?: number;
+  displayTikr: string;
+  companyShort: string;
+}
+
 interface Props {
   stocks: Stock[];
   tickerMap: Record<string, string>;
@@ -86,25 +98,25 @@ const isMarketOpen = (): boolean => {
 
 // ── Helpers ──
 const fmt = (n: number | undefined | null, decimals = 0): string => {
-  if (n == null || isNaN(n)) return "—";
+  if (n == null || isNaN(n)) return "\u2014";
   return n.toLocaleString("en-IN", { maximumFractionDigits: decimals });
 };
 
 const fmtPct = (n: number | undefined | null): string => {
-  if (n == null || isNaN(n)) return "—";
+  if (n == null || isNaN(n)) return "\u2014";
   const pct = Math.abs(n) < 1 ? n * 100 : n;
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 };
 
 const fmtCr = (n: number | undefined | null): string => {
-  if (n == null || isNaN(n)) return "—";
+  if (n == null || isNaN(n)) return "\u2014";
   const cr = n / 10000000;
   return `${cr.toFixed(1)} Cr`;
 };
 
 const fmtLakhs = (n: number | undefined | null): string => {
-  if (n == null || isNaN(n)) return "—";
-  return `₹${n.toFixed(1)}L`;
+  if (n == null || isNaN(n)) return "\u2014";
+  return `\u20B9${n.toFixed(1)}L`;
 };
 
 const pctColor = (n: number | undefined | null): string => {
@@ -144,19 +156,18 @@ const getCompanyShort = (stock: Stock): string => {
 
 // ── Main Component ──
 export default function DashboardClient({ stocks, tickerMap, metadata }: Props) {
-  const [activeTab, setActiveTab] = useState<"database" | "holdings" | "decisions">("database");
+  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
   const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortCol, setSortCol] = useState<string>("tikr");
+  const [sortCol, setSortCol] = useState<string>("companyShort");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   // Dynamic filters
   const [filterSector, setFilterSector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>("all");
-  const [filterFnO, setFilterFnO] = useState<string>("all");
 
   // Auto-refresh state
   const [countdown, setCountdown] = useState(CMP_REFRESH_INTERVAL);
@@ -174,6 +185,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
+
+  // Comparison state
+  const [compareSearch, setCompareSearch] = useState("");
+  const [selectedCompare, setSelectedCompare] = useState<string[]>([]);
 
   // ── Auto-lock holdings when switching tabs ──
   const handleTabSwitch = (tab: typeof activeTab) => {
@@ -247,7 +262,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   }, [liveStocks]);
 
   // Enrich stocks with live CMP
-  const enrichedStocks = useMemo(() => {
+  const enrichedStocks: EnrichedStock[] = useMemo(() => {
     return liveStocks.map((s) => {
       const tikrKey = s.tikr || "";
       const q = tikrKey ? quotes[tikrKey] : undefined;
@@ -286,10 +301,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     }
   };
 
-  // Filtered + sorted stocks
+  // Filtered + sorted stocks for Octopus tab
   const sortedStocks = useMemo(() => {
     const filtered = enrichedStocks.filter((s) => {
-      // Text search
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         const matches =
@@ -302,14 +316,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           s.sa?.toLowerCase().includes(term);
         if (!matches) return false;
       }
-      // Dropdown filters
       if (filterSector !== "all" && s.sector !== filterSector) return false;
       if (filterVP !== "all" && s.vp !== filterVP) return false;
       if (filterConviction !== "all" && String(s.conviction) !== filterConviction) return false;
-      if (filterFnO !== "all") {
-        if (filterFnO === "Yes" && s.in_fno !== "Yes") return false;
-        if (filterFnO === "No" && s.in_fno !== "No") return false;
-      }
       return true;
     });
 
@@ -326,7 +335,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         ? String(av).localeCompare(String(bv))
         : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterFnO]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction]);
 
   // Holdings unlock
   const unlockHoldings = async () => {
@@ -413,7 +422,26 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     });
   }, [holdingsData, quotes, enrichedStocks]);
 
-  // Decision support
+  // Comparison stocks data
+  const comparedStocks = useMemo(() => {
+    return selectedCompare.map((tikr) => enrichedStocks.find((s) => s.tikr === tikr)).filter(Boolean) as EnrichedStock[];
+  }, [selectedCompare, enrichedStocks]);
+
+  const compareSearchResults = useMemo(() => {
+    if (!compareSearch || compareSearch.length < 2) return [];
+    const term = compareSearch.toLowerCase();
+    return enrichedStocks
+      .filter((s) => !selectedCompare.includes(s.tikr))
+      .filter(
+        (s) =>
+          s.displayTikr?.toLowerCase().includes(term) ||
+          s.companyShort?.toLowerCase().includes(term) ||
+          s.sector?.toLowerCase().includes(term)
+      )
+      .slice(0, 8);
+  }, [compareSearch, enrichedStocks, selectedCompare]);
+
+  // Decision support data
   const decisionData = useMemo(() => {
     const withCmp = enrichedStocks.filter((s) => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
     const buyZone = withCmp
@@ -425,25 +453,24 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const bestUpside = [...withCmp]
       .filter((s) => s.upsideBaseCalc != null && s.upsideBaseCalc > 0)
       .sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0))
-      .slice(0, 15);
+      .slice(0, 10);
     const overvalued = withCmp
       .filter((s) => s.upsideBullCalc != null && s.upsideBullCalc < -0.05)
       .sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
-    const sectors: Record<string, { count: number; stocks: string[] }> = {};
-    enrichedStocks.forEach((s) => {
-      const sec = s.sector || "Uncategorized";
-      if (!sectors[sec]) sectors[sec] = { count: 0, stocks: [] };
+    const highConviction = withCmp
+      .filter((s) => s.conviction != null && s.conviction >= 4)
+      .sort((a, b) => (b.conviction || 0) - (a.conviction || 0) || (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+    const sectors: Record<string, { count: number; avgUpside: number; stocks: EnrichedStock[] }> = {};
+    withCmp.forEach((s) => {
+      const sec = s.sector || "Other";
+      if (!sectors[sec]) sectors[sec] = { count: 0, avgUpside: 0, stocks: [] };
       sectors[sec].count++;
-      sectors[sec].stocks.push(s.displayTikr);
+      sectors[sec].avgUpside += (s.upsideBaseCalc || 0) * 100;
+      sectors[sec].stocks.push(s);
     });
-    const analysts: Record<string, { count: number; stocks: string[] }> = {};
-    enrichedStocks.forEach((s) => {
-      const vp = s.vp || "Unassigned";
-      if (!analysts[vp]) analysts[vp] = { count: 0, stocks: [] };
-      analysts[vp].count++;
-      analysts[vp].stocks.push(s.displayTikr);
-    });
-    return { buyZone, sellZone, bestUpside, overvalued, sectors, analysts, totalWithCmp: withCmp.length };
+    Object.values(sectors).forEach((v) => { v.avgUpside = v.count > 0 ? v.avgUpside / v.count : 0; });
+
+    return { buyZone, sellZone, bestUpside, overvalued, highConviction, sectors, totalWithCmp: withCmp.length };
   }, [enrichedStocks]);
 
   const Th = ({ col, label, className = "" }: { col: string; label: string; className?: string }) => (
@@ -455,16 +482,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     </th>
   );
 
-  const activeFilters = [filterSector, filterVP, filterConviction, filterFnO].filter((f) => f !== "all").length;
+  const activeFilters = [filterSector, filterVP, filterConviction].filter((f) => f !== "all").length;
 
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-4">
       {/* Tab Navigation */}
       <div className="flex items-center gap-1 mb-4 bg-white rounded-xl shadow-sm px-2">
         {[
-          { key: "database" as const, label: "Master Database", icon: "📊" },
-          { key: "holdings" as const, label: "Holdings Analysis", icon: "🔒" },
-          { key: "decisions" as const, label: "Decision Support", icon: "🎯" },
+          { key: "octopus" as const, label: "Octopus", icon: "\uD83D\uDC19" },
+          { key: "holdings" as const, label: "Holdings Analysis", icon: "\uD83D\uDD12" },
+          { key: "comparison" as const, label: "Comparison", icon: "\u2696\uFE0F" },
+          { key: "decisions" as const, label: "Decision Support", icon: "\uD83C\uDFAF" },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -490,7 +518,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1"
           >
             <span className={dataRefreshing ? "animate-spin inline-block" : ""}>
-              {dataRefreshing ? "⟳" : "↻"}
+              {dataRefreshing ? "\u27F3" : "\u21BB"}
             </span>
             {dataRefreshing ? "Refreshing..." : "Refresh Data"}
           </button>
@@ -529,14 +557,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </div>
       </div>
 
-      {/* ═══════════════════════ TAB 1: MASTER DATABASE ═══════════════════════ */}
-      {activeTab === "database" && (
+      {/* ═══════════════════════ TAB 1: OCTOPUS ═══════════════════════ */}
+      {activeTab === "octopus" && (
         <div>
-          {/* Search & Filters Bar */}
+          {/* Search & Filters */}
           <div className="flex flex-wrap items-center gap-3 mb-3">
             <input
               type="text"
-              placeholder="Search ticker, company, sector, VP..."
+              placeholder="Search company, sector, VP..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="flex-1 min-w-[250px] max-w-md px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-tusk-accent/30"
@@ -556,42 +584,38 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <option value="all">All Conviction</option>
               {filterOptions.convictions.map((c) => <option key={c} value={String(c)}>{c}</option>)}
             </select>
-            <select value={filterFnO} onChange={(e) => setFilterFnO(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white">
-              <option value="all">F&O: All</option>
-              <option value="Yes">F&O: Yes</option>
-              <option value="No">F&O: No</option>
-            </select>
             {activeFilters > 0 && (
               <button
-                onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterFnO("all"); }}
+                onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); }}
                 className="text-xs text-tusk-accent hover:underline"
               >
                 Clear filters ({activeFilters})
               </button>
             )}
             <span className="text-xs text-gray-500 ml-auto">
-              {sortedStocks.length} stocks {Object.keys(quotes).length > 0 && `· ${Object.keys(quotes).length} live prices`}
+              {sortedStocks.length} stocks {Object.keys(quotes).length > 0 && `\u00B7 ${Object.keys(quotes).length} live prices`}
             </span>
             <button
               onClick={() => {
                 const csv = [
-                  ["Ticker", "Company", "Sector", "VP", "SA", "Conviction", "F&O", "Bear", "Base", "Bull", "CMP", "↑Bear", "↑Base", "↑Bull", "1Y Target", "2Y Target", "Base PE", "Score", "Comments"].join(","),
+                  ["Company", "Sector", "CMP", "Bear", "Base", "Bull", "\u2191Bear%", "\u2191Base%", "\u2191Bull%", "1Y Upside", "2Y Upside", "Base PE", "Base PB", "Base EV/EBITDA", "Conviction", "VP", "SA"].join(","),
                   ...sortedStocks.map(s => [
-                    s.displayTikr, `"${s.companyShort}"`, `"${s.sector || ""}"`, s.vp || "", s.sa || "", s.conviction ?? "", s.in_fno || "",
-                    s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "",
+                    `"${s.companyShort}"`, `"${s.sector || ""}"`,
                     s.liveCmp?.toFixed(0) || "",
+                    s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "",
                     s.upsideBearCalc != null ? (s.upsideBearCalc * 100).toFixed(1) + "%" : "",
                     s.upsideBaseCalc != null ? (s.upsideBaseCalc * 100).toFixed(1) + "%" : "",
                     s.upsideBullCalc != null ? (s.upsideBullCalc * 100).toFixed(1) + "%" : "",
-                    s.target_1y?.toFixed(0) || "", s.target_2y?.toFixed(0) || "",
-                    s.base_pe?.toFixed(1) || "", s.score ?? "", `"${s.comments || ""}"`
+                    s.upside_1y != null ? s.upside_1y.toFixed(1) + "%" : "",
+                    s.upside_2y != null ? s.upside_2y.toFixed(1) + "%" : "",
+                    s.base_pe?.toFixed(1) || "", s.base_pb?.toFixed(1) || "", s.base_evebitda?.toFixed(1) || "",
+                    s.conviction ?? "", s.vp || "", s.sa || ""
                   ].join(","))
                 ].join("\n");
                 const blob = new Blob([csv], { type: "text/csv" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
-                a.href = url; a.download = `tusk_database_${new Date().toISOString().split("T")[0]}.csv`;
+                a.href = url; a.download = `octopus_${new Date().toISOString().split("T")[0]}.csv`;
                 a.click(); URL.revokeObjectURL(url);
               }}
               className="text-xs bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700"
@@ -600,31 +624,28 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </button>
           </div>
 
-          {/* Data Table - JVB Output columns */}
+          {/* Data Table */}
           <div className="bg-white rounded-xl shadow-sm overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
             <table className="data-table w-full">
               <thead>
                 <tr>
-                  <Th col="displayTikr" label="Ticker" />
                   <Th col="companyShort" label="Company" />
                   <Th col="sector" label="Sector" />
-                  <Th col="vp" label="VP" />
-                  <Th col="conviction" label="Conv." />
-                  <Th col="in_fno" label="F&O" />
-                  <Th col="liveCmp" label="CMP (₹)" />
-                  <Th col="liveChangePct" label="Chg%" />
+                  <Th col="liveCmp" label="CMP (\u20B9)" />
                   <Th col="bear_current" label="Bear" />
                   <Th col="base_current" label="Base" />
                   <Th col="bull_current" label="Bull" />
-                  <Th col="upsideBearCalc" label="↑Bear" />
-                  <Th col="upsideBaseCalc" label="↑Base" />
-                  <Th col="upsideBullCalc" label="↑Bull" />
-                  <Th col="upside_1y" label="↑1Y" />
-                  <Th col="base_pe" label="PE" />
-                  <Th col="score" label="Score" />
-                  <Th col="holding_cash_lakhs" label="Hold(₹L)" />
-                  <Th col="last_updated" label="Updated" />
-                  <Th col="comments" label="Comments" />
+                  <Th col="upsideBearCalc" label="\u2191Bear" />
+                  <Th col="upsideBaseCalc" label="\u2191Base" />
+                  <Th col="upsideBullCalc" label="\u2191Bull" />
+                  <Th col="upside_1y" label="1Y Upside" />
+                  <Th col="upside_2y" label="2Y Upside" />
+                  <Th col="base_pe" label="Base PE" />
+                  <Th col="base_pb" label="Base PB" />
+                  <Th col="base_evebitda" label="Base EV/EBITDA" />
+                  <Th col="conviction" label="Conviction" />
+                  <Th col="vp" label="VA" />
+                  <Th col="sa" label="SA" />
                 </tr>
               </thead>
               <tbody>
@@ -633,30 +654,23 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   const isSellZone = s.liveCmp && s.bull_current && s.liveCmp >= s.bull_current * 0.95;
                   return (
                     <tr key={`${s.tikr}-${i}`} className={isBuyZone ? "row-buy-zone" : isSellZone ? "row-sell-zone" : ""}>
-                      <td className="font-semibold text-tusk-dark">{s.displayTikr}</td>
-                      <td className="text-gray-600 max-w-[180px] truncate" title={s.companyShort}>{s.companyShort}</td>
-                      <td className="text-xs">{s.sector || "—"}</td>
-                      <td className="text-center">{s.vp || "—"}</td>
-                      <td className="text-center">{s.conviction ?? "—"}</td>
-                      <td className="text-center">{s.in_fno === "Yes" ? <span className="pill pill-green">Yes</span> : "—"}</td>
-                      <td className="font-semibold">{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</td>
-                      <td className={pctColor(s.liveChangePct)}>
-                        {s.liveChangePct != null ? fmtPct(s.liveChangePct) : "—"}
-                      </td>
-                      <td>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
-                      <td>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
-                      <td>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
-                      <td className={pctColor(s.upsideBearCalc)}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
-                      <td className={pctColor(s.upsideBaseCalc)}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
-                      <td className={pctColor(s.upsideBullCalc)}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
-                      <td className={pctColor(s.upside_1y)}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</td>
-                      <td>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
-                      <td className="text-center font-semibold">{s.score ?? "—"}</td>
-                      <td>{s.holding_cash_lakhs ? fmtLakhs(s.holding_cash_lakhs) : "—"}</td>
-                      <td className="text-xs text-gray-400">{s.last_updated || "—"}</td>
-                      <td className="max-w-[180px] truncate text-gray-500 text-xs" title={s.comments || ""}>
-                        {s.comments || "—"}
-                      </td>
+                      <td className="font-semibold text-tusk-dark max-w-[200px] truncate" title={s.companyShort}>{s.companyShort}</td>
+                      <td className="text-xs">{s.sector || "\u2014"}</td>
+                      <td className="font-semibold">{s.liveCmp ? `\u20B9${fmt(s.liveCmp, 1)}` : "\u2014"}</td>
+                      <td>{s.bear_current ? `\u20B9${fmt(s.bear_current, 0)}` : "\u2014"}</td>
+                      <td>{s.base_current ? `\u20B9${fmt(s.base_current, 0)}` : "\u2014"}</td>
+                      <td>{s.bull_current ? `\u20B9${fmt(s.bull_current, 0)}` : "\u2014"}</td>
+                      <td className={pctColor(s.upsideBearCalc)}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "\u2014"}</td>
+                      <td className={pctColor(s.upsideBaseCalc)}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "\u2014"}</td>
+                      <td className={pctColor(s.upsideBullCalc)}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "\u2014"}</td>
+                      <td className={pctColor(s.upside_1y)}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "\u2014"}</td>
+                      <td className={pctColor(s.upside_2y)}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "\u2014"}</td>
+                      <td>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "\u2014"}</td>
+                      <td>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "\u2014"}</td>
+                      <td>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "\u2014"}</td>
+                      <td className="text-center font-semibold">{s.conviction ?? "\u2014"}</td>
+                      <td className="text-center">{s.vp || "\u2014"}</td>
+                      <td className="text-center">{s.sa || "\u2014"}</td>
                     </tr>
                   );
                 })}
@@ -672,7 +686,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           {!holdingsUnlocked ? (
             <div className="flex items-center justify-center" style={{ minHeight: "60vh" }}>
               <div className="metric-card text-center max-w-sm w-full">
-                <div className="text-5xl mb-4">🔒</div>
+                <div className="text-5xl mb-4">{"\uD83D\uDD12"}</div>
                 <h2 className="text-xl font-bold text-tusk-dark mb-2">Holdings Analysis</h2>
                 <p className="text-gray-500 text-sm mb-6">Enter PIN to access portfolio holdings data</p>
                 <input
@@ -738,10 +752,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <table className="data-table w-full">
                   <thead>
                     <tr>
-                      <th>Stock</th><th>Qty</th><th>Avg Cost (₹)</th><th>CMP (₹)</th>
+                      <th>Stock</th><th>Qty</th><th>Avg Cost (\u20B9)</th><th>CMP (\u20B9)</th>
                       <th>Invested</th><th>Current Value</th><th>P&L</th><th>P&L %</th>
-                      <th>Bear (₹)</th><th>Base (₹)</th><th>Bull (₹)</th>
-                      <th>↑ Bear</th><th>↑ Base</th><th>↑ Bull</th>
+                      <th>Bear (\u20B9)</th><th>Base (\u20B9)</th><th>Bull (\u20B9)</th>
+                      <th>\u2191 Bear</th><th>\u2191 Base</th><th>\u2191 Bull</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -749,8 +763,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <tr key={i}>
                         <td className="font-semibold text-tusk-dark">{h.asset_name}</td>
                         <td>{fmt(h.quantity)}</td>
-                        <td>₹{fmt(h.avg_price, 1)}</td>
-                        <td className="font-semibold">₹{fmt(h.livePrice, 1)}</td>
+                        <td>\u20B9{fmt(h.avg_price, 1)}</td>
+                        <td className="font-semibold">\u20B9{fmt(h.livePrice, 1)}</td>
                         <td>{fmtCr(h.amt_invested)}</td>
                         <td className="font-semibold">{fmtCr(h.liveValue)}</td>
                         <td className={h.liveGain >= 0 ? "cell-green" : "cell-red"}>
@@ -759,17 +773,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                         <td className={h.liveGainPct >= 0 ? "cell-green" : "cell-red"}>
                           {h.liveGainPct >= 0 ? "+" : ""}{h.liveGainPct.toFixed(1)}%
                         </td>
-                        <td>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
-                        <td>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
-                        <td>{h.stockData?.bull_current ? `₹${fmt(h.stockData.bull_current, 0)}` : "—"}</td>
+                        <td>{h.stockData?.bear_current ? `\u20B9${fmt(h.stockData.bear_current, 0)}` : "\u2014"}</td>
+                        <td>{h.stockData?.base_current ? `\u20B9${fmt(h.stockData.base_current, 0)}` : "\u2014"}</td>
+                        <td>{h.stockData?.bull_current ? `\u20B9${fmt(h.stockData.bull_current, 0)}` : "\u2014"}</td>
                         <td className={pctColor(h.upsideToBear != null ? h.upsideToBear / 100 : null)}>
-                          {h.upsideToBear != null ? `${h.upsideToBear >= 0 ? "+" : ""}${h.upsideToBear.toFixed(1)}%` : "—"}
+                          {h.upsideToBear != null ? `${h.upsideToBear >= 0 ? "+" : ""}${h.upsideToBear.toFixed(1)}%` : "\u2014"}
                         </td>
                         <td className={pctColor(h.upsideToBase != null ? h.upsideToBase / 100 : null)}>
-                          {h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "—"}
+                          {h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "\u2014"}
                         </td>
                         <td className={pctColor(h.upsideToBull != null ? h.upsideToBull / 100 : null)}>
-                          {h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "—"}
+                          {h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "\u2014"}
                         </td>
                       </tr>
                     ))}
@@ -781,137 +795,366 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </div>
       )}
 
-      {/* ═══════════════════════ TAB 3: DECISION SUPPORT ═══════════════════════ */}
+      {/* ═══════════════════════ TAB 3: COMPARISON ═══════════════════════ */}
+      {activeTab === "comparison" && (
+        <div>
+          {/* Search & Selection */}
+          <div className="metric-card mb-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search to add a stock (up to 4)..."
+                  value={compareSearch}
+                  onChange={(e) => setCompareSearch(e.target.value)}
+                  disabled={selectedCompare.length >= 4}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-tusk-accent/30 disabled:opacity-50"
+                />
+                {compareSearchResults.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-200 rounded-lg mt-1 shadow-lg z-20 max-h-60 overflow-y-auto">
+                    {compareSearchResults.map((s) => (
+                      <button
+                        key={s.tikr}
+                        onClick={() => {
+                          setSelectedCompare([...selectedCompare, s.tikr]);
+                          setCompareSearch("");
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm flex justify-between items-center"
+                      >
+                        <span><span className="font-semibold">{s.companyShort}</span> <span className="text-gray-400 text-xs">({s.displayTikr})</span></span>
+                        <span className="text-xs text-gray-400">{s.sector}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedCompare.map((tikr) => {
+                  const s = enrichedStocks.find((st) => st.tikr === tikr);
+                  return (
+                    <span key={tikr} className="inline-flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                      {s?.companyShort || tikr}
+                      <button onClick={() => setSelectedCompare(selectedCompare.filter((t) => t !== tikr))} className="text-blue-500 hover:text-blue-700 ml-1 font-bold">&times;</button>
+                    </span>
+                  );
+                })}
+                {selectedCompare.length > 0 && (
+                  <button onClick={() => setSelectedCompare([])} className="text-xs text-gray-400 hover:text-gray-600">Clear all</button>
+                )}
+              </div>
+            </div>
+            {selectedCompare.length === 0 && (
+              <p className="text-gray-400 text-sm mt-3">Select up to 4 equities to compare side-by-side. Search by company name, ticker, or sector.</p>
+            )}
+          </div>
+
+          {comparedStocks.length > 0 && (
+            <div className="space-y-4">
+              {/* Price & Valuation Card */}
+              <div className="metric-card">
+                <h3 className="font-bold text-tusk-dark mb-3 text-sm uppercase tracking-wide">Price & Valuation</h3>
+                <table className="data-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      {comparedStocks.map((s) => <th key={s.tikr}>{s.companyShort}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td className="font-medium text-gray-600">Sector</td>{comparedStocks.map((s) => <td key={s.tikr}><span className="pill pill-blue">{s.sector || "\u2014"}</span></td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">CMP</td>{comparedStocks.map((s) => <td key={s.tikr} className="font-semibold">{s.liveCmp ? `\u20B9${fmt(s.liveCmp, 1)}` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Bear Case</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.bear_current ? `\u20B9${fmt(s.bear_current, 0)}` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Base Case</td>{comparedStocks.map((s) => <td key={s.tikr} className="font-semibold">{s.base_current ? `\u20B9${fmt(s.base_current, 0)}` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Bull Case</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.bull_current ? `\u20B9${fmt(s.bull_current, 0)}` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">1Y Target</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.target_1y ? `\u20B9${fmt(s.target_1y, 0)}` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">2Y Target</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.target_2y ? `\u20B9${fmt(s.target_2y, 0)}` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Div. Yield</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : "\u2014"}</td>)}</tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Upside & Scenario Card */}
+              <div className="metric-card">
+                <h3 className="font-bold text-tusk-dark mb-3 text-sm uppercase tracking-wide">Upside Analysis</h3>
+                <table className="data-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      {comparedStocks.map((s) => <th key={s.tikr}>{s.companyShort}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td className="font-medium text-gray-600">\u2191 Bear</td>{comparedStocks.map((s) => <td key={s.tikr} className={pctColor(s.upsideBearCalc)}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">\u2191 Base</td>{comparedStocks.map((s) => <td key={s.tikr} className={pctColor(s.upsideBaseCalc)}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">\u2191 Bull</td>{comparedStocks.map((s) => <td key={s.tikr} className={pctColor(s.upsideBullCalc)}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">1Y Upside</td>{comparedStocks.map((s) => <td key={s.tikr} className={pctColor(s.upside_1y)}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">2Y Upside</td>{comparedStocks.map((s) => <td key={s.tikr} className={pctColor(s.upside_2y)}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "\u2014"}</td>)}</tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Fundamentals Card */}
+              <div className="metric-card">
+                <h3 className="font-bold text-tusk-dark mb-3 text-sm uppercase tracking-wide">Fundamentals</h3>
+                <table className="data-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      {comparedStocks.map((s) => <th key={s.tikr}>{s.companyShort}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td className="font-medium text-gray-600">Base PE</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">PE +2SD</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Base PB</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">PB +2SD</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Base EV/EBITDA</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">EV/EBITDA +2SD</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "\u2014"}</td>)}</tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Qualitative Card */}
+              <div className="metric-card">
+                <h3 className="font-bold text-tusk-dark mb-3 text-sm uppercase tracking-wide">Qualitative Assessment</h3>
+                <table className="data-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Metric</th>
+                      {comparedStocks.map((s) => <th key={s.tikr}>{s.companyShort}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td className="font-medium text-gray-600">Conviction</td>{comparedStocks.map((s) => <td key={s.tikr} className="font-semibold">{s.conviction ?? "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Understanding</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.understanding ?? "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Score</td>{comparedStocks.map((s) => <td key={s.tikr} className="font-semibold">{s.score ?? "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Score (1Y adj)</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.score_adj_1y ?? "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">VA</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.vp || "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">SA</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.sa || "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">F&O</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.in_fno === "Yes" ? <span className="pill pill-green">Yes</span> : "No"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Holding (\u20B9L)</td>{comparedStocks.map((s) => <td key={s.tikr}>{s.holding_cash_lakhs ? fmtLakhs(s.holding_cash_lakhs) : "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Last Updated</td>{comparedStocks.map((s) => <td key={s.tikr} className="text-xs text-gray-400">{s.last_updated || "\u2014"}</td>)}</tr>
+                    <tr><td className="font-medium text-gray-600">Comments</td>{comparedStocks.map((s) => <td key={s.tikr} className="text-xs text-gray-500 max-w-[200px] whitespace-normal">{s.comments || "\u2014"}</td>)}</tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {comparedStocks.length === 0 && selectedCompare.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-6xl mb-4">{"\u2696\uFE0F"}</div>
+              <h2 className="text-xl font-bold text-tusk-dark mb-2">Equity Comparison</h2>
+              <p className="text-gray-500 max-w-md">
+                Compare up to 4 equities side-by-side across valuation, upside scenarios, fundamentals, and qualitative metrics.
+                Use the search bar above to get started.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════ TAB 4: DECISION SUPPORT ═══════════════════════ */}
       {activeTab === "decisions" && (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Summary Row */}
+          <div className="grid grid-cols-5 gap-3">
+            <div className="metric-card text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Total Tracked</p>
+              <p className="text-2xl font-bold text-tusk-dark mt-1">{enrichedStocks.length}</p>
+            </div>
+            <div className="metric-card text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Live CMP</p>
+              <p className="text-2xl font-bold text-tusk-dark mt-1">{decisionData.totalWithCmp}</p>
+            </div>
+            <div className="metric-card text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Buy Zone</p>
+              <p className="text-2xl font-bold text-green-600 mt-1">{decisionData.buyZone.length}</p>
+            </div>
+            <div className="metric-card text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Sell Zone</p>
+              <p className="text-2xl font-bold text-red-600 mt-1">{decisionData.sellZone.length}</p>
+            </div>
+            <div className="metric-card text-center">
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Overvalued</p>
+              <p className="text-2xl font-bold text-orange-600 mt-1">{decisionData.overvalued.length}</p>
+            </div>
+          </div>
+
+          {/* Buy Zone & Sell Zone Cards with Tables */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card">
-              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
-                <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                Buy Zone ({decisionData.buyZone.length})
-                <span className="text-xs font-normal text-gray-400 ml-1">CMP near Bear price</span>
+              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span>
+                Buy Zone
+                <span className="text-xs font-normal text-gray-400 normal-case ml-1">CMP near Bear price</span>
               </h3>
               {decisionData.buyZone.length === 0 ? (
                 <p className="text-gray-400 text-sm">No stocks in buy zone currently</p>
               ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {decisionData.buyZone.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-100">
-                      <div>
-                        <span className="font-semibold text-sm">{s.displayTikr}</span>
-                        <span className="text-xs text-gray-400 ml-2">₹{fmt(s.liveCmp, 0)}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="pill pill-green">Bear ₹{fmt(s.bear_current, 0)}</span>
-                        <span className="text-xs text-green-600 ml-2 font-semibold">{fmtPct(s.upsideBaseCalc)} to base</span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-auto max-h-[280px]">
+                  <table className="data-table w-full">
+                    <thead>
+                      <tr><th>Company</th><th>CMP</th><th>Bear</th><th>Base</th><th>\u2191 Base</th></tr>
+                    </thead>
+                    <tbody>
+                      {decisionData.buyZone.map((s, i) => (
+                        <tr key={i} className="row-buy-zone">
+                          <td className="font-semibold text-sm">{s.companyShort}</td>
+                          <td>\u20B9{fmt(s.liveCmp, 0)}</td>
+                          <td>\u20B9{fmt(s.bear_current, 0)}</td>
+                          <td>\u20B9{fmt(s.base_current, 0)}</td>
+                          <td className="cell-green font-bold">{fmtPct(s.upsideBaseCalc)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
 
             <div className="metric-card">
-              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
-                <span className="w-3 h-3 bg-red-500 rounded-full"></span>
-                Take Profit Zone ({decisionData.sellZone.length})
-                <span className="text-xs font-normal text-gray-400 ml-1">CMP near Bull price</span>
+              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <span className="w-2.5 h-2.5 bg-red-500 rounded-full"></span>
+                Take Profit Zone
+                <span className="text-xs font-normal text-gray-400 normal-case ml-1">CMP near Bull price</span>
               </h3>
               {decisionData.sellZone.length === 0 ? (
                 <p className="text-gray-400 text-sm">No stocks in sell zone currently</p>
               ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {decisionData.sellZone.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-100">
-                      <div>
-                        <span className="font-semibold text-sm">{s.displayTikr}</span>
-                        <span className="text-xs text-gray-400 ml-2">₹{fmt(s.liveCmp, 0)}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="pill pill-red">Bull ₹{fmt(s.bull_current, 0)}</span>
-                        <span className="text-xs text-red-600 ml-2 font-semibold">{fmtPct(s.upsideBullCalc)} to bull</span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-auto max-h-[280px]">
+                  <table className="data-table w-full">
+                    <thead>
+                      <tr><th>Company</th><th>CMP</th><th>Bull</th><th>\u2191 Bull</th><th>Sector</th></tr>
+                    </thead>
+                    <tbody>
+                      {decisionData.sellZone.map((s, i) => (
+                        <tr key={i} className="row-sell-zone">
+                          <td className="font-semibold text-sm">{s.companyShort}</td>
+                          <td>\u20B9{fmt(s.liveCmp, 0)}</td>
+                          <td>\u20B9{fmt(s.bull_current, 0)}</td>
+                          <td className="cell-red font-bold">{fmtPct(s.upsideBullCalc)}</td>
+                          <td className="text-xs">{s.sector}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
           </div>
 
+          {/* Best Upside & High Conviction */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card">
-              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
-                <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                Best Upside to Base (Top 15)
+              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <span className="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
+                Top 10 Upside to Base
               </h3>
-              <div className="space-y-1.5 max-h-[350px] overflow-y-auto">
-                {decisionData.bestUpside.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between py-1 border-b border-gray-50">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400 w-5">{i + 1}.</span>
-                      <span className="font-semibold text-sm">{s.displayTikr}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400">₹{fmt(s.liveCmp, 0)}</span>
-                      <span className="text-xs text-gray-400">→</span>
-                      <span className="text-xs font-medium">₹{fmt(s.base_current, 0)}</span>
-                      <span className="font-bold text-green-600 text-sm min-w-[60px] text-right">{fmtPct(s.upsideBaseCalc)}</span>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-auto max-h-[320px]">
+                <table className="data-table w-full">
+                  <thead>
+                    <tr><th>#</th><th>Company</th><th>CMP</th><th>Base</th><th>\u2191 Base</th><th>Conv.</th></tr>
+                  </thead>
+                  <tbody>
+                    {decisionData.bestUpside.map((s, i) => (
+                      <tr key={i}>
+                        <td className="text-gray-400 text-xs">{i + 1}</td>
+                        <td className="font-semibold text-sm">{s.companyShort}</td>
+                        <td>\u20B9{fmt(s.liveCmp, 0)}</td>
+                        <td>\u20B9{fmt(s.base_current, 0)}</td>
+                        <td className="cell-green font-bold">{fmtPct(s.upsideBaseCalc)}</td>
+                        <td className="text-center">{s.conviction ?? "\u2014"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
 
             <div className="metric-card">
-              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
-                <span className="w-3 h-3 bg-orange-500 rounded-full"></span>
-                Overvalued (CMP above Bull)
-                <span className="text-xs font-normal text-gray-400 ml-1">{decisionData.overvalued.length} stocks</span>
+              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <span className="w-2.5 h-2.5 bg-purple-500 rounded-full"></span>
+                High Conviction (4+)
+                <span className="text-xs font-normal text-gray-400 normal-case ml-1">{decisionData.highConviction.length} stocks</span>
+              </h3>
+              {decisionData.highConviction.length === 0 ? (
+                <p className="text-gray-400 text-sm">No high-conviction stocks with live CMP</p>
+              ) : (
+                <div className="overflow-auto max-h-[320px]">
+                  <table className="data-table w-full">
+                    <thead>
+                      <tr><th>Company</th><th>Conv.</th><th>CMP</th><th>\u2191 Base</th><th>Sector</th></tr>
+                    </thead>
+                    <tbody>
+                      {decisionData.highConviction.map((s, i) => (
+                        <tr key={i}>
+                          <td className="font-semibold text-sm">{s.companyShort}</td>
+                          <td className="text-center font-bold">{s.conviction}</td>
+                          <td>\u20B9{fmt(s.liveCmp, 0)}</td>
+                          <td className={pctColor(s.upsideBaseCalc)}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "\u2014"}</td>
+                          <td className="text-xs">{s.sector}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Overvalued & Sector Heatmap */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="metric-card">
+              <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2 text-sm uppercase tracking-wide">
+                <span className="w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+                Overvalued (CMP Above Bull)
               </h3>
               {decisionData.overvalued.length === 0 ? (
                 <p className="text-gray-400 text-sm">No stocks trading above bull case</p>
               ) : (
-                <div className="space-y-1.5 max-h-[350px] overflow-y-auto">
-                  {decisionData.overvalued.map((s, i) => (
-                    <div key={i} className="flex items-center justify-between py-1 border-b border-gray-50">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">{s.displayTikr}</span>
-                        <span className="text-xs text-gray-400">₹{fmt(s.liveCmp, 0)}</span>
-                      </div>
-                      <div>
-                        <span className="pill pill-red">Bull ₹{fmt(s.bull_current, 0)}</span>
-                        <span className="font-bold text-red-600 text-sm ml-2">{fmtPct(s.upsideBullCalc)}</span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-auto max-h-[280px]">
+                  <table className="data-table w-full">
+                    <thead>
+                      <tr><th>Company</th><th>CMP</th><th>Bull</th><th>\u2191 Bull</th><th>Sector</th></tr>
+                    </thead>
+                    <tbody>
+                      {decisionData.overvalued.map((s, i) => (
+                        <tr key={i}>
+                          <td className="font-semibold text-sm">{s.companyShort}</td>
+                          <td>\u20B9{fmt(s.liveCmp, 0)}</td>
+                          <td>\u20B9{fmt(s.bull_current, 0)}</td>
+                          <td className="cell-red font-bold">{fmtPct(s.upsideBullCalc)}</td>
+                          <td className="text-xs">{s.sector}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="metric-card col-span-1">
-              <h3 className="font-bold text-tusk-dark mb-3">Coverage Summary</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-500">Total Stocks</span><span className="font-bold">{enrichedStocks.length}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">With Live CMP</span><span className="font-bold">{decisionData.totalWithCmp}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">In Buy Zone</span><span className="font-bold text-green-600">{decisionData.buyZone.length}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">In Sell Zone</span><span className="font-bold text-red-600">{decisionData.sellZone.length}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Overvalued</span><span className="font-bold text-orange-600">{decisionData.overvalued.length}</span></div>
-              </div>
-            </div>
-
-            <div className="metric-card col-span-2">
-              <h3 className="font-bold text-tusk-dark mb-3">Sector Distribution</h3>
-              <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto">
-                {Object.entries(decisionData.sectors)
-                  .sort((a, b) => b[1].count - a[1].count)
-                  .map(([sector, data]) => (
-                    <div key={sector} className="flex items-center justify-between py-1 text-sm">
-                      <span className="text-gray-600 truncate max-w-[150px]" title={sector}>{sector}</span>
-                      <span className="pill pill-blue">{data.count}</span>
-                    </div>
-                  ))}
+            <div className="metric-card">
+              <h3 className="font-bold text-tusk-dark mb-3 text-sm uppercase tracking-wide">Sector Snapshot</h3>
+              <div className="overflow-auto max-h-[280px]">
+                <table className="data-table w-full">
+                  <thead>
+                    <tr><th>Sector</th><th>Stocks</th><th>Avg \u2191Base</th></tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(decisionData.sectors)
+                      .sort((a, b) => b[1].count - a[1].count)
+                      .map(([sector, data]) => (
+                        <tr key={sector}>
+                          <td className="text-sm">{sector}</td>
+                          <td className="text-center"><span className="pill pill-blue">{data.count}</span></td>
+                          <td className={pctColor(data.avgUpside / 100)}>
+                            {data.avgUpside >= 0 ? "+" : ""}{data.avgUpside.toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
