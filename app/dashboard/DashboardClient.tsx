@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 
 // ── Types ──
 interface Stock {
@@ -255,18 +255,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [showWatchlistModal, setShowWatchlistModal] = useState(false);
   const [newWatchlistName, setNewWatchlistName] = useState("");
   const [showHidden, setShowHidden] = useState(false);
-
-  // Table controls
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [tableDensity, setTableDensity] = useState<"comfortable" | "compact">("comfortable");
-
-  const toggleRowExpand = (tikr: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(tikr)) next.delete(tikr); else next.add(tikr);
-      return next;
-    });
-  };
 
   // Theme: apply class to html element
   useEffect(() => {
@@ -789,227 +777,69 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           )}
 
-          {/* Table controls bar */}
-          <div className="flex items-center justify-between mb-2" style={{ height: 36 }}>
-            <div className="flex items-center gap-3">
-              <span className="font-semibold" style={{ fontSize: "var(--text-base)", color: "var(--color-text-primary)" }}>Octopus</span>
-              <span className="pill pill-blue" style={{ fontSize: "0.625rem" }}>{sortedStocks.length}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setTableDensity(tableDensity === "comfortable" ? "compact" : "comfortable")} className="btn btn-ghost btn-sm" title={tableDensity === "comfortable" ? "Switch to compact" : "Switch to comfortable"} aria-label="Toggle table density">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                <span style={{ fontSize: "var(--text-xs)" }}>{tableDensity === "comfortable" ? "Compact" : "Comfortable"}</span>
-              </button>
-              <button onClick={() => setExpandedRows(expandedRows.size > 0 ? new Set() : new Set(sortedStocks.map(s => s.tikr)))} className="btn btn-ghost btn-sm" title={expandedRows.size > 0 ? "Collapse all" : "Expand all"} aria-label="Toggle expand all rows">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">{expandedRows.size > 0 ? <path d="M18 15l-6-6-6 6"/> : <path d="M6 9l6 6 6-6"/>}</svg>
-                <span style={{ fontSize: "var(--text-xs)" }}>{expandedRows.size > 0 ? "Collapse" : "Expand"} All</span>
-              </button>
-              <button onClick={exportCSV} className="btn btn-ghost btn-sm" aria-label="Export data as CSV">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                <span style={{ fontSize: "var(--text-xs)" }}>CSV</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Clean minimal table */}
-          <div className="rounded-xl overflow-auto table-scroll-container" style={{ maxHeight: "calc(100vh - 310px)" }}>
-            <table className="clean-table w-full" role="table" aria-label="Stock data table">
+          <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)" }}>
+            <table className="data-table w-full" role="table" aria-label="Stock data table">
               <thead><tr>
-                <th style={{ width: 28, padding: "0 4px" }}></th>
-                <th style={{ width: 36, padding: "0" }}></th>
-                <Th col="companyShort" label="Company" />
-                <Th col="liveCmp" label="CMP" />
-                <Th col="upsideBaseCalc" label="Upside" />
-                <Th col="upsideBearCalc" label="Range" />
-                <Th col="conviction" label="Conv." />
-                <th style={{ width: 70, cursor: "default", textAlign: "center", fontSize: "var(--text-xs)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-muted)" }}>Zone</th>
+                <th style={{ width: 40, cursor: "default" }}></th>
+                <Th col="companyShort" label="Company" /><Th col="sector" label="Sector" /><Th col="liveCmp" label="CMP" />
+                <Th col="bear_current" label="Bear" /><Th col="base_current" label="Base" /><Th col="bull_current" label="Bull" />
+                <Th col="upsideBearCalc" label="↑ Bear" /><Th col="upsideBaseCalc" label="↑ Base" /><Th col="upsideBullCalc" label="↑ Bull" />
+                <Th col="upside_1y" label="1Y Upside" /><Th col="upside_2y" label="2Y Upside" />
+                <Th col="base_pe" label="PE" /><Th col="base_pb" label="PB" /><Th col="base_evebitda" label="EV/EBITDA" />
+                <Th col="conviction" label="Conv." /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
               </tr></thead>
               <tbody>
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
-                  Array.from({ length: 10 }).map((_, i) => (
-                    <tr key={i}><td colSpan={8}><div className="skeleton" style={{ height: tableDensity === "compact" ? 36 : 48, margin: "2px 0" }} /></td></tr>
-                  ))
-                ) : sortedStocks.length === 0 ? (
-                  <tr><td colSpan={8}>
-                    <div className="text-center py-12">
-                      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-3" style={{ color: "var(--color-border)" }}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                      <div className="font-semibold" style={{ fontSize: "var(--text-base)", color: "var(--color-text-primary)" }}>No stocks found</div>
-                      <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>Try adjusting your filters or search term</div>
-                    </div>
-                  </td></tr>
+                  Array.from({ length: 15 }).map((_, i) => <SkeletonRow key={i} />)
                 ) : sortedStocks.map((s, i) => {
                   const isBuy = s.liveCmp && s.bear_current && s.liveCmp <= s.bear_current * 1.05;
                   const isSell = s.liveCmp && s.bull_current && s.liveCmp >= s.bull_current * 0.95;
-                  const isExpanded = expandedRows.has(s.tikr);
-                  const rowH = tableDensity === "compact" ? 40 : 52;
                   return (
-                    <Fragment key={`${s.tikr}-${i}`}>
-                      <tr className={`clean-row ${isBuy ? "row-buy-zone" : isSell ? "row-sell-zone" : ""} ${isExpanded ? "row-expanded" : ""}`} style={{ height: rowH }} role="row" aria-label={`${s.companyShort}`}>
-                        {/* Expand chevron */}
-                        <td onClick={() => toggleRowExpand(s.tikr)} style={{ cursor: "pointer", textAlign: "center", padding: "0 4px", width: 28 }} aria-label={isExpanded ? "Collapse details" : "Expand details"}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ transition: "transform 0.2s ease", transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", color: "var(--color-text-muted)" }}><polyline points="9 18 15 12 9 6"/></svg>
-                        </td>
-                        {/* Actions */}
-                        <td onClick={e => e.stopPropagation()} style={{ padding: "0", width: 36 }}>
-                          <div className="flex items-center">
-                            <button onClick={() => toggleHideStock(s.tikr)} className="stock-action-btn" title={hiddenStocks.has(s.tikr) ? "Unhide" : "Hide"} aria-label={hiddenStocks.has(s.tikr) ? "Unhide" : "Hide"}>
-                              {hiddenStocks.has(s.tikr) ? (
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                              ) : (
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 01-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                              )}
-                            </button>
-                            {Object.keys(watchlists).length > 0 && (
-                              <div className="watchlist-dropdown-wrap">
-                                <button className="stock-action-btn" title="Watchlist" aria-label="Add to watchlist">
-                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-                                </button>
-                                <div className="watchlist-dropdown">
-                                  {Object.keys(watchlists).map(wl => (
-                                    <button key={wl} onClick={() => toggleStockInWatchlist(wl, s.tikr)} className="watchlist-dropdown-item">
-                                      <span style={{ width: 14, display: "inline-block", color: "var(--color-positive)" }}>{watchlists[wl].includes(s.tikr) ? "✓" : ""}</span>
-                                      {wl}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
+                    <tr key={`${s.tikr}-${i}`} className={`cursor-pointer ${isBuy ? "row-buy-zone" : isSell ? "row-sell-zone" : ""}`} onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)} role="row" aria-label={`${s.companyShort} - click for details`}>
+                      <td onClick={e => e.stopPropagation()} style={{ padding: "var(--space-1)", position: "relative" }}>
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => toggleHideStock(s.tikr)} className="stock-action-btn" title={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"} aria-label={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"}>
+                            {hiddenStocks.has(s.tikr) ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 01-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                             )}
-                          </div>
-                        </td>
-                        {/* Company + Sector stacked */}
-                        <td className="cursor-pointer" onClick={() => setDetailStock(s)} style={{ padding: "6px 12px" }}>
-                          <div className="font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)", lineHeight: 1.3 }}>{s.companyShort}</div>
-                          <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", lineHeight: 1.2, marginTop: 1 }}>{s.sector || "—"}</div>
-                        </td>
-                        {/* CMP + Day change stacked */}
-                        <td className="cursor-pointer" onClick={() => setDetailStock(s)} style={{ textAlign: "right", padding: "6px 12px" }}>
-                          <div className="font-semibold" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontVariantNumeric: "tabular-nums" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</div>
-                          {s.liveChangePct != null && (
-                            <div style={{ fontFamily: "var(--font-mono)", fontSize: "0.625rem", fontVariantNumeric: "tabular-nums", color: s.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)", lineHeight: 1.2, marginTop: 1 }}>
-                              {s.liveChangePct >= 0 ? "▲" : "▼"} {Math.abs(s.liveChangePct).toFixed(1)}%
+                          </button>
+                          {Object.keys(watchlists).length > 0 && (
+                            <div className="watchlist-dropdown-wrap">
+                              <button className="stock-action-btn" title="Add to watchlist" aria-label="Add to watchlist">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                              </button>
+                              <div className="watchlist-dropdown">
+                                {Object.keys(watchlists).map(wl => (
+                                  <button key={wl} onClick={() => toggleStockInWatchlist(wl, s.tikr)} className="watchlist-dropdown-item">
+                                    <span style={{ width: 16, display: "inline-block" }}>{watchlists[wl].includes(s.tikr) ? "✓" : ""}</span>
+                                    {wl}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           )}
-                        </td>
-                        {/* Base Upside - primary signal */}
-                        <td className="cursor-pointer" onClick={() => setDetailStock(s)} style={{ textAlign: "right", padding: "6px 12px" }}>
-                          {s.upsideBaseCalc != null ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", background: s.upsideBaseCalc >= 0 ? "var(--color-positive-bg)" : "var(--color-negative-bg)", color: s.upsideBaseCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)", border: `1px solid ${s.upsideBaseCalc >= 0 ? "var(--color-positive-border)" : "var(--color-negative-border)"}` }}>
-                              {s.upsideBaseCalc >= 0 ? "▲" : "▼"} {fmtPct(s.upsideBaseCalc)}
-                            </span>
-                          ) : <span style={{ color: "var(--color-text-muted)" }}>—</span>}
-                        </td>
-                        {/* Bear-Bull range mini bar */}
-                        <td className="cursor-pointer" onClick={() => setDetailStock(s)} style={{ padding: "6px 12px", minWidth: 100 }}>
-                          {s.upsideBearCalc != null && s.upsideBullCalc != null ? (
-                            <div className="flex items-center gap-1" style={{ fontFamily: "var(--font-mono)", fontSize: "0.625rem", fontVariantNumeric: "tabular-nums" }}>
-                              <span style={{ color: "var(--color-negative)", minWidth: 36, textAlign: "right" }}>{(s.upsideBearCalc * 100).toFixed(0)}%</span>
-                              <div style={{ flex: 1, height: 4, background: "var(--color-bg-hover)", borderRadius: 2, position: "relative", overflow: "hidden", minWidth: 30 }}>
-                                <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: `${Math.min(Math.abs(s.upsideBullCalc * 100), 50)}%`, background: "var(--color-positive)", borderRadius: 2 }} />
-                                {s.upsideBearCalc < 0 && <div style={{ position: "absolute", right: "50%", top: 0, bottom: 0, width: `${Math.min(Math.abs(s.upsideBearCalc * 100), 50)}%`, background: "var(--color-negative)", borderRadius: 2 }} />}
-                              </div>
-                              <span style={{ color: "var(--color-positive)", minWidth: 36, textAlign: "left" }}>+{(s.upsideBullCalc * 100).toFixed(0)}%</span>
-                            </div>
-                          ) : <span style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>—</span>}
-                        </td>
-                        {/* Conviction dots */}
-                        <td className="cursor-pointer" onClick={() => setDetailStock(s)} style={{ textAlign: "center", padding: "6px 8px" }}>
-                          {s.conviction != null ? <ConvictionDots level={s.conviction} /> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}
-                        </td>
-                        {/* Zone signal */}
-                        <td className="cursor-pointer" onClick={() => setDetailStock(s)} style={{ textAlign: "center", padding: "6px 8px" }}>
-                          {isBuy ? <span className="pill pill-green" style={{ fontSize: "0.6rem" }}>BUY</span> :
-                           isSell ? <span className="pill pill-red" style={{ fontSize: "0.6rem" }}>SELL</span> :
-                           <span style={{ color: "var(--color-text-muted)", fontSize: "0.625rem" }}>—</span>}
-                        </td>
-                      </tr>
-                      {/* Expanded detail row */}
-                      {isExpanded && (
-                        <tr className="expanded-detail-row">
-                          <td colSpan={8} style={{ padding: 0, border: "none" }}>
-                            <div className="expand-panel animate-fade-in" style={{ padding: "12px 16px 16px 64px", background: "var(--color-bg-card-alt)", borderBottom: "1px solid var(--color-border-subtle)" }}>
-                              <div className="grid grid-cols-4 gap-6" style={{ fontSize: "var(--text-xs)" }}>
-                                {/* Col 1: Scenario prices */}
-                                <div>
-                                  <div className="uppercase tracking-wider font-semibold mb-2" style={{ fontSize: "0.6rem", color: "var(--color-text-muted)" }}>Scenario Prices</div>
-                                  <div className="space-y-1">
-                                    {[
-                                      { label: "Bear", val: s.bear_current, up: s.upsideBearCalc, clr: "var(--color-negative)" },
-                                      { label: "Base", val: s.base_current, up: s.upsideBaseCalc, clr: "var(--color-warning)" },
-                                      { label: "Bull", val: s.bull_current, up: s.upsideBullCalc, clr: "var(--color-positive)" },
-                                    ].map(sc => (
-                                      <div key={sc.label} className="flex justify-between items-center">
-                                        <span style={{ color: "var(--color-text-muted)" }}>{sc.label}</span>
-                                        <div className="flex items-center gap-2">
-                                          <span style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", color: "var(--color-text-primary)" }}>{sc.val ? `₹${fmt(sc.val, 0)}` : "—"}</span>
-                                          {sc.up != null && <span style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", color: sc.clr, fontWeight: 600 }}>{sc.up >= 0 ? "+" : ""}{(sc.up * 100).toFixed(1)}%</span>}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                {/* Col 2: Targets & Yield */}
-                                <div>
-                                  <div className="uppercase tracking-wider font-semibold mb-2" style={{ fontSize: "0.6rem", color: "var(--color-text-muted)" }}>Targets</div>
-                                  <div className="space-y-1">
-                                    {[
-                                      { label: "1Y Target", val: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", up: s.upside_1y },
-                                      { label: "2Y Target", val: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", up: s.upside_2y },
-                                      { label: "Div Yield", val: s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : "—" },
-                                    ].map(m => (
-                                      <div key={m.label} className="flex justify-between items-center">
-                                        <span style={{ color: "var(--color-text-muted)" }}>{m.label}</span>
-                                        <div className="flex items-center gap-2">
-                                          <span style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", color: "var(--color-text-primary)" }}>{m.val}</span>
-                                          {m.up != null && <span className={pctColor(m.up)} style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{fmtPct(m.up)}</span>}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                {/* Col 3: Valuation multiples */}
-                                <div>
-                                  <div className="uppercase tracking-wider font-semibold mb-2" style={{ fontSize: "0.6rem", color: "var(--color-text-muted)" }}>Valuation</div>
-                                  <div className="space-y-1">
-                                    {[
-                                      { label: "PE", val: s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—" },
-                                      { label: "PB", val: s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—" },
-                                      { label: "EV/EBITDA", val: s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—" },
-                                      { label: "Score", val: s.score != null ? String(s.score) : "—" },
-                                    ].map(m => (
-                                      <div key={m.label} className="flex justify-between items-center">
-                                        <span style={{ color: "var(--color-text-muted)" }}>{m.label}</span>
-                                        <span style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", color: "var(--color-text-primary)" }}>{m.val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                                {/* Col 4: Analysts + Holdings */}
-                                <div>
-                                  <div className="uppercase tracking-wider font-semibold mb-2" style={{ fontSize: "0.6rem", color: "var(--color-text-muted)" }}>Coverage</div>
-                                  <div className="space-y-1">
-                                    {[
-                                      { label: "VA", val: s.vp || "—" },
-                                      { label: "SA", val: s.sa || "—" },
-                                      { label: "Understanding", val: s.understanding != null ? String(s.understanding) : "—" },
-                                      { label: "Holding", val: s.holding_cash_lakhs ? fmtLakhs(s.holding_cash_lakhs) : "—" },
-                                    ].map(m => (
-                                      <div key={m.label} className="flex justify-between items-center">
-                                        <span style={{ color: "var(--color-text-muted)" }}>{m.label}</span>
-                                        <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{m.val}</span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <button onClick={() => setDetailStock(s)} className="mt-2 w-full text-center py-1 rounded" style={{ fontSize: "0.625rem", fontWeight: 600, color: "var(--color-accent-blue)", background: "var(--color-info-bg)", border: "1px solid rgba(79,142,247,0.2)", cursor: "pointer" }}>
-                                    Full Analysis →
-                                  </button>
-                                </div>
-                              </div>
-                              {s.comments && <div className="mt-3 p-2 rounded" style={{ background: "var(--color-warning-bg)", border: "1px solid var(--color-warning-border)", fontSize: "0.625rem", color: "var(--color-warning)" }}>{s.comments}</div>}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
+                        </div>
+                      </td>
+                      <td className="font-semibold" style={{ whiteSpace: "normal", minWidth: 180, maxWidth: 220, color: "var(--color-text-primary)" }}>{s.companyShort}</td>
+                      <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                      <td className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
+                      <td className={pctColor(s.upsideBearCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
+                      <td className={pctColor(s.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
+                      <td className={pctColor(s.upsideBullCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
+                      <td className={pctColor(s.upside_1y)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</td>
+                      <td className={pctColor(s.upside_2y)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
+                      <td className="text-center font-semibold">{s.conviction ?? "—"}</td>
+                      <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"}</td>
+                      <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.sa || "—"}</td>
+                    </tr>
                   );
                 })}
               </tbody>
