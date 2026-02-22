@@ -12,18 +12,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     signIn({ profile }) {
       // Only allow @tuskinvest.com emails
-      const email = profile?.email || profile?.preferred_username || "";
+      const email = String(profile?.email || profile?.preferred_username || "");
       return email.endsWith("@tuskinvest.com");
     },
     session({ session, token }) {
       if (session.user && token.email) {
-        session.user.email = token.email;
+        session.user.email = String(token.email);
       }
       return session;
     },
     jwt({ token, profile }) {
       if (profile) {
-        token.email = profile.email || profile.preferred_username;
+        token.email = String(profile.email || profile.preferred_username || "");
       }
       return token;
     },

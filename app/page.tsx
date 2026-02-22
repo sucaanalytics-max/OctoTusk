@@ -2,7 +2,13 @@ import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    // Auth not configured yet — show login page anyway
+  }
+
   if (session?.user) {
     redirect("/dashboard");
   }

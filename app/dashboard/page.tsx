@@ -4,10 +4,18 @@ import DashboardClient from "./DashboardClient";
 import db from "@/data/database.json";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  let session = null;
+  try {
+    session = await auth();
+  } catch {
+    redirect("/");
+  }
+
   if (!session?.user) {
     redirect("/");
   }
+
+  const userEmail = String(session.user.email || "");
 
   return (
     <div className="min-h-screen bg-[#f0f2f5]">
@@ -24,7 +32,7 @@ export default async function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-300">{session.user.email}</span>
+            <span className="text-sm text-gray-300">{userEmail}</span>
             <form
               action={async () => {
                 "use server";
