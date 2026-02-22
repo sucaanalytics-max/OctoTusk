@@ -65,6 +65,22 @@ interface Props {
   metadata: Record<string, unknown>;
 }
 
+// ── Market Hours Helper (IST: Mon-Fri 9:15-15:30) ──
+const CMP_REFRESH_INTERVAL = 60; // seconds
+
+const isMarketOpen = (): boolean => {
+  const now = new Date();
+  // Convert to IST (UTC+5:30)
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60 * 1000);
+  const day = ist.getDay(); // 0=Sun, 6=Sat
+  if (day === 0 || day === 6) return false;
+  const hours = ist.getHours();
+  const mins = ist.getMinutes();
+  const timeInMins = hours * 60 + mins;
+  return timeInMins >= 9 * 60 + 15 && timeInMins <= 15 * 60 + 30;
+};
+
 // ── Helpers ──
 const fmt = (n: number | undefined | null, decimals = 0): string => {
   if (n == null || isNaN(n)) return "—";
@@ -132,6 +148,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [sortCol, setSortCol] = useState<string>("tikr");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
+  // Auto-refresh state
+  const [countdown, setCountdown] = useState(CMP_REFRESH_INTERVAL);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [marketOpen, setMarketOpen] = useState(isMarketOpen());
+
+  // Data refresh state
+  const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
+  const [dataRefreshing, setDataRefreshing] = useState(false);
+  const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(null);
+
   // Holdings state
   const [holdingsUnlocked, setHoldingsUnlocked] = useState(false);
   const [holdingsPin, setHoldingsPin] = useState("");
@@ -156,13 +182,51 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     }
   }, []);
 
+  // Initial CMP fetch
   useEffect(() => {
     fetchQuotes();
   }, [fetchQuotes]);
 
+  // Auto-refresh CMP during market hours
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const timer = setInterval(() => {
+      setMarketOpen(isMarketOpen());
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          if (isMarketOpen()) {
+            fetchQuotes();
+          }
+          return CMP_REFRESH_INTERVAL;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [autoRefresh, fetchQuotes]);
+
+  // Refresh database from server (picks up file changes)
+  const refreshData = useCallback(async () => {
+    setDataRefreshing(true);
+    try {
+      const res = await fetch("/api/refresh", { method: "POST" });
+      const data = await res.json();
+      if (data.stocks) {
+        setLiveStocks(data.stocks);
+        setDataLastRefreshed(data.refreshedAt);
+      }
+    } catch (err) {
+      console.error("Failed to refresh data:", err);
+    } finally {
+      setDataRefreshing(false);
+    }
+  }, []);
+
   // Enrich stocks with live CMP
   const enrichedStocks = useMemo(() => {
-    return stocks.map((s) => {
+    return liveStocks.map((s) => {
       const q = quotes[s.tikr];
       const liveCmp = q?.price || s.cmp;
       const bear = s.bear_current;
@@ -187,7 +251,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         companyShort: getCompanyShort(s),
       };
     });
-  }, [stocks, quotes]);
+  }, [liveStocks, quotes]);
 
   // Sorting
   const handleSort = (col: string) => {
@@ -390,11 +454,41 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           </button>
         ))}
 
-        {/* CMP Status */}
-        <div className="ml-auto flex items-center gap-3 pr-2">
+        {/* Status Bar */}
+        <div className="ml-auto flex items-center gap-2 pr-2">
+          {/* Data refresh */}
+          {dataLastRefreshed && (
+            <span className="text-xs text-gray-400">
+              Data: {new Date(dataLastRefreshed).toLocaleTimeString("en-IN")}
+            </span>
+          )}
+          <button
+            onClick={refreshData}
+            disabled={dataRefreshing}
+            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-1"
+          >
+            <span className={dataRefreshing ? "animate-spin inline-block" : ""}>
+              {dataRefreshing ? "⟳" : "↻"}
+            </span>
+            {dataRefreshing ? "Refreshing..." : "Refresh Data"}
+          </button>
+
+          <span className="text-gray-300 mx-1">|</span>
+
+          {/* CMP status + auto-refresh */}
           {lastFetched && (
             <span className="text-xs text-gray-400">
               CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}
+            </span>
+          )}
+          {autoRefresh && marketOpen && (
+            <span className="text-xs text-tusk-accent font-mono min-w-[28px] text-center">
+              {countdown}s
+            </span>
+          )}
+          {autoRefresh && !marketOpen && (
+            <span className="text-xs text-gray-400" title="Auto-refresh paused outside market hours (Mon-Fri 9:15-15:30 IST)">
+              Market closed
             </span>
           )}
           <button
@@ -403,6 +497,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             className="text-xs bg-tusk-dark text-white px-3 py-1.5 rounded-md hover:bg-tusk-blue disabled:opacity-50 transition-colors"
           >
             {quotesLoading ? "Fetching..." : "Refresh CMP"}
+          </button>
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`text-xs px-2 py-1.5 rounded-md transition-colors ${
+              autoRefresh
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "bg-gray-300 text-gray-600 hover:bg-gray-400"
+            }`}
+            title={autoRefresh ? "Auto-refresh ON (every 60s during market hours)" : "Auto-refresh OFF"}
+          >
+            {autoRefresh ? "Auto: ON" : "Auto: OFF"}
           </button>
         </div>
       </div>
