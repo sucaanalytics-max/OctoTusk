@@ -96,5 +96,5 @@ body {
 }
 
 /* Sort indicator */
-.sort-asc::after { content: " \u25B2"; font-size: 0.6rem; }
-.sort-desc::after { content: " \u25BC"; font-size: 0.6rem; }
+.sort-asc::after { content: " ▲"; font-size: 0.6rem; }
+.sort-desc::after { content: " ▼"; font-size: 0.6rem; }
