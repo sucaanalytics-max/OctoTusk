@@ -657,7 +657,7 @@
       "exp_profit_fy28": 0.2304
     },
     {
-      "tikr": "538734",
+      "tikr": "CEINSYS",
       "official_name": "CEINSYS TECH LIMITED",
       "in_fno": "No",
       "holding_cash_lakhs": 0.0,
@@ -1928,7 +1928,7 @@
       "exp_profit_fy28": 0.0
     },
     {
-      "tikr": "533278",
+      "tikr": "COALINDIA",
       "official_name": "COAL INDIA LTD",
       "in_fno": "Yes",
       "holding_cash_lakhs": 0.0,
@@ -3773,7 +3773,7 @@
       "exp_profit_fy28": 0.0
     },
     {
-      "tikr": "505192",
+      "tikr": "SMLMAH",
       "official_name": "SML MAHINDRA LIMITED",
       "in_fno": "No",
       "holding_cash_lakhs": 0.0,
@@ -3855,7 +3855,7 @@
       "exp_profit_fy28": 6.1109
     },
     {
-      "tikr": "XBOM:590108",
+      "tikr": "PSUBNKBEES",
       "official_name": "Nippon India ETF Nifty PSU Bank BeES",
       "in_fno": null,
       "holding_cash_lakhs": 42.28,
@@ -4221,8 +4221,8 @@
   "ticker_map": {
     "Smartworks": "Smartworks.NS",
     "MCX": "MCX.NS",
-    "ANNAPURNA": "ANNAPURNA.NS",
-    "XBOM:516003": "516003.BO",
+    "ANNAPURNA": "ANNAPURNA-SM.NS",
+    "XBOM:516003": "DUROPLY.BO",
     "E2E": "E2E.NS",
     "MOTILALOFS": "MOTILALOFS.NS",
     "PARKHOTELS": "PARKHOTELS.NS",
@@ -4235,7 +4235,6 @@
     "INDIGO": "INDIGO.NS",
     "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)": "543597.BO",
     "KFINTECH": "KFINTECH.NS",
-    "538734": "538734.BO",
     "PFC": "PFC.NS",
     "SURAKSHA": "SURAKSHA.NS",
     "INTERARCH": "INTERARCH.NS",
@@ -4266,7 +4265,6 @@
     "IIFLCAPS": "IIFLCAPS.NS",
     "CDSL": "CDSL.NS",
     "CESC": "CESC.NS",
-    "533278": "533278.BO",
     "CAMS": "CAMS.NS",
     "XBOM:522101": "522101.BO",
     "CYIENT": "CYIENT.NS",
@@ -4275,7 +4273,6 @@
     "LICHSGFIN": "LICHSGFIN.NS",
     "unionbank": "unionbank.NS",
     "FIVESTAR": "FIVESTAR.NS",
-    "National Stock Exchange (NSE)": "National Stock Exchange (NSE).NS",
     "GRASIM": "GRASIM.NS",
     "HDFCAMC": "HDFCAMC.NS",
     "Hindpetro": "Hindpetro.NS",
@@ -4311,9 +4308,11 @@
     "XNSE:TRIVENI": "TRIVENI.NS",
     "IEX": "IEX.NS",
     "LTF": "LTF.NS",
-    "505192": "505192.BO",
     "ICICIAMC": "ICICIAMC.NS",
-    "XBOM:590108": "590108.BO"
+    "COALINDIA": "COALINDIA.NS",
+    "SMLMAH": "SMLMAH.NS",
+    "PSUBNKBEES": "PSUBNKBEES.NS",
+    "CEINSYS": "CEINSYS.NS"
   },
   "metadata": {
     "source": "Octopus Dashboard - JVB Output",
