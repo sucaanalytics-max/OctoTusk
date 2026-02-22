@@ -245,6 +245,78 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [compareSectorFilter, setCompareSectorFilter] = useState<string>("all");
   const [detailStock, setDetailStock] = useState<EnrichedStock | null>(null);
 
+  // Theme
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  // Watchlists & hidden stocks
+  const [hiddenStocks, setHiddenStocks] = useState<Set<string>>(new Set());
+  const [watchlists, setWatchlists] = useState<Record<string, string[]>>({});
+  const [activeWatchlist, setActiveWatchlist] = useState<string>("all");
+  const [showWatchlistModal, setShowWatchlistModal] = useState(false);
+  const [newWatchlistName, setNewWatchlistName] = useState("");
+  const [showHidden, setShowHidden] = useState(false);
+
+  // Theme: apply class to html element
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+  }, [theme]);
+
+  // Persist watchlists & hidden stocks to localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("octotusk-watchlists");
+      if (saved) setWatchlists(JSON.parse(saved));
+      const hidden = localStorage.getItem("octotusk-hidden");
+      if (hidden) setHiddenStocks(new Set(JSON.parse(hidden)));
+      const savedTheme = localStorage.getItem("octotusk-theme");
+      if (savedTheme === "dark") setTheme("dark");
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem("octotusk-watchlists", JSON.stringify(watchlists)); } catch { /* ignore */ }
+  }, [watchlists]);
+
+  useEffect(() => {
+    try { localStorage.setItem("octotusk-hidden", JSON.stringify(Array.from(hiddenStocks))); } catch { /* ignore */ }
+  }, [hiddenStocks]);
+
+  useEffect(() => {
+    try { localStorage.setItem("octotusk-theme", theme); } catch { /* ignore */ }
+  }, [theme]);
+
+  const toggleHideStock = (tikr: string) => {
+    setHiddenStocks(prev => {
+      const next = new Set(prev);
+      if (next.has(tikr)) next.delete(tikr); else next.add(tikr);
+      return next;
+    });
+  };
+
+  const createWatchlist = (name: string) => {
+    if (!name.trim() || watchlists[name.trim()]) return;
+    setWatchlists(prev => ({ ...prev, [name.trim()]: [] }));
+    setNewWatchlistName("");
+    setShowWatchlistModal(false);
+  };
+
+  const deleteWatchlist = (name: string) => {
+    setWatchlists(prev => {
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+    if (activeWatchlist === name) setActiveWatchlist("all");
+  };
+
+  const toggleStockInWatchlist = (wlName: string, tikr: string) => {
+    setWatchlists(prev => {
+      const list = prev[wlName] || [];
+      const next = list.includes(tikr) ? list.filter(t => t !== tikr) : [...list, tikr];
+      return { ...prev, [wlName]: next };
+    });
+  };
+
   const handleTabSwitch = (tab: typeof activeTab) => {
     if (activeTab === "holdings" && tab !== "holdings") {
       setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError("");
@@ -310,6 +382,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   const sortedStocks = useMemo(() => {
     const filtered = enrichedStocks.filter(s => {
+      // Hidden stocks filter
+      if (!showHidden && hiddenStocks.has(s.tikr)) return false;
+      // Watchlist filter
+      if (activeWatchlist !== "all" && activeWatchlist !== "hidden") {
+        const wl = watchlists[activeWatchlist];
+        if (!wl || !wl.includes(s.tikr)) return false;
+      }
+      if (activeWatchlist === "hidden") {
+        if (!hiddenStocks.has(s.tikr)) return false;
+      }
       if (searchTerm) {
         const t = searchTerm.toLowerCase();
         if (!(s.tikr?.toLowerCase().includes(t) || s.displayTikr?.toLowerCase().includes(t) || s.companyShort?.toLowerCase().includes(t) || s.sector?.toLowerCase().includes(t) || s.official_name?.toLowerCase().includes(t) || s.vp?.toLowerCase().includes(t) || s.sa?.toLowerCase().includes(t))) return false;
@@ -327,7 +409,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
   // Holdings
   const unlockHoldings = async () => {
@@ -607,50 +689,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   return (
     <div className="max-w-[1600px] mx-auto px-5 py-4 dash-wrapper">
 
-      {/* ── KPI SUMMARY BAR (ZONE A) ── */}
-      <div className="grid grid-cols-5 gap-3 mb-4">
-        {quotesLoading && Object.keys(quotes).length === 0 ? (
-          Array.from({ length: 5 }).map((_, i) => <KpiSkeleton key={i} />)
-        ) : (
-          <>
-            <div className="kpi-card animate-fade-in-up delay-1" role="status" aria-label="Total equities tracked">
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Universe</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>
-                <CountUp value={enrichedStocks.length} />
-              </p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{Object.keys(quotes).length} with live CMP</p>
-            </div>
-            <div className="kpi-card kpi-positive animate-fade-in-up delay-2" role="status" aria-label="Average base case upside">
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Avg Base Upside</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: decisionData.avgBaseUpside >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
-                <CountUp value={decisionData.avgBaseUpside} prefix={decisionData.avgBaseUpside >= 0 ? "+" : ""} suffix="%" decimals={1} />
-              </p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>across {decisionData.totalWithCmp} stocks</p>
-            </div>
-            <div className="kpi-card kpi-negative animate-fade-in-up delay-3 kpi-hide-sm" role="status" aria-label="Average bear case downside">
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Avg Bear Downside</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>
-                <CountUp value={decisionData.avgBearDownside} suffix="%" decimals={1} />
-              </p>
-            </div>
-            <div className="kpi-card kpi-warning animate-fade-in-up delay-4" role="status" aria-label="Stocks in buy zone">
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Buy Zone</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>
-                <CountUp value={decisionData.buyZone.length} />
-              </p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>near bear price</p>
-            </div>
-            <div className="kpi-card kpi-accent animate-fade-in-up delay-5 kpi-hide-sm" role="status" aria-label="Holdings value">
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Holdings Value</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>
-                {decisionData.totalHoldingsValue > 0 ? fmtLakhs(decisionData.totalHoldingsValue) : "—"}
-              </p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{enrichedStocks.filter(s => s.holding_cash_lakhs && s.holding_cash_lakhs > 0).length} held stocks</p>
-            </div>
-          </>
-        )}
-      </div>
-
       {/* ── TAB NAVIGATION ── */}
       <div className="flex items-center gap-1 mb-4 rounded-xl px-2 tab-bar" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
         <nav className="flex gap-1" role="tablist" aria-label="Dashboard sections">
@@ -680,6 +718,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           <button onClick={() => setAutoRefresh(!autoRefresh)} className={`btn btn-sm ${autoRefresh ? "btn-success" : "btn-ghost"}`} aria-label={`Auto refresh is ${autoRefresh ? "on" : "off"}`} aria-pressed={autoRefresh}>
             {autoRefresh ? "Auto: ON" : "Auto: OFF"}
           </button>
+          <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
+          <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="btn btn-ghost btn-sm" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+            {theme === "dark" ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            )}
+          </button>
         </div>
       </div>
 
@@ -696,9 +742,45 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <button onClick={exportCSV} className="btn btn-success btn-sm" aria-label="Export data as CSV">Export CSV</button>
           </div>
 
+          {/* Watchlist bar */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap" style={{ fontSize: "var(--text-xs)" }}>
+            <span style={{ color: "var(--color-text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>View:</span>
+            <button onClick={() => { setActiveWatchlist("all"); setShowHidden(false); }} className={`btn btn-sm ${activeWatchlist === "all" && !showHidden ? "btn-primary" : "btn-ghost"}`}>All Stocks</button>
+            {Object.keys(watchlists).map(wl => (
+              <div key={wl} className="inline-flex items-center gap-0">
+                <button onClick={() => { setActiveWatchlist(wl); setShowHidden(false); }} className={`btn btn-sm ${activeWatchlist === wl ? "btn-primary" : "btn-ghost"}`} style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}>
+                  {wl} <span style={{ opacity: 0.7 }}>({watchlists[wl].length})</span>
+                </button>
+                <button onClick={() => deleteWatchlist(wl)} className="btn btn-ghost btn-sm" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0, padding: "var(--space-1) var(--space-2)", color: "var(--color-negative)" }} aria-label={`Delete watchlist ${wl}`} title="Delete watchlist">&times;</button>
+              </div>
+            ))}
+            {hiddenStocks.size > 0 && (
+              <button onClick={() => { setActiveWatchlist("hidden"); setShowHidden(true); }} className={`btn btn-sm ${activeWatchlist === "hidden" ? "btn-primary" : "btn-ghost"}`}>
+                Hidden ({hiddenStocks.size})
+              </button>
+            )}
+            <div style={{ width: 1, height: 20, background: "var(--color-border)" }} />
+            <button onClick={() => setShowWatchlistModal(true)} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }} aria-label="Create new watchlist">+ Watchlist</button>
+          </div>
+
+          {/* Watchlist creation modal */}
+          {showWatchlistModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setShowWatchlistModal(false)}>
+              <div className="metric-card max-w-sm w-full mx-4 animate-fade-in-up" onClick={e => e.stopPropagation()}>
+                <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-lg)", color: "var(--color-text-primary)" }}>Create Watchlist</h3>
+                <input type="text" placeholder="Watchlist name..." value={newWatchlistName} onChange={e => setNewWatchlistName(e.target.value)} onKeyDown={e => e.key === "Enter" && createWatchlist(newWatchlistName)} className="input-dark w-full mb-3" autoFocus aria-label="New watchlist name" />
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setShowWatchlistModal(false)} className="btn btn-ghost btn-sm">Cancel</button>
+                  <button onClick={() => createWatchlist(newWatchlistName)} disabled={!newWatchlistName.trim()} className="btn btn-primary btn-sm">Create</button>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)" }}>
             <table className="data-table w-full" role="table" aria-label="Stock data table">
               <thead><tr>
+                <th style={{ width: 40, cursor: "default" }}></th>
                 <Th col="companyShort" label="Company" /><Th col="sector" label="Sector" /><Th col="liveCmp" label="CMP" />
                 <Th col="bear_current" label="Bear" /><Th col="base_current" label="Base" /><Th col="bull_current" label="Bull" />
                 <Th col="upsideBearCalc" label="↑ Bear" /><Th col="upsideBaseCalc" label="↑ Base" /><Th col="upsideBullCalc" label="↑ Bull" />
@@ -714,6 +796,32 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   const isSell = s.liveCmp && s.bull_current && s.liveCmp >= s.bull_current * 0.95;
                   return (
                     <tr key={`${s.tikr}-${i}`} className={`cursor-pointer ${isBuy ? "row-buy-zone" : isSell ? "row-sell-zone" : ""}`} onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)} role="row" aria-label={`${s.companyShort} - click for details`}>
+                      <td onClick={e => e.stopPropagation()} style={{ padding: "var(--space-1)", position: "relative" }}>
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => toggleHideStock(s.tikr)} className="stock-action-btn" title={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"} aria-label={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"}>
+                            {hiddenStocks.has(s.tikr) ? (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 01-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                            )}
+                          </button>
+                          {Object.keys(watchlists).length > 0 && (
+                            <div className="watchlist-dropdown-wrap">
+                              <button className="stock-action-btn" title="Add to watchlist" aria-label="Add to watchlist">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+                              </button>
+                              <div className="watchlist-dropdown">
+                                {Object.keys(watchlists).map(wl => (
+                                  <button key={wl} onClick={() => toggleStockInWatchlist(wl, s.tikr)} className="watchlist-dropdown-item">
+                                    <span style={{ width: 16, display: "inline-block" }}>{watchlists[wl].includes(s.tikr) ? "✓" : ""}</span>
+                                    {wl}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td className="font-semibold" style={{ whiteSpace: "normal", minWidth: 180, maxWidth: 220, color: "var(--color-text-primary)" }}>{s.companyShort}</td>
                       <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
                       <td className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</td>

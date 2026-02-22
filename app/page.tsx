@@ -14,7 +14,7 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, #1a1040 100%)" }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, var(--color-bg-elevated) 100%)" }}>
       <div className="rounded-2xl p-10 max-w-md w-full mx-4 text-center" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-elevated)" }}>
         <div className="mb-6">
           <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "var(--color-accent-tusk)" }}>
