@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+// yahoo-finance2 v3 requires constructor
+const yf = new (YahooFinance as any)();
 
 export async function GET() {
   try {
@@ -22,7 +25,7 @@ export async function GET() {
 
       const promises = batch.map(async (symbol: string) => {
         try {
-          const quote: any = await yahooFinance.quote(symbol);
+          const quote: any = await yf.quote(symbol);
           return {
             symbol,
             data: {
@@ -40,7 +43,7 @@ export async function GET() {
 
       const batchResults = await Promise.allSettled(promises);
       for (const result of batchResults) {
-        if (result.status === "fulfilled" && result.value) {
+        if (result.status === "fulfilled" && result.value?.data) {
           results[result.value.symbol] = result.value.data;
         }
       }

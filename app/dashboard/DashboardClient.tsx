@@ -2,41 +2,47 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 
-// ── Types ──
+// ── Types (matching JVB Output columns) ──
 interface Stock {
   tikr: string;
-  company_name?: string;
-  sector?: string;
-  sub_sector?: string;
-  vp?: string;
-  sa?: string;
-  conviction?: number;
-  understanding?: number;
-  rating?: number;
-  score?: number;
+  official_name?: string;
+  in_fno?: string;
+  holding_cash_lakhs?: number;
+  holding_pct?: number;
+  abs_leverage?: number;
+  leverage_pct?: number;
   bear_current?: number;
   base_current?: number;
   bull_current?: number;
-  bear_fy27?: number;
-  base_fy27?: number;
-  bull_fy27?: number;
-  bear_fy28?: number;
-  base_fy28?: number;
-  bull_fy28?: number;
+  target_1y?: number;
+  target_2y?: number;
+  div_yield?: number;
   cmp?: number;
   upside_bear?: number;
   upside_base?: number;
   upside_bull?: number;
   upside_1y?: number;
   upside_2y?: number;
-  pe_bear?: number;
-  pe_base?: number;
-  pe_bull?: number;
-  comments?: string;
-  recommendation?: string;
+  base_pe?: number;
+  base_pe_2sd?: number;
+  base_pb?: number;
+  base_pb_2sd?: number;
+  base_evebitda?: number;
+  base_evebitda_2sd?: number;
+  reviewed_pranay?: number;
+  vp?: string;
+  sa?: string;
+  conviction?: number;
+  understanding?: number;
+  sector?: string;
+  subsector?: string;
   last_updated?: string;
-  _source_file?: string;
-  _last_modified?: string;
+  comments?: string;
+  score?: number;
+  score_adj_1y?: number;
+  remarks?: string;
+  exp_profit_fy27?: number;
+  exp_profit_fy28?: number;
   [key: string]: unknown;
 }
 
@@ -66,18 +72,15 @@ interface Props {
 }
 
 // ── Market Hours Helper (IST: Mon-Fri 9:15-15:30) ──
-const CMP_REFRESH_INTERVAL = 60; // seconds
+const CMP_REFRESH_INTERVAL = 60;
 
 const isMarketOpen = (): boolean => {
   const now = new Date();
-  // Convert to IST (UTC+5:30)
   const istOffset = 5.5 * 60 * 60 * 1000;
   const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60 * 1000);
-  const day = ist.getDay(); // 0=Sun, 6=Sat
+  const day = ist.getDay();
   if (day === 0 || day === 6) return false;
-  const hours = ist.getHours();
-  const mins = ist.getMinutes();
-  const timeInMins = hours * 60 + mins;
+  const timeInMins = ist.getHours() * 60 + ist.getMinutes();
   return timeInMins >= 9 * 60 + 15 && timeInMins <= 15 * 60 + 30;
 };
 
@@ -89,7 +92,7 @@ const fmt = (n: number | undefined | null, decimals = 0): string => {
 
 const fmtPct = (n: number | undefined | null): string => {
   if (n == null || isNaN(n)) return "—";
-  const pct = Math.abs(n) < 1 ? n * 100 : n; // Handle both 0.10 and 10 formats
+  const pct = Math.abs(n) < 1 ? n * 100 : n;
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 };
 
@@ -97,6 +100,11 @@ const fmtCr = (n: number | undefined | null): string => {
   if (n == null || isNaN(n)) return "—";
   const cr = n / 10000000;
   return `${cr.toFixed(1)} Cr`;
+};
+
+const fmtLakhs = (n: number | undefined | null): string => {
+  if (n == null || isNaN(n)) return "—";
+  return `₹${n.toFixed(1)}L`;
 };
 
 const pctColor = (n: number | undefined | null): string => {
@@ -109,7 +117,6 @@ const pctColor = (n: number | undefined | null): string => {
 
 const cleanTikr = (tikr: string | null | undefined): string => {
   if (!tikr || typeof tikr !== "string") return "";
-  // Clean up compound tickers like "ELECON ENGINEERING COMPANY LIMITED (XNSE:ELECON)"
   if (tikr.includes("(XNSE:")) {
     const match = tikr.match(/\(XNSE:(\w+)\)/);
     return match ? match[1] : tikr;
@@ -125,18 +132,14 @@ const cleanTikr = (tikr: string | null | undefined): string => {
 };
 
 const getCompanyShort = (stock: Stock): string => {
-  const name = String(stock.company_name || stock._source_file || stock.tikr || "");
+  const name = String(stock.official_name || stock.tikr || "");
   if (!name) return cleanTikr(stock.tikr);
-  // Extract from "COMPANY NAME LIMITED (XNSE:TICKER)" or filename
-  if (name.includes("(XNSE:") || name.includes("(XBOM:")) {
-    return name.split("(")[0].replace(" LIMITED", "").replace(" LTD", "").trim();
-  }
-  // From filename like "20250319_CDSL vF.xlsx"
-  if (name.includes("_") && name.includes(".xlsx")) {
-    const parts = name.replace(".xlsx", "").replace(".xlsm", "").split("_");
-    return parts.slice(1).join(" ").replace(/\s*v[Ff]\d*$/, "").trim();
-  }
-  return cleanTikr(stock.tikr);
+  return name
+    .replace(/ LIMITED$/i, "")
+    .replace(/ LTD$/i, "")
+    .replace(/ PRIVATE$/i, "")
+    .replace(/ CORPORATION$/i, " Corp")
+    .trim();
 };
 
 // ── Main Component ──
@@ -148,6 +151,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortCol, setSortCol] = useState<string>("tikr");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // Dynamic filters
+  const [filterSector, setFilterSector] = useState<string>("all");
+  const [filterVP, setFilterVP] = useState<string>("all");
+  const [filterConviction, setFilterConviction] = useState<string>("all");
+  const [filterFnO, setFilterFnO] = useState<string>("all");
 
   // Auto-refresh state
   const [countdown, setCountdown] = useState(CMP_REFRESH_INTERVAL);
@@ -166,6 +175,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
 
+  // ── Auto-lock holdings when switching tabs ──
+  const handleTabSwitch = (tab: typeof activeTab) => {
+    if (activeTab === "holdings" && tab !== "holdings") {
+      setHoldingsUnlocked(false);
+      setHoldingsData([]);
+      setHoldingsPin("");
+      setHoldingsError("");
+    }
+    setActiveTab(tab);
+  };
+
   // Fetch CMP quotes
   const fetchQuotes = useCallback(async () => {
     setQuotesLoading(true);
@@ -183,32 +203,25 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     }
   }, []);
 
-  // Initial CMP fetch
-  useEffect(() => {
-    fetchQuotes();
-  }, [fetchQuotes]);
+  useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
 
   // Auto-refresh CMP during market hours
   useEffect(() => {
     if (!autoRefresh) return;
-
     const timer = setInterval(() => {
       setMarketOpen(isMarketOpen());
       setCountdown((prev) => {
         if (prev <= 1) {
-          if (isMarketOpen()) {
-            fetchQuotes();
-          }
+          if (isMarketOpen()) fetchQuotes();
           return CMP_REFRESH_INTERVAL;
         }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [autoRefresh, fetchQuotes]);
 
-  // Refresh database from server (picks up file changes)
+  // Refresh database from server
   const refreshData = useCallback(async () => {
     setDataRefreshing(true);
     try {
@@ -224,6 +237,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       setDataRefreshing(false);
     }
   }, []);
+
+  // Compute unique filter options
+  const filterOptions = useMemo(() => {
+    const sectors = Array.from(new Set(liveStocks.map((s) => s.sector).filter(Boolean))).sort() as string[];
+    const vps = Array.from(new Set(liveStocks.map((s) => s.vp).filter(Boolean))).sort() as string[];
+    const convictions = Array.from(new Set(liveStocks.map((s) => s.conviction).filter((c) => c != null))).sort((a, b) => (b as number) - (a as number)) as number[];
+    return { sectors, vps, convictions };
+  }, [liveStocks]);
 
   // Enrich stocks with live CMP
   const enrichedStocks = useMemo(() => {
@@ -265,17 +286,31 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     }
   };
 
+  // Filtered + sorted stocks
   const sortedStocks = useMemo(() => {
     const filtered = enrichedStocks.filter((s) => {
-      if (!searchTerm) return true;
-      const term = searchTerm.toLowerCase();
-      return (
-        s.tikr?.toLowerCase().includes(term) ||
-        s.displayTikr?.toLowerCase().includes(term) ||
-        s.companyShort?.toLowerCase().includes(term) ||
-        s.sector?.toLowerCase().includes(term) ||
-        s._source_file?.toLowerCase().includes(term)
-      );
+      // Text search
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        const matches =
+          s.tikr?.toLowerCase().includes(term) ||
+          s.displayTikr?.toLowerCase().includes(term) ||
+          s.companyShort?.toLowerCase().includes(term) ||
+          s.sector?.toLowerCase().includes(term) ||
+          s.official_name?.toLowerCase().includes(term) ||
+          s.vp?.toLowerCase().includes(term) ||
+          s.sa?.toLowerCase().includes(term);
+        if (!matches) return false;
+      }
+      // Dropdown filters
+      if (filterSector !== "all" && s.sector !== filterSector) return false;
+      if (filterVP !== "all" && s.vp !== filterVP) return false;
+      if (filterConviction !== "all" && String(s.conviction) !== filterConviction) return false;
+      if (filterFnO !== "all") {
+        if (filterFnO === "Yes" && s.in_fno !== "Yes") return false;
+        if (filterFnO === "No" && s.in_fno !== "No") return false;
+      }
+      return true;
     });
 
     return [...filtered].sort((a, b) => {
@@ -291,7 +326,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         ? String(av).localeCompare(String(bv))
         : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterFnO]);
 
   // Holdings unlock
   const unlockHoldings = async () => {
@@ -320,8 +355,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   // Holdings with live prices
   const enrichedHoldings = useMemo(() => {
     if (!holdingsData.length) return [];
-
-    // Map holding names to tickers
     const nameToTikr: Record<string, string> = {
       "Kilburn Engineering": "XBOM:522101",
       "Vedanta Limited": "VEDL",
@@ -339,7 +372,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       "Canara Robeco Asset Management Company": "CRAMC",
       "Suraksha Diagnostic": "SURAKSHA",
       "Annapurna Swadisht": "ANNAPURNA",
-      "Smartworks Coworking Spaces": "SMARTWORKS",
+      "Smartworks Coworking Spaces": "Smartworks",
       "ICICI Prudential Asset Management Company": "ICICIAMC",
       "E2E Networks": "E2E",
       "Wework India Management": "Wework",
@@ -380,32 +413,22 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     });
   }, [holdingsData, quotes, enrichedStocks]);
 
-  // Decision support computed data
+  // Decision support
   const decisionData = useMemo(() => {
     const withCmp = enrichedStocks.filter((s) => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
-
-    // Buy zone: CMP within 10% above bear
     const buyZone = withCmp
       .filter((s) => s.upsideBearCalc != null && s.upsideBearCalc >= -0.10 && s.upsideBearCalc <= 0.05)
       .sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
-
-    // Sell zone: CMP within 10% of bull
     const sellZone = withCmp
       .filter((s) => s.upsideBullCalc != null && s.upsideBullCalc >= -0.05 && s.upsideBullCalc <= 0.10)
       .sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
-
-    // Best upside to base
     const bestUpside = [...withCmp]
       .filter((s) => s.upsideBaseCalc != null && s.upsideBaseCalc > 0)
       .sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0))
       .slice(0, 15);
-
-    // Most downside (CMP above bull)
     const overvalued = withCmp
       .filter((s) => s.upsideBullCalc != null && s.upsideBullCalc < -0.05)
       .sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
-
-    // Sector breakdown
     const sectors: Record<string, { count: number; stocks: string[] }> = {};
     enrichedStocks.forEach((s) => {
       const sec = s.sector || "Uncategorized";
@@ -413,8 +436,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       sectors[sec].count++;
       sectors[sec].stocks.push(s.displayTikr);
     });
-
-    // Analyst coverage
     const analysts: Record<string, { count: number; stocks: string[] }> = {};
     enrichedStocks.forEach((s) => {
       const vp = s.vp || "Unassigned";
@@ -422,11 +443,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       analysts[vp].count++;
       analysts[vp].stocks.push(s.displayTikr);
     });
-
     return { buyZone, sellZone, bestUpside, overvalued, sectors, analysts, totalWithCmp: withCmp.length };
   }, [enrichedStocks]);
 
-  // ── Column header helper ──
   const Th = ({ col, label, className = "" }: { col: string; label: string; className?: string }) => (
     <th
       className={`${className} ${sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""}`}
@@ -436,18 +455,20 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     </th>
   );
 
+  const activeFilters = [filterSector, filterVP, filterConviction, filterFnO].filter((f) => f !== "all").length;
+
   return (
     <div className="max-w-[1600px] mx-auto px-4 py-4">
       {/* Tab Navigation */}
       <div className="flex items-center gap-1 mb-4 bg-white rounded-xl shadow-sm px-2">
         {[
-          { key: "database", label: "Master Database", icon: "📊" },
-          { key: "holdings", label: "Holdings Analysis", icon: "🔒" },
-          { key: "decisions", label: "Decision Support", icon: "🎯" },
+          { key: "database" as const, label: "Master Database", icon: "📊" },
+          { key: "holdings" as const, label: "Holdings Analysis", icon: "🔒" },
+          { key: "decisions" as const, label: "Decision Support", icon: "🎯" },
         ].map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key as typeof activeTab)}
+            onClick={() => handleTabSwitch(tab.key)}
             className={`px-5 py-3 text-sm font-medium transition-colors ${
               activeTab === tab.key ? "tab-active" : "text-gray-500 hover:text-gray-700"
             }`}
@@ -458,7 +479,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
         {/* Status Bar */}
         <div className="ml-auto flex items-center gap-2 pr-2">
-          {/* Data refresh */}
           {dataLastRefreshed && (
             <span className="text-xs text-gray-400">
               Data: {new Date(dataLastRefreshed).toLocaleTimeString("en-IN")}
@@ -477,20 +497,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
           <span className="text-gray-300 mx-1">|</span>
 
-          {/* CMP status + auto-refresh */}
           {lastFetched && (
             <span className="text-xs text-gray-400">
               CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}
             </span>
           )}
           {autoRefresh && marketOpen && (
-            <span className="text-xs text-tusk-accent font-mono min-w-[28px] text-center">
-              {countdown}s
-            </span>
+            <span className="text-xs text-tusk-accent font-mono min-w-[28px] text-center">{countdown}s</span>
           )}
           {autoRefresh && !marketOpen && (
             <span className="text-xs text-gray-400" title="Auto-refresh paused outside market hours (Mon-Fri 9:15-15:30 IST)">
-              Market closed
+              Mkt closed
             </span>
           )}
           <button
@@ -503,9 +520,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`text-xs px-2 py-1.5 rounded-md transition-colors ${
-              autoRefresh
-                ? "bg-green-600 text-white hover:bg-green-700"
-                : "bg-gray-300 text-gray-600 hover:bg-gray-400"
+              autoRefresh ? "bg-green-600 text-white hover:bg-green-700" : "bg-gray-300 text-gray-600 hover:bg-gray-400"
             }`}
             title={autoRefresh ? "Auto-refresh ON (every 60s during market hours)" : "Auto-refresh OFF"}
           >
@@ -517,28 +532,60 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {/* ═══════════════════════ TAB 1: MASTER DATABASE ═══════════════════════ */}
       {activeTab === "database" && (
         <div>
-          {/* Search & Stats Bar */}
-          <div className="flex items-center gap-4 mb-3">
+          {/* Search & Filters Bar */}
+          <div className="flex flex-wrap items-center gap-3 mb-3">
             <input
               type="text"
-              placeholder="Search ticker, company, sector..."
+              placeholder="Search ticker, company, sector, VP..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1 max-w-md px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-tusk-accent/30"
+              className="flex-1 min-w-[250px] max-w-md px-4 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-tusk-accent/30"
             />
-            <span className="text-xs text-gray-500">
+            <select value={filterSector} onChange={(e) => setFilterSector(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white">
+              <option value="all">All Sectors</option>
+              {filterOptions.sectors.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select value={filterVP} onChange={(e) => setFilterVP(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white">
+              <option value="all">All VPs</option>
+              {filterOptions.vps.map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <select value={filterConviction} onChange={(e) => setFilterConviction(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white">
+              <option value="all">All Conviction</option>
+              {filterOptions.convictions.map((c) => <option key={c} value={String(c)}>{c}</option>)}
+            </select>
+            <select value={filterFnO} onChange={(e) => setFilterFnO(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white">
+              <option value="all">F&O: All</option>
+              <option value="Yes">F&O: Yes</option>
+              <option value="No">F&O: No</option>
+            </select>
+            {activeFilters > 0 && (
+              <button
+                onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterFnO("all"); }}
+                className="text-xs text-tusk-accent hover:underline"
+              >
+                Clear filters ({activeFilters})
+              </button>
+            )}
+            <span className="text-xs text-gray-500 ml-auto">
               {sortedStocks.length} stocks {Object.keys(quotes).length > 0 && `· ${Object.keys(quotes).length} live prices`}
             </span>
             <button
               onClick={() => {
                 const csv = [
-                  ["Ticker", "Company", "Bear", "Base", "Bull", "CMP", "Upside Bear", "Upside Base", "Upside Bull", "PE Bear", "PE Base", "PE Bull", "Source File"].join(","),
+                  ["Ticker", "Company", "Sector", "VP", "SA", "Conviction", "F&O", "Bear", "Base", "Bull", "CMP", "↑Bear", "↑Base", "↑Bull", "1Y Target", "2Y Target", "Base PE", "Score", "Comments"].join(","),
                   ...sortedStocks.map(s => [
-                    s.displayTikr, `"${s.companyShort}"`, s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "",
-                    s.liveCmp?.toFixed(0) || "", s.upsideBearCalc != null ? (s.upsideBearCalc * 100).toFixed(1) + "%" : "",
+                    s.displayTikr, `"${s.companyShort}"`, `"${s.sector || ""}"`, s.vp || "", s.sa || "", s.conviction ?? "", s.in_fno || "",
+                    s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "",
+                    s.liveCmp?.toFixed(0) || "",
+                    s.upsideBearCalc != null ? (s.upsideBearCalc * 100).toFixed(1) + "%" : "",
                     s.upsideBaseCalc != null ? (s.upsideBaseCalc * 100).toFixed(1) + "%" : "",
                     s.upsideBullCalc != null ? (s.upsideBullCalc * 100).toFixed(1) + "%" : "",
-                    s.pe_bear || "", s.pe_base || "", s.pe_bull || "", `"${s._source_file || ""}"`
+                    s.target_1y?.toFixed(0) || "", s.target_2y?.toFixed(0) || "",
+                    s.base_pe?.toFixed(1) || "", s.score ?? "", `"${s.comments || ""}"`
                   ].join(","))
                 ].join("\n");
                 const blob = new Blob([csv], { type: "text/csv" });
@@ -553,26 +600,30 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </button>
           </div>
 
-          {/* Data Table */}
-          <div className="bg-white rounded-xl shadow-sm overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+          {/* Data Table - JVB Output columns */}
+          <div className="bg-white rounded-xl shadow-sm overflow-auto" style={{ maxHeight: "calc(100vh - 240px)" }}>
             <table className="data-table w-full">
               <thead>
                 <tr>
                   <Th col="displayTikr" label="Ticker" />
                   <Th col="companyShort" label="Company" />
+                  <Th col="sector" label="Sector" />
+                  <Th col="vp" label="VP" />
+                  <Th col="conviction" label="Conv." />
+                  <Th col="in_fno" label="F&O" />
                   <Th col="liveCmp" label="CMP (₹)" />
-                  <Th col="liveChangePct" label="Change" />
-                  <Th col="bear_current" label="Bear (₹)" />
-                  <Th col="base_current" label="Base (₹)" />
-                  <Th col="bull_current" label="Bull (₹)" />
-                  <Th col="upsideBearCalc" label="↑ Bear" />
-                  <Th col="upsideBaseCalc" label="↑ Base" />
-                  <Th col="upsideBullCalc" label="↑ Bull" />
-                  <Th col="pe_bear" label="PE Bear" />
-                  <Th col="pe_base" label="PE Base" />
-                  <Th col="pe_bull" label="PE Bull" />
-                  <Th col="base_fy27" label="Base FY27" />
-                  <Th col="base_fy28" label="Base FY28" />
+                  <Th col="liveChangePct" label="Chg%" />
+                  <Th col="bear_current" label="Bear" />
+                  <Th col="base_current" label="Base" />
+                  <Th col="bull_current" label="Bull" />
+                  <Th col="upsideBearCalc" label="↑Bear" />
+                  <Th col="upsideBaseCalc" label="↑Base" />
+                  <Th col="upsideBullCalc" label="↑Bull" />
+                  <Th col="upside_1y" label="↑1Y" />
+                  <Th col="base_pe" label="PE" />
+                  <Th col="score" label="Score" />
+                  <Th col="holding_cash_lakhs" label="Hold(₹L)" />
+                  <Th col="last_updated" label="Updated" />
                   <Th col="comments" label="Comments" />
                 </tr>
               </thead>
@@ -583,7 +634,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   return (
                     <tr key={`${s.tikr}-${i}`} className={isBuyZone ? "row-buy-zone" : isSellZone ? "row-sell-zone" : ""}>
                       <td className="font-semibold text-tusk-dark">{s.displayTikr}</td>
-                      <td className="text-gray-600 max-w-[200px] truncate" title={s.companyShort}>{s.companyShort}</td>
+                      <td className="text-gray-600 max-w-[180px] truncate" title={s.companyShort}>{s.companyShort}</td>
+                      <td className="text-xs">{s.sector || "—"}</td>
+                      <td className="text-center">{s.vp || "—"}</td>
+                      <td className="text-center">{s.conviction ?? "—"}</td>
+                      <td className="text-center">{s.in_fno === "Yes" ? <span className="pill pill-green">Yes</span> : "—"}</td>
                       <td className="font-semibold">{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</td>
                       <td className={pctColor(s.liveChangePct)}>
                         {s.liveChangePct != null ? fmtPct(s.liveChangePct) : "—"}
@@ -594,12 +649,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <td className={pctColor(s.upsideBearCalc)}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
                       <td className={pctColor(s.upsideBaseCalc)}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
                       <td className={pctColor(s.upsideBullCalc)}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
-                      <td>{s.pe_bear ? `${s.pe_bear.toFixed(1)}x` : "—"}</td>
-                      <td>{s.pe_base ? `${s.pe_base.toFixed(1)}x` : "—"}</td>
-                      <td>{s.pe_bull ? `${s.pe_bull.toFixed(1)}x` : "—"}</td>
-                      <td>{s.base_fy27 ? `₹${fmt(s.base_fy27, 0)}` : "—"}</td>
-                      <td>{s.base_fy28 ? `₹${fmt(s.base_fy28, 0)}` : "—"}</td>
-                      <td className="max-w-[200px] truncate text-gray-500 text-xs" title={s.comments || ""}>
+                      <td className={pctColor(s.upside_1y)}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</td>
+                      <td>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
+                      <td className="text-center font-semibold">{s.score ?? "—"}</td>
+                      <td>{s.holding_cash_lakhs ? fmtLakhs(s.holding_cash_lakhs) : "—"}</td>
+                      <td className="text-xs text-gray-400">{s.last_updated || "—"}</td>
+                      <td className="max-w-[180px] truncate text-gray-500 text-xs" title={s.comments || ""}>
                         {s.comments || "—"}
                       </td>
                     </tr>
@@ -640,21 +695,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           ) : (
             <div>
-              {/* Portfolio Summary Cards */}
               <div className="grid grid-cols-5 gap-4 mb-4">
                 {(() => {
                   const totalInvested = enrichedHoldings.reduce((sum, h) => sum + h.amt_invested, 0);
                   const totalValue = enrichedHoldings.reduce((sum, h) => sum + h.liveValue, 0);
                   const totalGain = totalValue - totalInvested;
                   const totalGainPct = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
-                  const bearValue = enrichedHoldings.reduce((sum, h) => {
-                    const bear = h.stockData?.bear_current || h.livePrice;
-                    return sum + bear * h.quantity;
-                  }, 0);
-                  const bullValue = enrichedHoldings.reduce((sum, h) => {
-                    const bull = h.stockData?.bull_current || h.livePrice;
-                    return sum + bull * h.quantity;
-                  }, 0);
+                  const bearValue = enrichedHoldings.reduce((sum, h) => sum + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
+                  const bullValue = enrichedHoldings.reduce((sum, h) => sum + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
                   return (
                     <>
                       <div className="metric-card">
@@ -674,43 +722,30 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <div className="metric-card">
                         <p className="text-xs text-gray-500 uppercase tracking-wide">Bear Scenario</p>
                         <p className="text-xl font-bold text-red-600 mt-1">{fmtCr(bearValue)}</p>
-                        <p className="text-xs text-gray-400">Drawdown: {((bearValue - totalValue) / totalValue * 100).toFixed(1)}%</p>
+                        <p className="text-xs text-gray-400">Drawdown: {totalValue ? ((bearValue - totalValue) / totalValue * 100).toFixed(1) : 0}%</p>
                       </div>
                       <div className="metric-card">
                         <p className="text-xs text-gray-500 uppercase tracking-wide">Bull Scenario</p>
                         <p className="text-xl font-bold text-green-600 mt-1">{fmtCr(bullValue)}</p>
-                        <p className="text-xs text-gray-400">Upside: +{((bullValue - totalValue) / totalValue * 100).toFixed(1)}%</p>
+                        <p className="text-xs text-gray-400">Upside: +{totalValue ? ((bullValue - totalValue) / totalValue * 100).toFixed(1) : 0}%</p>
                       </div>
                     </>
                   );
                 })()}
               </div>
 
-              {/* Holdings Table */}
               <div className="bg-white rounded-xl shadow-sm overflow-auto" style={{ maxHeight: "calc(100vh - 340px)" }}>
                 <table className="data-table w-full">
                   <thead>
                     <tr>
-                      <th>Stock</th>
-                      <th>Qty</th>
-                      <th>Avg Cost (₹)</th>
-                      <th>CMP (₹)</th>
-                      <th>Invested</th>
-                      <th>Current Value</th>
-                      <th>P&L</th>
-                      <th>P&L %</th>
-                      <th>Bear (₹)</th>
-                      <th>Base (₹)</th>
-                      <th>Bull (₹)</th>
-                      <th>↑ Bear</th>
-                      <th>↑ Base</th>
-                      <th>↑ Bull</th>
+                      <th>Stock</th><th>Qty</th><th>Avg Cost (₹)</th><th>CMP (₹)</th>
+                      <th>Invested</th><th>Current Value</th><th>P&L</th><th>P&L %</th>
+                      <th>Bear (₹)</th><th>Base (₹)</th><th>Bull (₹)</th>
+                      <th>↑ Bear</th><th>↑ Base</th><th>↑ Bull</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {enrichedHoldings
-                      .sort((a, b) => b.liveValue - a.liveValue)
-                      .map((h, i) => (
+                    {enrichedHoldings.sort((a, b) => b.liveValue - a.liveValue).map((h, i) => (
                       <tr key={i}>
                         <td className="font-semibold text-tusk-dark">{h.asset_name}</td>
                         <td>{fmt(h.quantity)}</td>
@@ -749,9 +784,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {/* ═══════════════════════ TAB 3: DECISION SUPPORT ═══════════════════════ */}
       {activeTab === "decisions" && (
         <div className="space-y-6">
-          {/* Screening Signals */}
           <div className="grid grid-cols-2 gap-4">
-            {/* Buy Zone */}
             <div className="metric-card">
               <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
                 <span className="w-3 h-3 bg-green-500 rounded-full"></span>
@@ -770,9 +803,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       </div>
                       <div className="text-right">
                         <span className="pill pill-green">Bear ₹{fmt(s.bear_current, 0)}</span>
-                        <span className="text-xs text-green-600 ml-2 font-semibold">
-                          {fmtPct(s.upsideBaseCalc)} to base
-                        </span>
+                        <span className="text-xs text-green-600 ml-2 font-semibold">{fmtPct(s.upsideBaseCalc)} to base</span>
                       </div>
                     </div>
                   ))}
@@ -780,7 +811,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               )}
             </div>
 
-            {/* Sell Zone */}
             <div className="metric-card">
               <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
                 <span className="w-3 h-3 bg-red-500 rounded-full"></span>
@@ -799,9 +829,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       </div>
                       <div className="text-right">
                         <span className="pill pill-red">Bull ₹{fmt(s.bull_current, 0)}</span>
-                        <span className="text-xs text-red-600 ml-2 font-semibold">
-                          {fmtPct(s.upsideBullCalc)} to bull
-                        </span>
+                        <span className="text-xs text-red-600 ml-2 font-semibold">{fmtPct(s.upsideBullCalc)} to bull</span>
                       </div>
                     </div>
                   ))}
@@ -810,7 +838,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
-          {/* Best Upside + Overvalued */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card">
               <h3 className="font-bold text-tusk-dark mb-3 flex items-center gap-2">
@@ -828,9 +855,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <span className="text-xs text-gray-400">₹{fmt(s.liveCmp, 0)}</span>
                       <span className="text-xs text-gray-400">→</span>
                       <span className="text-xs font-medium">₹{fmt(s.base_current, 0)}</span>
-                      <span className="font-bold text-green-600 text-sm min-w-[60px] text-right">
-                        {fmtPct(s.upsideBaseCalc)}
-                      </span>
+                      <span className="font-bold text-green-600 text-sm min-w-[60px] text-right">{fmtPct(s.upsideBaseCalc)}</span>
                     </div>
                   </div>
                 ))}
@@ -855,9 +880,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       </div>
                       <div>
                         <span className="pill pill-red">Bull ₹{fmt(s.bull_current, 0)}</span>
-                        <span className="font-bold text-red-600 text-sm ml-2">
-                          {fmtPct(s.upsideBullCalc)}
-                        </span>
+                        <span className="font-bold text-red-600 text-sm ml-2">{fmtPct(s.upsideBullCalc)}</span>
                       </div>
                     </div>
                   ))}
@@ -866,31 +889,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
-          {/* Coverage Stats */}
           <div className="grid grid-cols-3 gap-4">
             <div className="metric-card col-span-1">
               <h3 className="font-bold text-tusk-dark mb-3">Coverage Summary</h3>
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Total Stocks</span>
-                  <span className="font-bold">{enrichedStocks.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">With Live CMP</span>
-                  <span className="font-bold">{decisionData.totalWithCmp}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">In Buy Zone</span>
-                  <span className="font-bold text-green-600">{decisionData.buyZone.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">In Sell Zone</span>
-                  <span className="font-bold text-red-600">{decisionData.sellZone.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Overvalued</span>
-                  <span className="font-bold text-orange-600">{decisionData.overvalued.length}</span>
-                </div>
+                <div className="flex justify-between"><span className="text-gray-500">Total Stocks</span><span className="font-bold">{enrichedStocks.length}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">With Live CMP</span><span className="font-bold">{decisionData.totalWithCmp}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">In Buy Zone</span><span className="font-bold text-green-600">{decisionData.buyZone.length}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">In Sell Zone</span><span className="font-bold text-red-600">{decisionData.sellZone.length}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Overvalued</span><span className="font-bold text-orange-600">{decisionData.overvalued.length}</span></div>
               </div>
             </div>
 
