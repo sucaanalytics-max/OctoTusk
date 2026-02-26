@@ -85,6 +85,20 @@ const NUMERIC_FIELDS = new Set([
   "exp_profit_fy28",
 ]);
 
+// String fields that must always be strings (Excel may return 0 for empty cells)
+const STRING_FIELDS = new Set([
+  "tikr",
+  "official_name",
+  "in_fno",
+  "vp",
+  "sa",
+  "sector",
+  "subsector",
+  "comments",
+  "remarks",
+  "last_updated",
+]);
+
 /** Convert Excel serial date (e.g. 45986) to ISO date string (2025-11-25) */
 function excelDateToISO(serial: number | string): string {
   if (typeof serial === "string") {
@@ -177,9 +191,13 @@ function parseStocks(rows: unknown[][]): Record<string, unknown>[] {
         val = excelDateToISO(val as number | string);
       }
 
-      // Convert subsector "0" to string
-      if (field === "subsector" && val !== null) {
-        val = String(val);
+      // Ensure string fields are always strings (Excel returns 0 for empty cells)
+      if (STRING_FIELDS.has(field)) {
+        if (val === null || val === 0 || val === "0") {
+          val = "";
+        } else {
+          val = String(val);
+        }
       }
 
       stock[field] = val;
