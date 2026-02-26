@@ -682,10 +682,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const refreshData = useCallback(async () => {
     setDataRefreshing(true);
     try {
-      const res = await fetch("/api/refresh", { method: "POST" });
+      // Live sync from OneDrive Octopus Dashboard via Graph API
+      const res = await fetch("/api/sync", { method: "POST" });
       const data = await res.json();
+      if (data.error) { console.error("Sync error:", data.error); alert("Sync failed: " + data.error); return; }
       if (data.stocks) { setLiveStocks(data.stocks); setDataLastRefreshed(data.refreshedAt); }
-    } catch (err) { console.error("Failed to refresh data:", err); }
+    } catch (err) { console.error("Failed to sync data:", err); alert("Sync failed — check console for details."); }
     finally { setDataRefreshing(false); }
   }, []);
 
@@ -1238,8 +1240,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </nav>
         <div className="ml-auto flex items-center gap-2 pr-2 py-2 tab-controls">
           {dataLastRefreshed && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Data: {new Date(dataLastRefreshed).toLocaleTimeString("en-IN")}</span>}
-          <button onClick={refreshData} disabled={dataRefreshing} className="btn btn-primary btn-sm" aria-label="Refresh stock data">
-            {dataRefreshing ? "Refreshing..." : "Refresh Data"}
+          <button onClick={refreshData} disabled={dataRefreshing} className="btn btn-primary btn-sm" aria-label="Sync data from OneDrive">
+            {dataRefreshing ? "Syncing..." : "⟳ Sync Data"}
           </button>
           <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
           {lastFetched && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}</span>}
