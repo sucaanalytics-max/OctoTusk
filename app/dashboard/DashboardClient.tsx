@@ -63,6 +63,75 @@ interface QuoteData {
   changePct: number;
   volume: number;
   timestamp: string;
+  // Extended fields (Phase 1 enrichment)
+  dayHigh?: number | null;
+  dayLow?: number | null;
+  open?: number | null;
+  prevClose?: number | null;
+  fiftyTwoWeekHigh?: number | null;
+  fiftyTwoWeekLow?: number | null;
+  marketCap?: number | null;
+  trailingPE?: number | null;
+  forwardPE?: number | null;
+  priceToBook?: number | null;
+  epsTrailingTwelveMonths?: number | null;
+  bookValue?: number | null;
+  fiftyDayAverage?: number | null;
+  twoHundredDayAverage?: number | null;
+  avgVolume3Month?: number | null;
+  avgVolume10Day?: number | null;
+  dividendRate?: number | null;
+  dividendYield?: number | null;
+}
+
+interface EnrichmentData {
+  tikr: string;
+  fetchedAt: string;
+  beta?: number | null;
+  sharesOutstanding?: number | null;
+  floatShares?: number | null;
+  pegRatio?: number | null;
+  enterpriseValue?: number | null;
+  enterpriseToEbitda?: number | null;
+  totalRevenue?: number | null;
+  revenueGrowth?: number | null;
+  grossMargins?: number | null;
+  ebitdaMargins?: number | null;
+  operatingMargins?: number | null;
+  profitMargins?: number | null;
+  operatingCashflow?: number | null;
+  freeCashflow?: number | null;
+  totalDebt?: number | null;
+  totalCash?: number | null;
+  debtToEquity?: number | null;
+  returnOnEquity?: number | null;
+  returnOnAssets?: number | null;
+  earningsGrowth?: number | null;
+  currentRatio?: number | null;
+  targetMeanPrice?: number | null;
+  targetHighPrice?: number | null;
+  targetLowPrice?: number | null;
+  numberOfAnalystOpinions?: number | null;
+  recommendationKey?: string | null;
+  recommendationMean?: number | null;
+  strongBuy?: number | null;
+  buy?: number | null;
+  hold?: number | null;
+  sell?: number | null;
+  strongSell?: number | null;
+  earningsDate?: string | null;
+  dividendDate?: string | null;
+  exDividendDate?: string | null;
+  nextQtrEpsEstimate?: number | null;
+}
+
+interface ChartPoint {
+  date: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
 }
 
 interface EnrichedStock extends Stock {
@@ -232,6 +301,85 @@ const KpiSkeleton = () => (
   </div>
 );
 
+// ── Sparkline Component ──
+const Sparkline = ({ data, width = 320, height = 80 }: { data: ChartPoint[]; width?: number; height?: number }) => {
+  if (!data.length) return null;
+  const closes = data.map(d => d.close).filter((c): c is number => c != null);
+  if (closes.length < 2) return null;
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const pts = closes.map((c, i) => {
+    const x = (i / (closes.length - 1)) * width;
+    const y = height - 4 - ((c - min) / range) * (height - 8);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const first = closes[0], last = closes[closes.length - 1];
+  const up = last >= first;
+  const stroke = up ? "var(--color-positive)" : "var(--color-negative)";
+  const fillPts = `0,${height} ${pts.join(" ")} ${width},${height}`;
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={stroke} stopOpacity="0.15" />
+          <stop offset="100%" stopColor={stroke} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={fillPts} fill="url(#sparkFill)" />
+      <polyline points={pts.join(" ")} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={width} cy={Number(pts[pts.length - 1].split(",")[1])} r="3" fill={stroke} />
+    </svg>
+  );
+};
+
+// ── Range Bar (52W or Day range) ──
+const RangeBar = ({ low, high, current, label }: { low: number; high: number; current: number; label: string }) => {
+  const range = high - low || 1;
+  const pct = Math.max(0, Math.min(100, ((current - low) / range) * 100));
+  return (
+    <div>
+      <div className="flex justify-between mb-1" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
+        <span>{label}</span>
+        <span style={{ fontFamily: "var(--font-mono)" }}>{pct.toFixed(0)}%</span>
+      </div>
+      <div style={{ position: "relative", height: 6, background: "var(--color-bg-hover)", borderRadius: 3 }}>
+        <div style={{ position: "absolute", left: 0, top: 0, height: 6, width: `${pct}%`, background: pct > 70 ? "var(--color-positive)" : pct < 30 ? "var(--color-negative)" : "var(--color-warning)", borderRadius: 3, transition: "width 0.4s ease" }} />
+        <div style={{ position: "absolute", left: `${pct}%`, top: -3, width: 12, height: 12, background: "var(--color-text-primary)", borderRadius: "50%", transform: "translateX(-50%)", border: "2px solid var(--color-bg-primary)" }} />
+      </div>
+      <div className="flex justify-between mt-1" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>
+        <span>₹{low.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+        <span>₹{high.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+      </div>
+    </div>
+  );
+};
+
+// ── Analyst Consensus Bar ──
+const AnalystBar = ({ strongBuy, buy, hold, sell, strongSell }: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }) => {
+  const total = strongBuy + buy + hold + sell + strongSell;
+  if (!total) return <span style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>No analyst data</span>;
+  const segments = [
+    { value: strongBuy, color: "#059669", label: "Strong Buy" },
+    { value: buy, color: "#34D399", label: "Buy" },
+    { value: hold, color: "#FBBF24", label: "Hold" },
+    { value: sell, color: "#F87171", label: "Sell" },
+    { value: strongSell, color: "#DC2626", label: "Strong Sell" },
+  ];
+  return (
+    <div>
+      <div style={{ display: "flex", height: 10, borderRadius: 5, overflow: "hidden", gap: 1 }}>
+        {segments.filter(s => s.value > 0).map(s => (
+          <div key={s.label} style={{ width: `${(s.value / total) * 100}%`, background: s.color }} title={`${s.label}: ${s.value}`} />
+        ))}
+      </div>
+      <div className="flex justify-between mt-1" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
+        {segments.filter(s => s.value > 0).map(s => <span key={s.label}>{s.label.split(" ").pop()} {s.value}</span>)}
+      </div>
+    </div>
+  );
+};
+
 // ═══════════════════════════════ MAIN ═══════════════════════════════
 export default function DashboardClient({ stocks, tickerMap, metadata }: Props) {
   const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
@@ -259,6 +407,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [selectedCompare, setSelectedCompare] = useState<string[]>([]);
   const [compareSectorFilter, setCompareSectorFilter] = useState<string>("all");
   const [detailStock, setDetailStock] = useState<EnrichedStock | null>(null);
+
+  // Enrichment & Chart (lazy-loaded per stock)
+  const [enrichmentCache, setEnrichmentCache] = useState<Record<string, EnrichmentData>>({});
+  const [enrichmentLoading, setEnrichmentLoading] = useState<Record<string, boolean>>({});
+  const [chartCache, setChartCache] = useState<Record<string, ChartPoint[]>>({});
+  const [chartLoading, setChartLoading] = useState<Record<string, boolean>>({});
 
   // Theme
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -370,6 +524,42 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     } catch (err) { console.error("Failed to refresh data:", err); }
     finally { setDataRefreshing(false); }
   }, []);
+
+  const fetchEnrichment = useCallback(async (tikr: string) => {
+    if (enrichmentCache[tikr] || enrichmentLoading[tikr]) return;
+    setEnrichmentLoading(prev => ({ ...prev, [tikr]: true }));
+    try {
+      const res = await fetch(`/api/enrichment/${encodeURIComponent(tikr)}`);
+      const data = await res.json();
+      if (!data.error) setEnrichmentCache(prev => ({ ...prev, [tikr]: data }));
+    } catch { /* silent */ }
+    finally { setEnrichmentLoading(prev => ({ ...prev, [tikr]: false })); }
+  }, [enrichmentCache, enrichmentLoading]);
+
+  const fetchChart = useCallback(async (tikr: string, range = "1mo") => {
+    const key = `${tikr}_${range}`;
+    if (chartCache[key] || chartLoading[key]) return;
+    setChartLoading(prev => ({ ...prev, [key]: true }));
+    try {
+      const res = await fetch(`/api/chart/${encodeURIComponent(tikr)}?range=${range}`);
+      const data = await res.json();
+      if (data.data) setChartCache(prev => ({ ...prev, [key]: data.data }));
+    } catch { /* silent */ }
+    finally { setChartLoading(prev => ({ ...prev, [key]: false })); }
+  }, [chartCache, chartLoading]);
+
+  // Trigger enrichment + chart fetch when detail panel opens
+  useEffect(() => {
+    if (detailStock?.tikr) {
+      fetchEnrichment(detailStock.tikr);
+      fetchChart(detailStock.tikr, "1mo");
+    }
+  }, [detailStock?.tikr]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prefetch enrichment for comparison stocks
+  useEffect(() => {
+    selectedCompare.forEach(tikr => fetchEnrichment(tikr));
+  }, [selectedCompare]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filterOptions = useMemo(() => {
     const sectors = Array.from(new Set(liveStocks.map(s => s.sector).filter(Boolean))).sort() as string[];
@@ -575,7 +765,28 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   // ══════════════════════════════════════════════════════════
   if (detailStock) {
     const s = detailStock;
+    const q = s.tikr ? quotes[s.tikr] : undefined;
+    const enr = s.tikr ? enrichmentCache[s.tikr] : undefined;
+    const enrLoading = s.tikr ? enrichmentLoading[s.tikr] : false;
+    const chartData = s.tikr ? chartCache[`${s.tikr}_1mo`] : undefined;
+    const chartIsLoading = s.tikr ? chartLoading[`${s.tikr}_1mo`] : false;
     const convLabel: Record<number, string> = { 5: "Very High", 4: "High", 3: "Medium", 2: "Low", 1: "Very Low" };
+
+    const fmtCrore = (n: number | null | undefined): string => {
+      if (n == null) return "—";
+      const cr = n / 10000000;
+      if (cr >= 1000) return `₹${(cr / 100).toFixed(1)}K Cr`;
+      return `₹${cr.toFixed(1)} Cr`;
+    };
+    const fmtVol = (n: number | null | undefined): string => {
+      if (n == null) return "—";
+      if (n >= 10000000) return `${(n / 10000000).toFixed(1)} Cr`;
+      if (n >= 100000) return `${(n / 100000).toFixed(1)}L`;
+      if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+      return String(n);
+    };
+    const volRatio = q?.avgVolume3Month && q.volume ? (q.volume / q.avgVolume3Month) : null;
+
     return (
       <div className="max-w-[1400px] mx-auto px-5 py-5 dash-wrapper animate-fade-in">
         <button onClick={() => setDetailStock(null)} className="btn btn-ghost btn-sm mb-4" aria-label="Go back to previous view">
@@ -589,7 +800,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <h2 className="font-bold" style={{ fontSize: "var(--text-2xl)", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>{s.companyShort}</h2>
                 <span className="pill pill-blue">{s.sector}</span>
-                {s.subsector && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{s.subsector}</span>}
+                {s.subsector && s.subsector !== s.sector && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{s.subsector}</span>}
               </div>
               <div className="flex gap-4 mt-2 flex-wrap" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
                 <span>Ticker: <strong style={{ color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)" }}>{s.displayTikr}</strong></span>
@@ -603,6 +814,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <div className="font-bold detail-header-price" style={{ fontSize: "var(--text-3xl)", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
                 {s.liveCmp ? <>₹<CountUp value={s.liveCmp} decimals={2} /></> : "—"}
               </div>
+              {s.liveChangePct != null && (
+                <div className="font-bold" style={{ fontSize: "var(--text-sm)", color: s.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontFamily: "var(--font-mono)" }}>
+                  {s.liveChange != null ? `${s.liveChange >= 0 ? "+" : ""}${s.liveChange.toFixed(2)}` : ""} ({s.liveChangePct >= 0 ? "+" : ""}{s.liveChangePct.toFixed(2)}%)
+                </div>
+              )}
               <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>Current Market Price</div>
               {s.conviction != null && (
                 <div className="flex items-center gap-2 justify-end">
@@ -613,6 +829,70 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
           {s.comments && <div className="mt-3 p-3 rounded-lg" style={{ background: "var(--color-warning-bg)", border: "1px solid var(--color-warning-border)", fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>{s.comments}</div>}
+        </div>
+
+        {/* ── Live Market Data + Sparkline ── */}
+        <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          {/* Left: Ranges & Market Data */}
+          <div className="metric-card animate-fade-in-up delay-1">
+            <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Market Data</h3>
+            <div className="space-y-4">
+              {q?.fiftyTwoWeekLow != null && q?.fiftyTwoWeekHigh != null && s.liveCmp && (
+                <RangeBar low={q.fiftyTwoWeekLow} high={q.fiftyTwoWeekHigh} current={s.liveCmp} label="52-Week Range" />
+              )}
+              {q?.dayLow != null && q?.dayHigh != null && s.liveCmp && (
+                <RangeBar low={q.dayLow} high={q.dayHigh} current={s.liveCmp} label="Today's Range" />
+              )}
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2" style={{ fontSize: "var(--text-sm)" }}>
+                {[
+                  ["Market Cap", q?.marketCap ? fmtCrore(q.marketCap) : "—"],
+                  ["Open", q?.open ? `₹${fmt(q.open, 2)}` : "—"],
+                  ["Prev Close", q?.prevClose ? `₹${fmt(q.prevClose, 2)}` : "—"],
+                  ["Volume", fmtVol(q?.volume)],
+                  ["Avg Vol (3M)", fmtVol(q?.avgVolume3Month)],
+                  ["Vol Ratio", volRatio ? `${volRatio.toFixed(2)}x` : "—"],
+                ].map(([label, val]) => (
+                  <div key={label as string} className="flex justify-between">
+                    <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
+                    <span className="font-bold" style={{ fontFamily: "var(--font-mono)", color: label === "Vol Ratio" && volRatio ? (volRatio > 1.5 ? "var(--color-positive)" : volRatio < 0.5 ? "var(--color-negative)" : "var(--color-text-primary)") : undefined }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Sparkline + MAs */}
+          <div className="metric-card animate-fade-in-up delay-2">
+            <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>30-Day Price Chart</h3>
+            {chartIsLoading ? (
+              <div className="flex items-center justify-center" style={{ height: 80 }}><div className="skeleton" style={{ width: "100%", height: 60 }} /></div>
+            ) : chartData && chartData.length > 1 ? (
+              <Sparkline data={chartData} height={90} />
+            ) : (
+              <div className="flex items-center justify-center" style={{ height: 80, color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>No chart data available</div>
+            )}
+            {chartData && chartData.length > 1 && (
+              <div className="flex justify-between mt-2" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>
+                <span>{chartData[0].date}</span>
+                <span>{chartData[chartData.length - 1].date}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-3" style={{ fontSize: "var(--text-sm)" }}>
+              {[
+                ["50-Day MA", q?.fiftyDayAverage ? `₹${fmt(q.fiftyDayAverage, 1)}` : "—", q?.fiftyDayAverage && s.liveCmp ? (s.liveCmp > q.fiftyDayAverage ? "var(--color-positive)" : "var(--color-negative)") : undefined],
+                ["200-Day MA", q?.twoHundredDayAverage ? `₹${fmt(q.twoHundredDayAverage, 1)}` : "—", q?.twoHundredDayAverage && s.liveCmp ? (s.liveCmp > q.twoHundredDayAverage ? "var(--color-positive)" : "var(--color-negative)") : undefined],
+                ["Trailing PE", q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"],
+                ["Forward PE", q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"],
+                ["Price/Book", q?.priceToBook ? `${q.priceToBook.toFixed(2)}x` : "—"],
+                ["EPS (TTM)", q?.epsTrailingTwelveMonths ? `₹${q.epsTrailingTwelveMonths.toFixed(2)}` : "—"],
+              ].map(([label, val, color]) => (
+                <div key={label as string} className="flex justify-between">
+                  <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
+                  <span className="font-bold" style={{ fontFamily: "var(--font-mono)", color: (color as string) || undefined }}>{val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Scenario Cards */}
@@ -641,7 +921,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           {[
             { label: "1Y Target", value: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", sub: s.upside_1y != null ? fmtPct(s.upside_1y) : undefined, subColor: s.upside_1y != null ? (s.upside_1y >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
             { label: "2Y Target", value: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", sub: s.upside_2y != null ? fmtPct(s.upside_2y) : undefined, subColor: s.upside_2y != null ? (s.upside_2y >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
-            { label: "Dividend Yield", value: s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : "—" },
+            { label: "Dividend Yield", value: q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : "—", sub: q?.dividendRate ? `₹${q.dividendRate.toFixed(2)}/share` : undefined },
             { label: "Score", value: String(s.score ?? "—"), sub: s.score_adj_1y != null ? `1Y adj: ${s.score_adj_1y}` : undefined },
           ].map((m, idx) => (
             <div key={m.label} className={`metric-card animate-fade-in-up delay-${idx + 1}`}>
@@ -652,18 +932,89 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           ))}
         </div>
 
-        {/* Valuation Table */}
+        {/* Valuation Table — Enhanced with live data */}
         <div className="metric-card mb-4 animate-fade-in-up delay-5">
           <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Valuation Multiples</h3>
           <table className="data-table w-full" role="table" aria-label="Valuation multiples">
-            <thead><tr><th>Metric</th><th>Base</th><th>+2 SD</th></tr></thead>
+            <thead><tr><th>Metric</th><th>Base (Tusk)</th><th>+2 SD</th><th>Live (Yahoo)</th></tr></thead>
             <tbody>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>PE</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "—"}</td></tr>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>PB</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "—"}</td></tr>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>EV/EBITDA</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>PE</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>PB</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.priceToBook ? `${q.priceToBook.toFixed(2)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>EV/EBITDA</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{enr?.enterpriseToEbitda ? `${enr.enterpriseToEbitda.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>Forward PE</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>PEG Ratio</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{enr?.pegRatio ? `${enr.pegRatio.toFixed(2)}` : "—"}</td></tr>
             </tbody>
           </table>
         </div>
+
+        {/* ── Deep Enrichment: Financials + Analyst (lazy loaded) ── */}
+        {(enr || enrLoading) && (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Financial Health */}
+            <div className="metric-card animate-fade-in-up">
+              <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Financial Health {enrLoading && <span className="skeleton" style={{ display: "inline-block", width: 40, height: 12, verticalAlign: "middle", marginLeft: 8 }} />}</h3>
+              {enr ? (
+                <div className="space-y-2" style={{ fontSize: "var(--text-sm)" }}>
+                  {[
+                    ["Revenue", enr.totalRevenue ? fmtCrore(enr.totalRevenue) : "—"],
+                    ["Revenue Growth", enr.revenueGrowth != null ? `${(enr.revenueGrowth * 100).toFixed(1)}%` : "—"],
+                    ["Earnings Growth", enr.earningsGrowth != null ? `${(enr.earningsGrowth * 100).toFixed(1)}%` : "—"],
+                    ["Profit Margin", enr.profitMargins != null ? `${(enr.profitMargins * 100).toFixed(1)}%` : "—"],
+                    ["EBITDA Margin", enr.ebitdaMargins != null ? `${(enr.ebitdaMargins * 100).toFixed(1)}%` : "—"],
+                    ["ROE", enr.returnOnEquity != null ? `${(enr.returnOnEquity * 100).toFixed(1)}%` : "—"],
+                    ["D/E", enr.debtToEquity != null ? `${enr.debtToEquity.toFixed(1)}%` : "—"],
+                    ["Current Ratio", enr.currentRatio != null ? enr.currentRatio.toFixed(2) : "—"],
+                    ["Free Cash Flow", enr.freeCashflow ? fmtCrore(enr.freeCashflow) : "—"],
+                    ["Beta", enr.beta != null ? enr.beta.toFixed(2) : "—"],
+                  ].map(([label, val]) => (
+                    <div key={label as string} className="flex justify-between">
+                      <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
+                      <span className="font-bold" style={{ fontFamily: "var(--font-mono)" }}>{val}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 16, width: `${70 + Math.random() * 30}%` }} />)}</div>
+              )}
+            </div>
+
+            {/* Analyst Consensus */}
+            <div className="metric-card animate-fade-in-up">
+              <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Analyst Consensus {enrLoading && <span className="skeleton" style={{ display: "inline-block", width: 40, height: 12, verticalAlign: "middle", marginLeft: 8 }} />}</h3>
+              {enr ? (
+                <div className="space-y-3">
+                  {enr.recommendationKey && (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block px-3 py-1 rounded-full font-bold uppercase" style={{ fontSize: "var(--text-xs)", background: enr.recommendationKey === "buy" || enr.recommendationKey === "strong_buy" ? "var(--color-positive-bg)" : enr.recommendationKey === "sell" || enr.recommendationKey === "strong_sell" ? "var(--color-negative-bg)" : "var(--color-warning-bg)", color: enr.recommendationKey === "buy" || enr.recommendationKey === "strong_buy" ? "var(--color-positive)" : enr.recommendationKey === "sell" || enr.recommendationKey === "strong_sell" ? "var(--color-negative)" : "var(--color-warning)" }}>
+                        {enr.recommendationKey.replace("_", " ")}
+                      </span>
+                      {enr.numberOfAnalystOpinions != null && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>({enr.numberOfAnalystOpinions} analysts)</span>}
+                    </div>
+                  )}
+                  {(enr.strongBuy != null || enr.buy != null) && (
+                    <AnalystBar strongBuy={enr.strongBuy || 0} buy={enr.buy || 0} hold={enr.hold || 0} sell={enr.sell || 0} strongSell={enr.strongSell || 0} />
+                  )}
+                  <div className="space-y-2 mt-2" style={{ fontSize: "var(--text-sm)" }}>
+                    {[
+                      ["Target Mean", enr.targetMeanPrice ? `₹${fmt(enr.targetMeanPrice, 0)}` : "—"],
+                      ["Target High", enr.targetHighPrice ? `₹${fmt(enr.targetHighPrice, 0)}` : "—"],
+                      ["Target Low", enr.targetLowPrice ? `₹${fmt(enr.targetLowPrice, 0)}` : "—"],
+                      ["Earnings Date", enr.earningsDate ? new Date(enr.earningsDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"],
+                      ["Ex-Div Date", enr.exDividendDate ? new Date(enr.exDividendDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"],
+                    ].map(([label, val]) => (
+                      <div key={label as string} className="flex justify-between">
+                        <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
+                        <span className="font-bold" style={{ fontFamily: "var(--font-mono)" }}>{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 16, width: `${70 + Math.random() * 30}%` }} />)}</div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Position & Profit */}
         <div className="grid grid-cols-2 gap-4">
@@ -992,6 +1343,22 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   { label: "Conviction", render: (s: EnrichedStock) => <span className="font-semibold">{s.conviction ?? "—"}</span> },
                   { label: "Score", render: (s: EnrichedStock) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.score ?? "—"}</span> },
                   { label: "VA / SA", render: (s: EnrichedStock) => <span style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"} / {s.sa || "—"}</span> },
+                ]},
+                { title: "Market Data (Live)", rows: [
+                  { label: "Market Cap", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; const mc = q?.marketCap; if (!mc) return <span style={{ color: "var(--color-text-muted)" }}>—</span>; const cr = mc / 10000000; return <span style={{ fontFamily: "var(--font-mono)" }}>{cr >= 1000 ? `₹${(cr/100).toFixed(1)}K Cr` : `₹${cr.toFixed(0)} Cr`}</span>; }},
+                  { label: "52W High", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.fiftyTwoWeekHigh ? `₹${fmt(q.fiftyTwoWeekHigh, 1)}` : "—"}</span>; }},
+                  { label: "52W Low", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.fiftyTwoWeekLow ? `₹${fmt(q.fiftyTwoWeekLow, 1)}` : "—"}</span>; }},
+                  { label: "Trailing PE", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"}</span>; }},
+                  { label: "Forward PE", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"}</span>; }},
+                  { label: "P/B", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.priceToBook ? `${q.priceToBook.toFixed(1)}x` : "—"}</span>; }},
+                  { label: "50-Day MA", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; const above = q?.fiftyDayAverage && s.liveCmp ? s.liveCmp > q.fiftyDayAverage : null; return <span style={{ fontFamily: "var(--font-mono)", color: above === true ? "var(--color-positive)" : above === false ? "var(--color-negative)" : undefined }}>{q?.fiftyDayAverage ? `₹${fmt(q.fiftyDayAverage, 1)}` : "—"}</span>; }},
+                  { label: "200-Day MA", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; const above = q?.twoHundredDayAverage && s.liveCmp ? s.liveCmp > q.twoHundredDayAverage : null; return <span style={{ fontFamily: "var(--font-mono)", color: above === true ? "var(--color-positive)" : above === false ? "var(--color-negative)" : undefined }}>{q?.twoHundredDayAverage ? `₹${fmt(q.twoHundredDayAverage, 1)}` : "—"}</span>; }},
+                  { label: "Div Yield", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : "—"}</span>; }},
+                  { label: "Beta", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.beta ? e.beta.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                  { label: "ROE", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.returnOnEquity != null ? `${(e.returnOnEquity * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                  { label: "D/E", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.debtToEquity != null ? e.debtToEquity.toFixed(1) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                  { label: "Analyst Target", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.targetMeanPrice ? `₹${fmt(e.targetMeanPrice, 0)}` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                  { label: "Recommendation", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; if (!e?.recommendationKey) return <span style={{ color: "var(--color-text-muted)" }}>{enrichmentLoading[s.tikr] ? "…" : "—"}</span>; const key = e.recommendationKey.toUpperCase(); const color = key.includes("BUY") ? "var(--color-positive)" : key.includes("SELL") ? "var(--color-negative)" : "var(--color-warning)"; return <span className="font-semibold" style={{ color }}>{key}</span>; }},
                 ]},
               ].map((section, si) => (
                 <div key={section.title} className={`metric-card animate-fade-in-up delay-${si + 1}`}>

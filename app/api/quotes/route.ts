@@ -29,11 +29,36 @@ export async function GET() {
           return {
             symbol,
             data: {
+              // Core price data (existing)
               price: quote.regularMarketPrice || 0,
               change: quote.regularMarketChange || 0,
               changePct: quote.regularMarketChangePercent || 0,
               volume: quote.regularMarketVolume || 0,
               timestamp: new Date().toISOString(),
+              // Day range
+              dayHigh: quote.regularMarketDayHigh ?? null,
+              dayLow: quote.regularMarketDayLow ?? null,
+              open: quote.regularMarketOpen ?? null,
+              prevClose: quote.regularMarketPreviousClose ?? null,
+              // 52-week range
+              fiftyTwoWeekHigh: quote.fiftyTwoWeekHigh ?? null,
+              fiftyTwoWeekLow: quote.fiftyTwoWeekLow ?? null,
+              // Market cap & fundamentals
+              marketCap: quote.marketCap ?? null,
+              trailingPE: quote.trailingPE ?? null,
+              forwardPE: quote.forwardPE ?? null,
+              priceToBook: quote.priceToBook ?? null,
+              epsTrailingTwelveMonths: quote.epsTrailingTwelveMonths ?? null,
+              bookValue: quote.bookValue ?? null,
+              // Moving averages
+              fiftyDayAverage: quote.fiftyDayAverage ?? null,
+              twoHundredDayAverage: quote.twoHundredDayAverage ?? null,
+              // Volume averages
+              avgVolume3Month: quote.averageDailyVolume3Month ?? null,
+              avgVolume10Day: quote.averageDailyVolume10Day ?? null,
+              // Dividends
+              dividendRate: quote.trailingAnnualDividendRate ?? null,
+              dividendYield: quote.trailingAnnualDividendYield ?? null,
             },
           };
         } catch {
