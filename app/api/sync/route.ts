@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 120; // Allow up to 120s for vF processing
+export const maxDuration = 300; // Allow up to 300s for vF processing (Pro plan)
 
 // ── OneDrive coordinates ──
 const DRIVE_ID =
@@ -216,14 +216,14 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
     for (const item of data.value || []) {
       // Skip folders (no file property)
       if (!item.file) continue;
-      // Only xlsx and xlsm files
       const name = item.name as string;
+      // Only xlsx and xlsm files
       if (!name.match(/\.(xlsx|xlsm)$/i)) continue;
-      // Skip known non-vF files
-      if (name.includes("Octopus") || name.includes("Dashboard") ||
-          name.includes("Todos") || name.includes("Tracker") ||
-          name.includes("updateMaster") || name.includes("PSU Bank Index") ||
-          name.includes("Sing grm")) continue;
+      // STRICT: Only process files with "vf" in the name (case-insensitive)
+      // This is the naming convention for valuation files
+      if (!name.match(/[_\s]vf/i)) continue;
+      // Skip very large files (>10MB) to avoid memory issues
+      if ((item.size || 0) > 10 * 1024 * 1024) continue;
 
       allFiles.push({
         id: item.id,
@@ -434,8 +434,9 @@ export async function POST() {
     console.log(`[sync] Deduplicated to ${dedupedFiles.length} unique files`);
 
     console.log("[sync] Downloading and parsing vF files...");
-    const vfMap = await processVFFiles(token, dedupedFiles, 8);
-    console.log(`[sync] Parsed ${vfMap.size} vF files with valid TIKR`);
+    const vfStart = Date.now();
+    const vfMap = await processVFFiles(token, dedupedFiles, 10);
+    console.log(`[sync] Parsed ${vfMap.size} vF files with valid TIKR in ${((Date.now() - vfStart) / 1000).toFixed(1)}s`);
 
     // Step 3: Merge — vF overrides valuation fields on JVB baseline
     let vfMatchCount = 0;
