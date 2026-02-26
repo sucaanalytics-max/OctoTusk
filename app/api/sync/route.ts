@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
+import * as XLSX from "xlsx";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 120; // Allow up to 120s for vF processing
 
-// ── OneDrive file coordinates ──
+// ── OneDrive coordinates ──
 const DRIVE_ID =
   "b!LcM7MjLpqECPVA1oAGku5GTNwdNGnpZEk5y0fEC278Vi3k0yqnVQSqZRTvNCeYLH";
-const ITEM_ID = "01XUUXNQ72HPRIFGFYLVGID3Y3UPXXUV4H"; // Octopus Dashboard_.xlsx
+const OCTOPUS_ITEM_ID = "01XUUXNQ72HPRIFGFYLVGID3Y3UPXXUV4H"; // Octopus Dashboard_.xlsx
 const SHEET_NAME = "JVB Output";
+const VF_FOLDER_ID = "01XUUXNQYRQ7B5PBRKMZGLUVNKA5K5MXY5"; // Portfolio Stock Valuations folder
 
-// ── Column index → database.json field mapping ──
+// ── Column index → database.json field mapping (JVB Output baseline) ──
 const COL_MAP: Record<number, string> = {
-  41: "tikr", // "Ticker" col (internal name like "Smartworks")
+  41: "tikr",
   1: "official_name",
   2: "in_fno",
   3: "holding_cash_lakhs",
@@ -52,57 +55,36 @@ const COL_MAP: Record<number, string> = {
   44: "exp_profit_fy28",
 };
 
-// Numeric fields that should be parsed as numbers (not strings)
 const NUMERIC_FIELDS = new Set([
-  "holding_cash_lakhs",
-  "holding_pct",
-  "abs_leverage",
-  "leverage_pct",
-  "bear_current",
-  "base_current",
-  "bull_current",
-  "target_1y",
-  "target_2y",
-  "div_yield",
-  "cmp",
-  "upside_bear",
-  "upside_base",
-  "upside_bull",
-  "upside_1y",
-  "upside_2y",
-  "base_pe",
-  "base_pe_2sd",
-  "base_pb",
-  "base_pb_2sd",
-  "base_evebitda",
-  "base_evebitda_2sd",
-  "reviewed_pranay",
-  "conviction",
-  "understanding",
-  "score",
-  "score_adj_1y",
-  "exp_profit_fy27",
-  "exp_profit_fy28",
+  "holding_cash_lakhs", "holding_pct", "abs_leverage", "leverage_pct",
+  "bear_current", "base_current", "bull_current",
+  "target_1y", "target_2y", "div_yield", "cmp",
+  "upside_bear", "upside_base", "upside_bull", "upside_1y", "upside_2y",
+  "base_pe", "base_pe_2sd", "base_pb", "base_pb_2sd",
+  "base_evebitda", "base_evebitda_2sd",
+  "reviewed_pranay", "conviction", "understanding",
+  "score", "score_adj_1y", "exp_profit_fy27", "exp_profit_fy28",
 ]);
 
-// String fields that must always be strings (Excel may return 0 for empty cells)
 const STRING_FIELDS = new Set([
-  "tikr",
-  "official_name",
-  "in_fno",
-  "vp",
-  "sa",
-  "sector",
-  "subsector",
-  "comments",
-  "remarks",
-  "last_updated",
+  "tikr", "official_name", "in_fno", "vp", "sa",
+  "sector", "subsector", "comments", "remarks", "last_updated",
 ]);
 
-/** Convert Excel serial date (e.g. 45986) to ISO date string (2025-11-25) */
+// Fields that vF files override (valuation data — the source of truth)
+const VF_OVERRIDE_FIELDS: string[] = [
+  "bear_current", "base_current", "bull_current",
+  "upside_bear", "upside_base", "upside_bull",
+  "target_1y", "target_2y", "upside_1y", "upside_2y",
+  "base_pe", "base_pe_2sd", "base_pb", "base_pb_2sd",
+  "base_evebitda", "base_evebitda_2sd",
+  "vp", "sa", "conviction", "understanding",
+  "sector", "subsector", "last_updated", "comments",
+];
+
+/** Convert Excel serial date to ISO string */
 function excelDateToISO(serial: number | string): string {
   if (typeof serial === "string") {
-    // Already a date string
     if (/\d{4}-\d{2}-\d{2}/.test(serial)) return serial;
     const n = Number(serial);
     if (isNaN(n)) return serial;
@@ -113,7 +95,7 @@ function excelDateToISO(serial: number | string): string {
   return d.toISOString().split("T")[0];
 }
 
-/** Get Graph API access token via client_credentials */
+/** Get Graph API access token */
 async function getGraphToken(): Promise<string> {
   const tenantId = process.env.AZURE_TENANT_ID;
   const clientId = process.env.GRAPH_CLIENT_ID;
@@ -144,14 +126,15 @@ async function getGraphToken(): Promise<string> {
   return data.access_token;
 }
 
-/** Read the JVB Output sheet from the Octopus Dashboard via Graph API */
-async function readJVBOutput(token: string): Promise<unknown[][]> {
-  const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${ITEM_ID}/workbook/worksheets('${encodeURIComponent(SHEET_NAME)}')/usedRange(valuesOnly=true)`;
+// ═══════════════════════════════════════════════════════════════
+// JVB Output baseline reader (unchanged from before)
+// ═══════════════════════════════════════════════════════════════
 
+async function readJVBOutput(token: string): Promise<unknown[][]> {
+  const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${OCTOPUS_ITEM_ID}/workbook/worksheets('${encodeURIComponent(SHEET_NAME)}')/usedRange(valuesOnly=true)`;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
   });
-
   const data = await res.json();
   if (data.error) {
     throw new Error(`Graph Excel error: ${data.error.message || JSON.stringify(data.error)}`);
@@ -159,10 +142,8 @@ async function readJVBOutput(token: string): Promise<unknown[][]> {
   return data.values || [];
 }
 
-/** Parse raw Excel rows into the stocks array */
 function parseStocks(rows: unknown[][]): Record<string, unknown>[] {
   if (rows.length < 2) return [];
-
   const stocks: Record<string, unknown>[] = [];
 
   for (let r = 1; r < rows.length; r++) {
@@ -173,25 +154,21 @@ function parseStocks(rows: unknown[][]): Record<string, unknown>[] {
       const col = Number(colStr);
       let val = col < row.length ? row[col] : null;
 
-      // Skip empty / #VALUE! / #REF! cells
       if (val === "" || val === null || val === undefined) {
         val = null;
       } else if (typeof val === "string" && val.startsWith("#")) {
         val = null;
       }
 
-      // Convert numeric fields
       if (NUMERIC_FIELDS.has(field) && val !== null) {
         const n = Number(val);
         val = isNaN(n) ? null : n;
       }
 
-      // Convert Excel serial date
       if (field === "last_updated" && val !== null) {
         val = excelDateToISO(val as number | string);
       }
 
-      // Ensure string fields are always strings (Excel returns 0 for empty cells)
       if (STRING_FIELDS.has(field)) {
         if (val === null || val === 0 || val === "0") {
           val = "";
@@ -203,54 +180,315 @@ function parseStocks(rows: unknown[][]): Record<string, unknown>[] {
       stock[field] = val;
     }
 
-    // Skip rows without a valid ticker
     if (!stock.tikr || typeof stock.tikr !== "string" || stock.tikr.trim() === "") {
       continue;
     }
-
     stocks.push(stock);
   }
-
   return stocks;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// vF workbook reader — reads directly from individual vF files
+// ═══════════════════════════════════════════════════════════════
+
+interface VFFile {
+  id: string;
+  name: string;
+  size: number;
+  lastModifiedDateTime: string;
+}
+
+/** List all xlsx/xlsm files in the Portfolio Stock Valuations folder */
+async function listVFFiles(token: string): Promise<VFFile[]> {
+  const allFiles: VFFile[] = [];
+  let url: string | null = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+
+  while (url) {
+    const res: Response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.error) {
+      throw new Error(`Graph folder listing error: ${data.error.message || JSON.stringify(data.error)}`);
+    }
+
+    for (const item of data.value || []) {
+      // Skip folders (no file property)
+      if (!item.file) continue;
+      // Only xlsx and xlsm files
+      const name = item.name as string;
+      if (!name.match(/\.(xlsx|xlsm)$/i)) continue;
+      // Skip known non-vF files
+      if (name.includes("Octopus") || name.includes("Dashboard") ||
+          name.includes("Todos") || name.includes("Tracker") ||
+          name.includes("updateMaster") || name.includes("PSU Bank Index") ||
+          name.includes("Sing grm")) continue;
+
+      allFiles.push({
+        id: item.id,
+        name: name,
+        size: item.size || 0,
+        lastModifiedDateTime: item.lastModifiedDateTime || "",
+      });
+    }
+
+    url = data["@odata.nextLink"] || null;
+  }
+
+  return allFiles;
+}
+
+/** Pick the latest vF file per stock (by date prefix in filename) */
+function deduplicateVFFiles(files: VFFile[]): VFFile[] {
+  // Group by stock name (strip date prefix and _vf suffix)
+  const stockMap = new Map<string, VFFile>();
+
+  for (const f of files) {
+    // Normalize: extract stock name from patterns like "20250423_Shriram Fin_vf.xlsx"
+    const match = f.name.match(/^\d{6,8}[_ ]?(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
+    if (!match) {
+      // Try without date prefix (rare)
+      const match2 = f.name.match(/^(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
+      if (match2) {
+        const key = match2[1].trim().toLowerCase();
+        if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) {
+          stockMap.set(key, f);
+        }
+      }
+      continue;
+    }
+
+    const key = match[1].trim().toLowerCase();
+    // Keep the one with the latest date prefix (lexicographic comparison works for YYYYMMDD)
+    if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) {
+      stockMap.set(key, f);
+    }
+  }
+
+  return Array.from(stockMap.values());
+}
+
+/** Read a cell value from a SheetJS worksheet */
+function cellVal(ws: XLSX.WorkSheet, addr: string): unknown {
+  const cell = ws[addr];
+  if (!cell) return null;
+  // Prefer cached value (v) which is the calculated result
+  return cell.v ?? null;
+}
+
+/** Parse numeric value from a cell */
+function numVal(ws: XLSX.WorkSheet, addr: string): number | null {
+  const v = cellVal(ws, addr);
+  if (v === null || v === undefined || v === "" || v === 0) return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+/** Parse string value from a cell */
+function strVal(ws: XLSX.WorkSheet, addr: string): string {
+  const v = cellVal(ws, addr);
+  if (v === null || v === undefined || v === 0 || v === "0") return "";
+  return String(v).trim();
+}
+
+/** Download a vF file as binary and parse the "Tusk - Summary" Output Section */
+async function parseVFFile(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
+  try {
+    // Download binary content
+    const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      redirect: "follow",
+    });
+
+    if (!res.ok) {
+      console.warn(`[vF] Failed to download ${file.name}: ${res.status}`);
+      return null;
+    }
+
+    const buffer = await res.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
+
+    // Find "Tusk - Summary" sheet
+    const summarySheet = wb.SheetNames.find(
+      (s) => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary"
+    );
+    if (!summarySheet) {
+      // Not a vF file with our expected layout — skip silently
+      return null;
+    }
+
+    const ws = wb.Sheets[summarySheet];
+
+    // Row 2, col B = TIKR
+    const tikr = strVal(ws, "B2");
+    if (!tikr) {
+      console.warn(`[vF] No TIKR in ${file.name}`);
+      return null;
+    }
+
+    // Parse the Output Section per the known layout
+    const vfData: Record<string, unknown> = {
+      tikr,
+      // Row 5: metadata
+      last_updated: (() => {
+        const v = cellVal(ws, "A5");
+        if (v === null || v === undefined) return "";
+        // Could be a date object, serial number, or string
+        if (typeof v === "number") return excelDateToISO(v);
+        if (v instanceof Date) return v.toISOString().split("T")[0];
+        return String(v);
+      })(),
+      vp: strVal(ws, "B5"),
+      sa: strVal(ws, "C5"),
+      conviction: numVal(ws, "D5"),
+      understanding: numVal(ws, "E5"),
+      sector: strVal(ws, "F5"),
+      subsector: strVal(ws, "G5"),
+
+      // Row 9: Bear / Base / Bull current
+      bear_current: numVal(ws, "B9"),
+      base_current: numVal(ws, "C9"),
+      bull_current: numVal(ws, "D9"),
+
+      // Row 10: Upside current
+      upside_bear: numVal(ws, "B10"),
+      upside_base: numVal(ws, "C10"),
+      upside_bull: numVal(ws, "D10"),
+
+      // Row 11-12: Target prices
+      target_1y: numVal(ws, "C11"),
+      upside_1y: numVal(ws, "E11"),
+      target_2y: numVal(ws, "C12"),
+      upside_2y: numVal(ws, "E12"),
+
+      // Row 16-18: Target multiples (base case)
+      base_pe: numVal(ws, "C16"),
+      base_pe_2sd: numVal(ws, "F16"),
+      base_pb: numVal(ws, "C17"),
+      base_pb_2sd: numVal(ws, "F17"),
+      base_evebitda: numVal(ws, "C18"),
+      base_evebitda_2sd: numVal(ws, "F18"),
+
+      // Row 21: Comments
+      comments: strVal(ws, "B21"),
+
+      // Metadata for debugging
+      _vf_source: file.name,
+    };
+
+    return vfData;
+  } catch (err) {
+    console.warn(`[vF] Error parsing ${file.name}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Process vF files with concurrency limit */
+async function processVFFiles(
+  token: string,
+  files: VFFile[],
+  concurrency: number = 5
+): Promise<Map<string, Record<string, unknown>>> {
+  const results = new Map<string, Record<string, unknown>>();
+  const queue = [...files];
+
+  async function worker() {
+    while (queue.length > 0) {
+      const file = queue.shift()!;
+      const data = await parseVFFile(token, file);
+      if (data && data.tikr && typeof data.tikr === "string") {
+        results.set(data.tikr as string, data);
+      }
+    }
+  }
+
+  // Launch workers
+  const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => worker());
+  await Promise.all(workers);
+
+  return results;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Main POST handler — merges JVB baseline + vF overrides
+// ═══════════════════════════════════════════════════════════════
+
 export async function POST() {
   try {
-    // Step 1: Get Graph API token
     const token = await getGraphToken();
 
-    // Step 2: Read the JVB Output sheet
+    // Step 1: Read JVB Output baseline (for fields NOT in vF: holdings, scores, etc.)
+    console.log("[sync] Reading JVB Output baseline...");
     const rows = await readJVBOutput(token);
+    const baselineStocks = parseStocks(rows);
+    console.log(`[sync] JVB baseline: ${baselineStocks.length} stocks`);
 
-    // Step 3: Parse into stocks array
-    const stocks = parseStocks(rows);
+    // Step 2: List and process vF files
+    console.log("[sync] Listing vF files...");
+    const allFiles = await listVFFiles(token);
+    console.log(`[sync] Found ${allFiles.length} xlsx/xlsm files in folder`);
 
-    if (stocks.length === 0) {
+    const dedupedFiles = deduplicateVFFiles(allFiles);
+    console.log(`[sync] Deduplicated to ${dedupedFiles.length} unique files`);
+
+    console.log("[sync] Downloading and parsing vF files...");
+    const vfMap = await processVFFiles(token, dedupedFiles, 8);
+    console.log(`[sync] Parsed ${vfMap.size} vF files with valid TIKR`);
+
+    // Step 3: Merge — vF overrides valuation fields on JVB baseline
+    let vfMatchCount = 0;
+    const mergedStocks = baselineStocks.map((stock) => {
+      const tikr = stock.tikr as string;
+      const vfData = vfMap.get(tikr);
+
+      if (!vfData) return stock; // No vF file for this stock — keep baseline as-is
+
+      vfMatchCount++;
+      const merged = { ...stock };
+
+      // Override valuation fields from vF (only if vF has a non-null value)
+      for (const field of VF_OVERRIDE_FIELDS) {
+        const vfVal = vfData[field];
+        if (vfVal !== null && vfVal !== undefined && vfVal !== "") {
+          merged[field] = vfVal;
+        }
+      }
+
+      // Tag with vF source for debugging
+      merged._vf_source = vfData._vf_source;
+
+      return merged;
+    });
+
+    if (mergedStocks.length === 0) {
       return NextResponse.json(
-        { error: "No valid stocks found in JVB Output sheet" },
+        { error: "No valid stocks found" },
         { status: 422 }
       );
     }
 
-    // Step 4: Load existing ticker_map and holdings from static database.json
-    // (These don't change via Excel — they're maintained separately)
+    // Step 4: Load static data (ticker_map, holdings)
     const fs = await import("fs");
     const path = await import("path");
     const dbPath = path.join(process.cwd(), "data", "database.json");
     const staticDb = JSON.parse(fs.readFileSync(dbPath, "utf-8"));
 
-    // Step 5: Return the merged result
-    const uniqueStocks = new Set(stocks.map((s) => s.tikr));
+    const uniqueStocks = new Set(mergedStocks.map((s) => s.tikr));
 
     return NextResponse.json({
-      stocks,
+      stocks: mergedStocks,
       holdings: staticDb.holdings,
       ticker_map: staticDb.ticker_map,
       metadata: {
-        source: "Octopus Dashboard - JVB Output (Live OneDrive)",
+        source: "JVB Output (baseline) + vF workbooks (live overrides)",
         extracted_at: new Date().toISOString(),
-        total_stocks: stocks.length,
+        total_stocks: mergedStocks.length,
         unique_stocks: uniqueStocks.size,
+        vf_files_found: allFiles.length,
+        vf_files_parsed: vfMap.size,
+        vf_stocks_matched: vfMatchCount,
         total_holdings: staticDb.holdings?.length || 0,
       },
       refreshedAt: new Date().toISOString(),
