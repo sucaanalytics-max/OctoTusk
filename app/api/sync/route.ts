@@ -487,6 +487,12 @@ export async function POST() {
         vf_files_parsed: vfMap.size,
         vf_stocks_matched: vfMatchCount,
         total_holdings: staticDb.holdings?.length || 0,
+        // Diagnostic: vF TIKRs that didn't match any JVB stock
+        vf_unmatched_tikrs: Array.from(vfMap.entries())
+          .filter(([tikr]) => !baselineStocks.some((s) => s.tikr === tikr))
+          .map(([tikr, data]) => ({ tikr, file: data._vf_source })),
+        // Diagnostic: JVB stocks without vF match
+        jvb_unmatched: mergedStocks.filter((s) => !s._vf_source).map((s) => s.tikr),
       },
       refreshedAt: new Date().toISOString(),
     });
