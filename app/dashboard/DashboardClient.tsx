@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createChart, ColorType, CrosshairMode, type IChartApi, type ISeriesApi } from "lightweight-charts";
 
 // ── Types ──
 interface Stock {
@@ -333,6 +334,166 @@ const Sparkline = ({ data, width = 320, height = 80 }: { data: ChartPoint[]; wid
   );
 };
 
+// ── TradingView-Style Technical Chart ──
+const TechnicalChart = ({ data, height = 280, onRangeChange, activeRange, loading }: {
+  data: ChartPoint[];
+  height?: number;
+  onRangeChange: (range: string) => void;
+  activeRange: string;
+  loading?: boolean;
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const maRef = useRef<ISeriesApi<"Line"> | null>(null);
+
+  const ranges = [
+    { key: "1mo", label: "1M" },
+    { key: "3mo", label: "3M" },
+    { key: "6mo", label: "6M" },
+    { key: "1y", label: "1Y" },
+  ];
+
+  // Calculate 20-period moving average
+  const calcMA = (points: ChartPoint[], period: number) => {
+    const result: { time: string; value: number }[] = [];
+    const closes = points.map(p => p.close).filter((c): c is number => c != null);
+    for (let i = period - 1; i < points.length; i++) {
+      const slice = closes.slice(i - period + 1, i + 1);
+      if (slice.length === period) {
+        result.push({ time: points[i].date, value: slice.reduce((a, b) => a + b, 0) / period });
+      }
+    }
+    return result;
+  };
+
+  useEffect(() => {
+    if (!containerRef.current || !data.length) return;
+
+    // Detect theme
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const bg = isDark ? "#0F1117" : "#FFFFFF";
+    const textColor = isDark ? "#9CA3AF" : "#6B7280";
+    const gridColor = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
+    const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
+
+    // Create or reuse chart
+    if (chartRef.current) {
+      chartRef.current.remove();
+    }
+
+    const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height,
+      layout: { background: { type: ColorType.Solid, color: bg }, textColor, fontFamily: "'JetBrains Mono', 'SF Mono', monospace", fontSize: 11 },
+      grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
+      crosshair: { mode: CrosshairMode.Normal },
+      rightPriceScale: { borderColor, autoScale: true },
+      timeScale: { borderColor, timeVisible: false, rightOffset: 2 },
+    });
+    chartRef.current = chart;
+
+    // Candlestick series
+    const candles = chart.addCandlestickSeries({
+      upColor: "#059669",
+      downColor: "#DC2626",
+      borderDownColor: "#DC2626",
+      borderUpColor: "#059669",
+      wickDownColor: "#DC2626",
+      wickUpColor: "#059669",
+    });
+    candleRef.current = candles;
+
+    const candleData = data.filter(d => d.open != null && d.high != null && d.low != null && d.close != null).map(d => ({
+      time: d.date as string,
+      open: d.open!,
+      high: d.high!,
+      low: d.low!,
+      close: d.close!,
+    }));
+    candles.setData(candleData as any);
+
+    // Volume histogram
+    const volume = chart.addHistogramSeries({
+      priceFormat: { type: "volume" },
+      priceScaleId: "volume",
+    });
+    chart.priceScale("volume").applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    });
+    volumeRef.current = volume;
+
+    const volData = data.filter(d => d.volume != null && d.close != null && d.open != null).map(d => ({
+      time: d.date as string,
+      value: d.volume!,
+      color: (d.close! >= d.open!) ? "rgba(5,150,105,0.25)" : "rgba(220,38,38,0.25)",
+    }));
+    volume.setData(volData as any);
+
+    // Moving average line (20-period)
+    const maData = calcMA(data, 20);
+    if (maData.length > 0) {
+      const maSeries = chart.addLineSeries({
+        color: "#2563EB",
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      maSeries.setData(maData as any);
+      maRef.current = maSeries;
+    }
+
+    chart.timeScale().fitContent();
+
+    // Responsive
+    const ro = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect?.width;
+      if (w && chart) chart.applyOptions({ width: w });
+    });
+    ro.observe(containerRef.current);
+
+    return () => {
+      ro.disconnect();
+      chart.remove();
+      chartRef.current = null;
+    };
+  }, [data, height]);
+
+  return (
+    <div>
+      {/* Range selector */}
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="font-bold uppercase tracking-wider" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Price Chart</h3>
+        <div className="flex gap-1">
+          {ranges.map(r => (
+            <button key={r.key} onClick={() => onRangeChange(r.key)}
+              className="px-3 py-1 rounded-md font-semibold transition-all"
+              style={{
+                fontSize: "var(--text-xs)",
+                fontFamily: "var(--font-mono)",
+                background: activeRange === r.key ? "var(--color-accent-blue)" : "transparent",
+                color: activeRange === r.key ? "#fff" : "var(--color-text-muted)",
+                border: activeRange === r.key ? "none" : "1px solid var(--color-border-subtle)",
+              }}
+            >{r.label}</button>
+          ))}
+        </div>
+      </div>
+      {/* Chart container */}
+      <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--color-border-subtle)" }}>
+        {loading && (
+          <div className="flex items-center justify-center" style={{ position: "absolute", inset: 0, zIndex: 10, background: "rgba(0,0,0,0.03)" }}>
+            <div className="skeleton" style={{ width: "80%", height: height - 40 }} />
+          </div>
+        )}
+        <div ref={containerRef} style={{ width: "100%", height }} />
+      </div>
+    </div>
+  );
+};
+
 // ── Range Bar (52W or Day range) ──
 const RangeBar = ({ low, high, current, label }: { low: number; high: number; current: number; label: string }) => {
   const range = high - low || 1;
@@ -413,6 +574,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [enrichmentLoading, setEnrichmentLoading] = useState<Record<string, boolean>>({});
   const [chartCache, setChartCache] = useState<Record<string, ChartPoint[]>>({});
   const [chartLoading, setChartLoading] = useState<Record<string, boolean>>({});
+  const [chartRange, setChartRange] = useState("1mo");
 
   // Theme
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -553,8 +715,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     if (detailStock?.tikr) {
       fetchEnrichment(detailStock.tikr);
       fetchChart(detailStock.tikr, "1mo");
+      setChartRange("1mo");
     }
   }, [detailStock?.tikr]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch chart data when range changes
+  useEffect(() => {
+    if (detailStock?.tikr && chartRange) {
+      fetchChart(detailStock.tikr, chartRange);
+    }
+  }, [chartRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Prefetch enrichment for comparison stocks
   useEffect(() => {
@@ -768,8 +938,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const q = s.tikr ? quotes[s.tikr] : undefined;
     const enr = s.tikr ? enrichmentCache[s.tikr] : undefined;
     const enrLoading = s.tikr ? enrichmentLoading[s.tikr] : false;
-    const chartData = s.tikr ? chartCache[`${s.tikr}_1mo`] : undefined;
-    const chartIsLoading = s.tikr ? chartLoading[`${s.tikr}_1mo`] : false;
+    const chartData = s.tikr ? chartCache[`${s.tikr}_${chartRange}`] : undefined;
+    const chartIsLoading = s.tikr ? chartLoading[`${s.tikr}_${chartRange}`] : false;
     const convLabel: Record<number, string> = { 5: "Very High", 4: "High", 3: "Medium", 2: "Low", 1: "Very Low" };
 
     const fmtCrore = (n: number | null | undefined): string => {
@@ -831,10 +1001,21 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           {s.comments && <div className="mt-3 p-3 rounded-lg" style={{ background: "var(--color-warning-bg)", border: "1px solid var(--color-warning-border)", fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>{s.comments}</div>}
         </div>
 
-        {/* ── Live Market Data + Sparkline ── */}
+        {/* ── Technical Chart (Full Width) ── */}
+        <div className="metric-card animate-fade-in-up delay-1 mb-4">
+          <TechnicalChart
+            data={chartData || []}
+            height={280}
+            onRangeChange={setChartRange}
+            activeRange={chartRange}
+            loading={chartIsLoading}
+          />
+        </div>
+
+        {/* ── Market Data + Technical Metrics ── */}
         <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
           {/* Left: Ranges & Market Data */}
-          <div className="metric-card animate-fade-in-up delay-1">
+          <div className="metric-card animate-fade-in-up delay-2">
             <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Market Data</h3>
             <div className="space-y-4">
               {q?.fiftyTwoWeekLow != null && q?.fiftyTwoWeekHigh != null && s.liveCmp && (
@@ -861,23 +1042,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
-          {/* Right: Sparkline + MAs */}
-          <div className="metric-card animate-fade-in-up delay-2">
-            <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>30-Day Price Chart</h3>
-            {chartIsLoading ? (
-              <div className="flex items-center justify-center" style={{ height: 80 }}><div className="skeleton" style={{ width: "100%", height: 60 }} /></div>
-            ) : chartData && chartData.length > 1 ? (
-              <Sparkline data={chartData} height={90} />
-            ) : (
-              <div className="flex items-center justify-center" style={{ height: 80, color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>No chart data available</div>
-            )}
-            {chartData && chartData.length > 1 && (
-              <div className="flex justify-between mt-2" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>
-                <span>{chartData[0].date}</span>
-                <span>{chartData[chartData.length - 1].date}</span>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-3" style={{ fontSize: "var(--text-sm)" }}>
+          {/* Right: Technical Metrics */}
+          <div className="metric-card animate-fade-in-up delay-3">
+            <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Technical Indicators</h3>
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2" style={{ fontSize: "var(--text-sm)" }}>
               {[
                 ["50-Day MA", q?.fiftyDayAverage ? `₹${fmt(q.fiftyDayAverage, 1)}` : "—", q?.fiftyDayAverage && s.liveCmp ? (s.liveCmp > q.fiftyDayAverage ? "var(--color-positive)" : "var(--color-negative)") : undefined],
                 ["200-Day MA", q?.twoHundredDayAverage ? `₹${fmt(q.twoHundredDayAverage, 1)}` : "—", q?.twoHundredDayAverage && s.liveCmp ? (s.liveCmp > q.twoHundredDayAverage ? "var(--color-positive)" : "var(--color-negative)") : undefined],
@@ -885,6 +1053,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 ["Forward PE", q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"],
                 ["Price/Book", q?.priceToBook ? `${q.priceToBook.toFixed(2)}x` : "—"],
                 ["EPS (TTM)", q?.epsTrailingTwelveMonths ? `₹${q.epsTrailingTwelveMonths.toFixed(2)}` : "—"],
+                ["Div Yield", q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : "—"],
+                ["Day Change", q?.changePct != null ? `${q.changePct > 0 ? "+" : ""}${q.changePct.toFixed(2)}%` : "—", q?.changePct != null ? (q.changePct >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined],
               ].map(([label, val, color]) => (
                 <div key={label as string} className="flex justify-between">
                   <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
