@@ -353,6 +353,8 @@ const TechnicalChart = ({ data, height = 280, onRangeChange, activeRange, loadin
     { key: "3mo", label: "3M" },
     { key: "6mo", label: "6M" },
     { key: "1y", label: "1Y" },
+    { key: "3y", label: "3Y" },
+    { key: "5y", label: "5Y" },
   ];
 
   // Calculate 20-period moving average
@@ -852,7 +854,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const bestUpside = [...withCmp].filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc > 0).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0)).slice(0, 10);
     const worstDownside = [...withCmp].filter(s => s.upsideBearCalc != null && s.upsideBearCalc < 0).sort((a, b) => (a.upsideBearCalc || 0) - (b.upsideBearCalc || 0)).slice(0, 10);
     const overvalued = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc < -0.05).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
-    const highConviction = withCmp.filter(s => s.conviction != null && s.conviction >= 4).sort((a, b) => (b.conviction || 0) - (a.conviction || 0) || (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+    const highConviction = withCmp.filter(s => s.conviction != null && s.conviction === 5).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
 
     const sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }> = {};
     withCmp.forEach(s => {
@@ -907,25 +909,48 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const b = new Blob([csv], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `octopus_${new Date().toISOString().split("T")[0]}.csv`; a.click(); URL.revokeObjectURL(u);
   };
 
-  // ── SECTOR ALLOCATION BAR (visual) ──
+  // ── SECTOR ALLOCATION BAR (visual, with expandable dropdown) ──
+  const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
   const SectorBar = ({ sectors }: { sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }> }) => {
     const sorted = Object.entries(sectors).sort((a, b) => b[1].count - a[1].count);
     const max = sorted.length > 0 ? sorted[0][1].count : 1;
     return (
-      <div className="space-y-2">
-        {sorted.map(([sec, d]) => (
-          <div key={sec} className="flex items-center gap-3">
-            <span className="min-w-[130px] text-right truncate sector-label" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{sec}</span>
-            <div className="flex-1 relative" style={{ height: 22, background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>
-              <div className="sector-bar" style={{ width: `${(d.count / max) * 100}%` }}>
-                {d.count}
+      <div className="space-y-1">
+        {sorted.map(([sec, d]) => {
+          const isOpen = expandedSectors[sec];
+          const sectorStocks = enrichedStocks.filter(s => s.sector === sec).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+          return (
+            <div key={sec}>
+              <div className="flex items-center gap-3 cursor-pointer py-1 rounded-md transition-all" style={{ background: isOpen ? "var(--color-bg-hover)" : "transparent", paddingLeft: 4, paddingRight: 4 }} onClick={() => setExpandedSectors(prev => ({ ...prev, [sec]: !prev[sec] }))}>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", width: 14, textAlign: "center" }}>{isOpen ? "▾" : "▸"}</span>
+                <span className="min-w-[120px] text-right truncate sector-label" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{sec}</span>
+                <div className="flex-1 relative" style={{ height: 22, background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>
+                  <div className="sector-bar" style={{ width: `${(d.count / max) * 100}%` }}>
+                    {d.count}
+                  </div>
+                </div>
+                <span className="font-mono min-w-[55px] text-right" style={{ fontSize: "var(--text-xs)", color: d.avgUpsideBase >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
+                  {d.avgUpsideBase >= 0 ? "+" : ""}{d.avgUpsideBase.toFixed(1)}%
+                </span>
               </div>
+              {isOpen && (
+                <div className="ml-8 mb-2 mt-1 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border-subtle)" }}>
+                  <table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Base</th><th>↑ Base</th><th>Conv.</th></tr></thead>
+                    <tbody>{sectorStocks.map(st => (
+                      <tr key={st.tikr} className="cursor-pointer" onClick={() => setDetailStock(st)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(st)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{st.companyShort}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.liveCmp ? `₹${fmt(st.liveCmp, 0)}` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.base_current ? `₹${fmt(st.base_current, 0)}` : "—"}</td>
+                        <td className={pctColor(st.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.upsideBaseCalc != null ? fmtPct(st.upsideBaseCalc) : "—"}</td>
+                        <td className="text-center" style={{ fontSize: "var(--text-xs)", color: "#A78BFA" }}>{st.conviction ?? "—"}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              )}
             </div>
-            <span className="font-mono min-w-[55px] text-right" style={{ fontSize: "var(--text-xs)", color: d.avgUpsideBase >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
-              {d.avgUpsideBase >= 0 ? "+" : ""}{d.avgUpsideBase.toFixed(1)}%
-            </span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
@@ -1186,35 +1211,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           </div>
         )}
 
-        {/* Position & Profit */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="metric-card animate-fade-in-up delay-3">
-            <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Position Details</h3>
-            <div className="space-y-2" style={{ fontSize: "var(--text-sm)" }}>
-              {[
-                ["Holding (Cash)", s.holding_cash_lakhs ? fmtLakhs(s.holding_cash_lakhs) : "—"],
-                ["Holding %", s.holding_pct ? `${(s.holding_pct * 100).toFixed(2)}%` : "—"],
-                ["Abs Leverage", String(s.abs_leverage ?? "—")],
-                ["Leverage %", s.leverage_pct ? `${(s.leverage_pct * 100).toFixed(1)}%` : "—"],
-                ["Conviction", String(s.conviction ?? "—")],
-                ["Understanding", String(s.understanding ?? "—")],
-              ].map(([label, val]) => (
-                <div key={label} className="flex justify-between">
-                  <span style={{ color: "var(--color-text-muted)" }}>{label}</span>
-                  <span className="font-bold" style={{ fontFamily: "var(--font-mono)" }}>{val}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="metric-card animate-fade-in-up delay-4">
-            <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Expected Profit</h3>
-            <div className="space-y-2" style={{ fontSize: "var(--text-sm)" }}>
-              <div className="flex justify-between"><span style={{ color: "var(--color-text-muted)" }}>FY27 Expected Profit</span><span className="font-bold" style={{ fontFamily: "var(--font-mono)" }}>{s.exp_profit_fy27 ? `₹${s.exp_profit_fy27.toFixed(1)} Cr` : "—"}</span></div>
-              <div className="flex justify-between"><span style={{ color: "var(--color-text-muted)" }}>FY28 Expected Profit</span><span className="font-bold" style={{ fontFamily: "var(--font-mono)" }}>{s.exp_profit_fy28 ? `₹${s.exp_profit_fy28.toFixed(1)} Cr` : "—"}</span></div>
-              <div className="flex justify-between"><span style={{ color: "var(--color-text-muted)" }}>Remarks</span><span className="font-bold">{s.remarks || "—"}</span></div>
-            </div>
-          </div>
-        </div>
+        {/* Position & Profit — removed per user request */}
       </div>
     );
   }
@@ -1450,6 +1447,24 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </tbody>
                 </table>
               </div>
+
+              {/* VA & SA Analysis (moved from Decision Support) */}
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
+                  <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>VA (Analyst) Coverage & Holdings</h3>
+                  <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>VA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
+                    <tbody>{Object.entries(decisionData.vpStats).sort((a, b) => b[1].holdingsValue - a[1].holdingsValue).map(([vp, d]) => (
+                      <tr key={vp}><td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{vp}</td><td className="text-center"><span className="pill pill-blue">{d.count}</span></td><td style={{ fontFamily: "var(--font-mono)" }}>{d.holdingsValue > 0 ? fmtLakhs(d.holdingsValue) : "—"}</td><td className="text-center">{d.holdingsStocks > 0 ? d.holdingsStocks : "—"}</td><td><UpsideBar value={d.avgUpside} /></td></tr>
+                    ))}</tbody></table></div>
+                </div>
+                <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #14B8A6" }}>
+                  <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>SA (Analyst) Coverage & Holdings</h3>
+                  <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>SA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
+                    <tbody>{Object.entries(decisionData.saStats).sort((a, b) => b[1].holdingsValue - a[1].holdingsValue).map(([sa, d]) => (
+                      <tr key={sa}><td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{sa}</td><td className="text-center"><span className="pill pill-blue">{d.count}</span></td><td style={{ fontFamily: "var(--font-mono)" }}>{d.holdingsValue > 0 ? fmtLakhs(d.holdingsValue) : "—"}</td><td className="text-center">{d.holdingsStocks > 0 ? d.holdingsStocks : "—"}</td><td><UpsideBar value={d.avgUpside} /></td></tr>
+                    ))}</tbody></table></div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1587,24 +1602,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
-          {/* VA & SA Analysis */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="metric-card animate-fade-in-up delay-5" style={{ borderTop: "3px solid #8B5CF6" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>VA (Analyst) Coverage & Holdings</h3>
-              <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>VA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
-                <tbody>{Object.entries(decisionData.vpStats).sort((a, b) => b[1].holdingsValue - a[1].holdingsValue).map(([vp, d]) => (
-                  <tr key={vp}><td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{vp}</td><td className="text-center"><span className="pill pill-blue">{d.count}</span></td><td style={{ fontFamily: "var(--font-mono)" }}>{d.holdingsValue > 0 ? fmtLakhs(d.holdingsValue) : "—"}</td><td className="text-center">{d.holdingsStocks > 0 ? d.holdingsStocks : "—"}</td><td><UpsideBar value={d.avgUpside} /></td></tr>
-                ))}</tbody></table></div>
-            </div>
-            <div className="metric-card animate-fade-in-up delay-5" style={{ borderTop: "3px solid #14B8A6" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>SA (Analyst) Coverage & Holdings</h3>
-              <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>SA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
-                <tbody>{Object.entries(decisionData.saStats).sort((a, b) => b[1].holdingsValue - a[1].holdingsValue).map(([sa, d]) => (
-                  <tr key={sa}><td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{sa}</td><td className="text-center"><span className="pill pill-blue">{d.count}</span></td><td style={{ fontFamily: "var(--font-mono)" }}>{d.holdingsValue > 0 ? fmtLakhs(d.holdingsValue) : "—"}</td><td className="text-center">{d.holdingsStocks > 0 ? d.holdingsStocks : "—"}</td><td><UpsideBar value={d.avgUpside} /></td></tr>
-                ))}</tbody></table></div>
-            </div>
-          </div>
-
           {/* Sector Allocation & High Conviction */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
@@ -1612,7 +1609,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <SectorBar sectors={decisionData.sectors} />
             </div>
             <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>High Conviction (4+) <span className="pill pill-purple ml-2">{decisionData.highConviction.length}</span></h3>
+              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>High Conviction (5) <span className="pill pill-purple ml-2">{decisionData.highConviction.length}</span></h3>
               {decisionData.highConviction.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None</p> : (
                 <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>Conv.</th><th>Sector</th><th>CMP</th><th>Upside Base</th></tr></thead>
                   <tbody>{decisionData.highConviction.map((s, i) => (

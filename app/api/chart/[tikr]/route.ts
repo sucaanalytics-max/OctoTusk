@@ -50,6 +50,18 @@ export async function GET(
           .split("T")[0],
         interval: "1wk",
       },
+      "3y": {
+        period1: new Date(Date.now() - 3 * 365 * 86400000)
+          .toISOString()
+          .split("T")[0],
+        interval: "1mo",
+      },
+      "5y": {
+        period1: new Date(Date.now() - 5 * 365 * 86400000)
+          .toISOString()
+          .split("T")[0],
+        interval: "1mo",
+      },
     };
 
     const opts = rangeMap[range] || rangeMap["1mo"];
