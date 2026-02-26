@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import staticDb from "@/data/database.json";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -470,13 +471,8 @@ export async function POST() {
       );
     }
 
-    // Step 4: Load static data (ticker_map, holdings)
-    const fs = await import("fs");
-    const path = await import("path");
-    const dbPath = path.join(process.cwd(), "data", "database.json");
-    const staticDb = JSON.parse(fs.readFileSync(dbPath, "utf-8"));
-
-    const uniqueStocks = new Set(mergedStocks.map((s) => s.tikr));
+    // Step 4: Use static data (ticker_map, holdings) from imported database.json
+    const uniqueStocks = mergedStocks.reduce((set, s) => { set.add(s.tikr as string); return set; }, new Set<string>());
 
     return NextResponse.json({
       stocks: mergedStocks,
