@@ -222,8 +222,11 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
       if (!name.match(/\.(xlsx|xlsm)$/i)) continue;
       // Skip known non-valuation files
       if (name.match(/Todos|Banking Results Tracker|Investment Dashboard|Sing grm|Octopus|updateMaster/i)) continue;
-      // Skip very large files (>15MB) to avoid memory issues
-      if ((item.size || 0) > 15 * 1024 * 1024) continue;
+      // Skip very large files (>20MB) to avoid memory issues
+      if ((item.size || 0) > 20 * 1024 * 1024) {
+        console.warn(`[vF] Skipping large file: ${name} (${((item.size || 0) / 1024 / 1024).toFixed(1)}MB)`);
+        continue;
+      }
 
       allFiles.push({
         id: item.id,
@@ -522,8 +525,8 @@ export async function POST() {
         vf_stocks_matched: vfMatchCount,
         total_holdings: staticDb.holdings?.length || 0,
         vf_parse_failures: vfFailures,
-        // Diagnostic: ALL parsed vF TIKR → source file mappings
-        vf_all_tikrs: Array.from(vfMap.entries()).map(([tikr, data]) => ({ tikr, file: data._vf_source })),
+        // Diagnostic: ALL files found with sizes
+        vf_all_files: allFiles.map((f) => ({ name: f.name, sizeMB: (f.size / 1024 / 1024).toFixed(1) })),
         // Diagnostic: files that were deduplicated out
         vf_deduped_out: allFiles.filter((f) => !dedupedFiles.some((d) => d.id === f.id)).map((f) => f.name),
         // Diagnostic: vF TIKRs that didn't match any JVB stock
