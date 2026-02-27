@@ -220,11 +220,10 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
       const name = item.name as string;
       // Only xlsx and xlsm files
       if (!name.match(/\.(xlsx|xlsm)$/i)) continue;
-      // STRICT: Only process files with "vf" in the name (case-insensitive)
-      // This is the naming convention for valuation files
-      if (!name.match(/[_\s]vf/i)) continue;
-      // Skip very large files (>10MB) to avoid memory issues
-      if ((item.size || 0) > 10 * 1024 * 1024) continue;
+      // Skip known non-valuation files
+      if (name.match(/Todos|Banking Results Tracker|Investment Dashboard|Sing grm|Octopus|updateMaster/i)) continue;
+      // Skip very large files (>15MB) to avoid memory issues
+      if ((item.size || 0) > 15 * 1024 * 1024) continue;
 
       allFiles.push({
         id: item.id,
