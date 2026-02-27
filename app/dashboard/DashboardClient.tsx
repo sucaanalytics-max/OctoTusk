@@ -1561,19 +1561,19 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                         <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
-                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: h.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>₹{fmt(h.livePrice, 1)}</td>
+                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>₹{fmt(h.livePrice, 1)}</td>
                         <td className={h.liveChangePct >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChangePct >= 0 ? "+" : ""}{h.liveChangePct.toFixed(1)}%</td>
                         <td className={h.liveChange >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChange >= 0 ? "+" : ""}{fmtCr(h.liveChange * h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmtCr(h.amt_invested)}</td>
-                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: h.liveGain >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(h.liveValue)}</td>
+                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(h.liveValue)}</td>
                         <td className={h.liveGain >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveGain >= 0 ? "+" : ""}{fmtCr(h.liveGain)}</td>
                         <td className={h.liveGainPct >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveGainPct >= 0 ? "+" : ""}{h.liveGainPct.toFixed(1)}%</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bull_current ? `₹${fmt(h.stockData.bull_current, 0)}` : "—"}</td>
-                        <td className={pctColor(h.upsideToBear != null ? h.upsideToBear / 100 : null)} style={{ fontFamily: "var(--font-mono)" }}>{h.upsideToBear != null ? `${h.upsideToBear >= 0 ? "+" : ""}${h.upsideToBear.toFixed(1)}%` : "—"}</td>
-                        <td className={pctColor(h.upsideToBase != null ? h.upsideToBase / 100 : null)} style={{ fontFamily: "var(--font-mono)" }}>{h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "—"}</td>
-                        <td className={pctColor(h.upsideToBull != null ? h.upsideToBull / 100 : null)} style={{ fontFamily: "var(--font-mono)" }}>{h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.upsideToBear != null ? h.upsideToBear / 100 : null) }}>{h.upsideToBear != null ? `${h.upsideToBear >= 0 ? "+" : ""}${h.upsideToBear.toFixed(1)}%` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", fontWeight: 600, ...pctBgStyle(h.upsideToBase != null ? h.upsideToBase / 100 : null) }}>{h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.upsideToBull != null ? h.upsideToBull / 100 : null) }}>{h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
