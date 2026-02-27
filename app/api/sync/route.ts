@@ -390,8 +390,9 @@ async function processVFFiles(
   token: string,
   files: VFFile[],
   concurrency: number = 5
-): Promise<Map<string, Record<string, unknown>>> {
+): Promise<{ results: Map<string, Record<string, unknown>>; failures: string[] }> {
   const results = new Map<string, Record<string, unknown>>();
+  const failures: string[] = [];
   const queue = [...files];
 
   async function worker() {
@@ -400,6 +401,8 @@ async function processVFFiles(
       const data = await parseVFFile(token, file);
       if (data && data.tikr && typeof data.tikr === "string") {
         results.set(data.tikr as string, data);
+      } else if (data === null) {
+        failures.push(file.name);
       }
     }
   }
@@ -408,8 +411,18 @@ async function processVFFiles(
   const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => worker());
   await Promise.all(workers);
 
-  return results;
+  return { results, failures };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// TIKR alias map: vF TIKR → JVB TIKR (for known mismatches)
+// ═══════════════════════════════════════════════════════════════
+const TIKR_ALIAS: Record<string, string> = {
+  // Case mismatches
+  "SMARTWORKS": "Smartworks",
+  "INDIANB": "IndianB",
+  "UNIONBANK": "unionbank",
+};
 
 // ═══════════════════════════════════════════════════════════════
 // Main POST handler — merges JVB baseline + vF overrides
@@ -435,8 +448,30 @@ export async function POST() {
 
     console.log("[sync] Downloading and parsing vF files...");
     const vfStart = Date.now();
-    const vfMap = await processVFFiles(token, dedupedFiles, 10);
+    const { results: vfMap, failures: vfFailures } = await processVFFiles(token, dedupedFiles, 10);
     console.log(`[sync] Parsed ${vfMap.size} vF files with valid TIKR in ${((Date.now() - vfStart) / 1000).toFixed(1)}s`);
+    if (vfFailures.length > 0) {
+      console.log(`[sync] Failed to parse: ${vfFailures.join(", ")}`);
+    }
+
+    // Apply TIKR aliases: copy vF data under the JVB TIKR name too
+    for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
+      const data = vfMap.get(vfTikr);
+      if (data && !vfMap.has(jvbTikr)) {
+        vfMap.set(jvbTikr, data);
+      }
+    }
+    // Also try substring matching for long TIKRs containing "(XBOM:...)" or "(XNSE:...)"
+    const jvbTikrs = baselineStocks.map((s) => s.tikr as string);
+    for (const [vfTikr, data] of Array.from(vfMap.entries())) {
+      // Check if any JVB TIKR is contained within the vF TIKR or vice versa
+      for (const jt of jvbTikrs) {
+        if (vfMap.has(jt)) continue; // Already matched
+        if (vfTikr.includes(jt) || jt.includes(vfTikr)) {
+          vfMap.set(jt, data);
+        }
+      }
+    }
 
     // Step 3: Merge — vF overrides valuation fields on JVB baseline
     let vfMatchCount = 0;
@@ -486,6 +521,7 @@ export async function POST() {
         vf_files_parsed: vfMap.size,
         vf_stocks_matched: vfMatchCount,
         total_holdings: staticDb.holdings?.length || 0,
+        vf_parse_failures: vfFailures,
         // Diagnostic: vF TIKRs that didn't match any JVB stock
         vf_unmatched_tikrs: Array.from(vfMap.entries())
           .filter(([tikr]) => !baselineStocks.some((s) => s.tikr === tikr))
