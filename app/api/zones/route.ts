@@ -1,98 +1,61 @@
 import { NextResponse } from "next/server";
+import * as fs from "fs";
+import * as path from "path";
 
 export const dynamic = "force-dynamic";
 
-// ── OneDrive coordinates (same as sync route) ──
-const DRIVE_ID =
-  "b!LcM7MjLpqECPVA1oAGku5GTNwdNGnpZEk5y0fEC278Vi3k0yqnVQSqZRTvNCeYLH";
-const VF_FOLDER_ID = "01XUUXNQYRQ7B5PBRKMZGLUVNKA5K5MXY5";
-const ZONE_FILE_NAME = "octotusk_zone_snapshot.json";
+// Store zones in /tmp on Vercel (persists within a single function instance)
+// Also keep an in-memory cache as primary (faster, survives within same instance)
+const ZONE_FILE = path.join("/tmp", "octotusk_zone_snapshot.json");
 
-async function getGraphToken(): Promise<string> {
-  const tenantId = process.env.AZURE_TENANT_ID;
-  const clientId = process.env.GRAPH_CLIENT_ID;
-  const clientSecret = process.env.GRAPH_CLIENT_SECRET;
+// In-memory cache (fastest, but lost on cold start — /tmp is backup)
+let memoryCache: { zones: Record<string, string[]>; updatedAt: string | null } = {
+  zones: {},
+  updatedAt: null,
+};
+let memoryCacheLoaded = false;
 
-  if (!tenantId || !clientId || !clientSecret) {
-    throw new Error("Missing Graph API credentials");
-  }
-
-  const res = await fetch(
-    `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "client_credentials",
-        client_id: clientId,
-        client_secret: clientSecret,
-        scope: "https://graph.microsoft.com/.default",
-      }),
+function loadFromDisk(): typeof memoryCache {
+  try {
+    if (fs.existsSync(ZONE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(ZONE_FILE, "utf8"));
+      return data;
     }
-  );
+  } catch { /* ignore */ }
+  return { zones: {}, updatedAt: null };
+}
 
-  const data = await res.json();
-  if (!data.access_token) {
-    throw new Error(`Graph token error: ${data.error_description || data.error || "unknown"}`);
-  }
-  return data.access_token;
+function saveToDisk(data: typeof memoryCache) {
+  try {
+    fs.writeFileSync(ZONE_FILE, JSON.stringify(data));
+  } catch { /* ignore — /tmp may be read-only in some edge cases */ }
 }
 
 /**
- * GET /api/zones — Read zone snapshot from OneDrive
+ * GET /api/zones — Read zone snapshot
  */
 export async function GET() {
-  try {
-    const token = await getGraphToken();
-
-    // Try to read the zone snapshot file
-    const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID}:/${ZONE_FILE_NAME}:/content`;
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!res.ok) {
-      // File doesn't exist yet — return empty
-      return NextResponse.json({ zones: {}, updatedAt: null });
-    }
-
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[/api/zones GET] Error:", message);
-    return NextResponse.json({ zones: {}, updatedAt: null, error: message });
+  if (!memoryCacheLoaded) {
+    memoryCache = loadFromDisk();
+    memoryCacheLoaded = true;
   }
+  return NextResponse.json(memoryCache);
 }
 
 /**
- * POST /api/zones — Save zone snapshot to OneDrive
+ * POST /api/zones — Save zone snapshot
  */
 export async function POST(request: Request) {
   try {
-    const token = await getGraphToken();
     const body = await request.json();
-
     const snapshot = {
       zones: body.zones || {},
       updatedAt: new Date().toISOString(),
     };
 
-    // Write zone snapshot file to OneDrive (create or overwrite)
-    const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID}:/${ZONE_FILE_NAME}:/content`;
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(snapshot),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Failed to save zone snapshot: ${res.status} ${err}`);
-    }
+    memoryCache = snapshot;
+    memoryCacheLoaded = true;
+    saveToDisk(snapshot);
 
     return NextResponse.json({ ok: true, updatedAt: snapshot.updatedAt });
   } catch (error: unknown) {
