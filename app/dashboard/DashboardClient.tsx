@@ -1562,12 +1562,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>₹{fmt(h.livePrice, 1)}</td>
-                        <td className={h.liveChangePct >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChangePct >= 0 ? "+" : ""}{h.liveChangePct.toFixed(1)}%</td>
-                        <td className={h.liveChange >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChange >= 0 ? "+" : ""}{fmtCr(h.liveChange * h.quantity)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveChangePct / 100) }}>{h.liveChangePct >= 0 ? "+" : ""}{h.liveChangePct.toFixed(1)}%</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveChangePct / 100) }}>{h.liveChange >= 0 ? "+" : ""}{fmtCr(h.liveChange * h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmtCr(h.amt_invested)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(h.liveValue)}</td>
-                        <td className={h.liveGain >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveGain >= 0 ? "+" : ""}{fmtCr(h.liveGain)}</td>
-                        <td className={h.liveGainPct >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveGainPct >= 0 ? "+" : ""}{h.liveGainPct.toFixed(1)}%</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveGainPct / 100) }}>{h.liveGain >= 0 ? "+" : ""}{fmtCr(h.liveGain)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveGainPct / 100) }}>{h.liveGainPct >= 0 ? "+" : ""}{h.liveGainPct.toFixed(1)}%</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bull_current ? `₹${fmt(h.stockData.bull_current, 0)}` : "—"}</td>
@@ -1590,18 +1590,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <tr className="cursor-pointer" style={{ background: expandedVP === vp ? "var(--color-bg-hover)" : undefined }} onClick={() => setExpandedVP(p => p === vp ? null : vp)}>
                         <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}><span style={{ marginRight: 4, fontSize: "var(--text-xs)", opacity: 0.5 }}>{expandedVP === vp ? "▾" : "▸"}</span>{vp}</td><td className="text-center"><span className="pill pill-blue">{d.count}</span></td><td style={{ fontFamily: "var(--font-mono)" }}>{d.holdingsValue > 0 ? fmtLakhs(d.holdingsValue) : "—"}</td><td className="text-center">{d.holdingsStocks > 0 ? d.holdingsStocks : "—"}</td><td><UpsideBar value={d.avgUpside} /></td>
                       </tr>
-                      {expandedVP === vp && enrichedStocks.filter(s => (s.vp || "Unassigned") === vp).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0)).map(s => {
-                        const zone = getStockZone(s.tikr);
-                        return (
+                      {expandedVP === vp && enrichedStocks.filter(s => (s.vp || "Unassigned") === vp && s.holding_cash_lakhs && s.holding_cash_lakhs > 0).sort((a, b) => (b.holding_cash_lakhs || 0) - (a.holding_cash_lakhs || 0)).map(s => (
                           <tr key={s.tikr} style={{ background: "var(--color-bg-primary)", fontSize: "var(--text-xs)" }}>
                             <td style={{ paddingLeft: 24, color: "var(--color-text-muted)" }}>{s.companyShort}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 0)}` : "—"}</td>
-                            <td className={pctColor(s.upsideBaseCalc ?? null)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
-                            <td className="text-center">{s.conviction || "—"}</td>
-                            <td>{zone ? <span className="pill" style={{ background: zone.color, color: "#fff", fontSize: "10px", padding: "1px 6px" }}>{zone.label}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{fmtLakhs(s.holding_cash_lakhs)}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upsideBaseCalc ?? null) }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside_1y ?? null) }}>{s.upside_1y != null ? `${((s.upside_1y) * 100).toFixed(1)}%` : "—"}</td>
                           </tr>
-                        );
-                      })}
+                      ))}
                       </Fragment>
                     ))}</tbody></table></div>
                 </div>
@@ -1613,18 +1610,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <tr className="cursor-pointer" style={{ background: expandedSA === sa ? "var(--color-bg-hover)" : undefined }} onClick={() => setExpandedSA(p => p === sa ? null : sa)}>
                         <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}><span style={{ marginRight: 4, fontSize: "var(--text-xs)", opacity: 0.5 }}>{expandedSA === sa ? "▾" : "▸"}</span>{sa}</td><td className="text-center"><span className="pill pill-blue">{d.count}</span></td><td style={{ fontFamily: "var(--font-mono)" }}>{d.holdingsValue > 0 ? fmtLakhs(d.holdingsValue) : "—"}</td><td className="text-center">{d.holdingsStocks > 0 ? d.holdingsStocks : "—"}</td><td><UpsideBar value={d.avgUpside} /></td>
                       </tr>
-                      {expandedSA === sa && enrichedStocks.filter(s => (s.sa || "Unassigned") === sa).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0)).map(s => {
-                        const zone = getStockZone(s.tikr);
-                        return (
+                      {expandedSA === sa && enrichedStocks.filter(s => (s.sa || "Unassigned") === sa && s.holding_cash_lakhs && s.holding_cash_lakhs > 0).sort((a, b) => (b.holding_cash_lakhs || 0) - (a.holding_cash_lakhs || 0)).map(s => (
                           <tr key={s.tikr} style={{ background: "var(--color-bg-primary)", fontSize: "var(--text-xs)" }}>
                             <td style={{ paddingLeft: 24, color: "var(--color-text-muted)" }}>{s.companyShort}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 0)}` : "—"}</td>
-                            <td className={pctColor(s.upsideBaseCalc ?? null)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
-                            <td className="text-center">{s.conviction || "—"}</td>
-                            <td>{zone ? <span className="pill" style={{ background: zone.color, color: "#fff", fontSize: "10px", padding: "1px 6px" }}>{zone.label}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{fmtLakhs(s.holding_cash_lakhs)}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upsideBaseCalc ?? null) }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside_1y ?? null) }}>{s.upside_1y != null ? `${((s.upside_1y) * 100).toFixed(1)}%` : "—"}</td>
                           </tr>
-                        );
-                      })}
+                      ))}
                       </Fragment>
                     ))}</tbody></table></div>
                 </div>
