@@ -522,6 +522,10 @@ export async function POST() {
         vf_stocks_matched: vfMatchCount,
         total_holdings: staticDb.holdings?.length || 0,
         vf_parse_failures: vfFailures,
+        // Diagnostic: ALL parsed vF TIKR → source file mappings
+        vf_all_tikrs: Array.from(vfMap.entries()).map(([tikr, data]) => ({ tikr, file: data._vf_source })),
+        // Diagnostic: files that were deduplicated out
+        vf_deduped_out: allFiles.filter((f) => !dedupedFiles.some((d) => d.id === f.id)).map((f) => f.name),
         // Diagnostic: vF TIKRs that didn't match any JVB stock
         vf_unmatched_tikrs: Array.from(vfMap.entries())
           .filter(([tikr]) => !baselineStocks.some((s) => s.tikr === tikr))
