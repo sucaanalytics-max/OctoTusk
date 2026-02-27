@@ -1554,23 +1554,23 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </div>
               <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 340px)" }}>
                 <table className="data-table w-full" role="table" aria-label="Holdings data">
-                  <thead><tr><th>Stock</th><th>Qty</th><th>Avg Cost</th><th>CMP</th><th>Day Chg</th><th>Day %</th><th>Invested</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Bear</th><th>Base</th><th>Bull</th><th>↑ Bear</th><th>↑ Base</th><th>↑ Bull</th></tr></thead>
+                  <thead><tr><th>Stock</th><th>Qty</th><th>Avg Cost</th><th>CMP</th><th>Day %</th><th>Day P&L</th><th>Invested</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Bear</th><th>Base</th><th>Bull</th><th>↑ Bear</th><th>↑ Base</th><th>↑ Bull</th></tr></thead>
                   <tbody>
                     {enrichedHoldings.sort((a, b) => b.liveValue - a.liveValue).map((h, i) => (
                       <tr key={i}>
                         <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>{fmt(h.quantity)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(h.avg_price, 1)}</td>
-                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(h.livePrice, 1)}</td>
-                        <td className={h.liveChange >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChange >= 0 ? "+" : ""}₹{fmt(Math.abs(h.liveChange), 1)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
+                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: h.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>₹{fmt(h.livePrice, 1)}</td>
                         <td className={h.liveChangePct >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChangePct >= 0 ? "+" : ""}{h.liveChangePct.toFixed(1)}%</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>{fmtCr(h.amt_invested)}</td>
-                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{fmtCr(h.liveValue)}</td>
+                        <td className={h.liveChange >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveChange >= 0 ? "+" : ""}{fmtCr(h.liveChange * h.quantity)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmtCr(h.amt_invested)}</td>
+                        <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: h.liveGain >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(h.liveValue)}</td>
                         <td className={h.liveGain >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveGain >= 0 ? "+" : ""}{fmtCr(h.liveGain)}</td>
                         <td className={h.liveGainPct >= 0 ? "cell-green" : "cell-red"} style={{ fontFamily: "var(--font-mono)" }}>{h.liveGainPct >= 0 ? "+" : ""}{h.liveGainPct.toFixed(1)}%</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>{h.stockData?.bull_current ? `₹${fmt(h.stockData.bull_current, 0)}` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bull_current ? `₹${fmt(h.stockData.bull_current, 0)}` : "—"}</td>
                         <td className={pctColor(h.upsideToBear != null ? h.upsideToBear / 100 : null)} style={{ fontFamily: "var(--font-mono)" }}>{h.upsideToBear != null ? `${h.upsideToBear >= 0 ? "+" : ""}${h.upsideToBear.toFixed(1)}%` : "—"}</td>
                         <td className={pctColor(h.upsideToBase != null ? h.upsideToBase / 100 : null)} style={{ fontFamily: "var(--font-mono)" }}>{h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "—"}</td>
                         <td className={pctColor(h.upsideToBull != null ? h.upsideToBull / 100 : null)} style={{ fontFamily: "var(--font-mono)" }}>{h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "—"}</td>
