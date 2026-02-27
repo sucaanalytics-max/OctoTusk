@@ -571,6 +571,22 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [compareSectorFilter, setCompareSectorFilter] = useState<string>("all");
   const [detailStock, setDetailStock] = useState<EnrichedStock | null>(null);
 
+  // Decision Support: configurable thresholds
+  const [buyZoneLow, setBuyZoneLow] = useState(-10);
+  const [buyZoneHigh, setBuyZoneHigh] = useState(5);
+  const [sellZoneLow, setSellZoneLow] = useState(-5);
+  const [sellZoneHigh, setSellZoneHigh] = useState(10);
+  const [showThresholdSettings, setShowThresholdSettings] = useState(false);
+
+  // Zone alerts
+  const [toasts, setToasts] = useState<{ id: number; msg: string; type: "buy" | "sell" | "overvalued" | "exit"; ts: number }[]>([]);
+  const previousZonesRef = useRef<Record<string, string[]>>({});
+  const zonesInitialized = useRef(false);
+  const toastIdRef = useRef(0);
+
+  // Scatter chart
+  const [scatterHover, setScatterHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
+
   // Enrichment & Chart (lazy-loaded per stock)
   const [enrichmentCache, setEnrichmentCache] = useState<Record<string, EnrichmentData>>({});
   const [enrichmentLoading, setEnrichmentLoading] = useState<Record<string, boolean>>({});
@@ -603,6 +619,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (hidden) setHiddenStocks(new Set(JSON.parse(hidden)));
       const savedTheme = localStorage.getItem("octotusk-theme");
       if (savedTheme === "dark") setTheme("dark");
+      const savedThresholds = localStorage.getItem("octotusk-thresholds");
+      if (savedThresholds) {
+        const t = JSON.parse(savedThresholds);
+        if (t.buyZoneLow != null) setBuyZoneLow(t.buyZoneLow);
+        if (t.buyZoneHigh != null) setBuyZoneHigh(t.buyZoneHigh);
+        if (t.sellZoneLow != null) setSellZoneLow(t.sellZoneLow);
+        if (t.sellZoneHigh != null) setSellZoneHigh(t.sellZoneHigh);
+      }
     } catch { /* ignore */ }
   }, []);
 
@@ -617,6 +641,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   useEffect(() => {
     try { localStorage.setItem("octotusk-theme", theme); } catch { /* ignore */ }
   }, [theme]);
+
+  useEffect(() => {
+    try { localStorage.setItem("octotusk-thresholds", JSON.stringify({ buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh })); } catch { /* ignore */ }
+  }, [buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh]);
 
   const toggleHideStock = (tikr: string) => {
     setHiddenStocks(prev => {
@@ -848,14 +876,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     });
   }, [enrichedStocks, selectedCompare, compareSectorFilter, compareSearch]);
 
-  // Decision data
+  // Decision data (uses configurable thresholds)
   const decisionData = useMemo(() => {
+    const bLow = buyZoneLow / 100, bHigh = buyZoneHigh / 100;
+    const sLow = sellZoneLow / 100, sHigh = sellZoneHigh / 100;
     const withCmp = enrichedStocks.filter(s => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
-    const buyZone = withCmp.filter(s => s.upsideBearCalc != null && s.upsideBearCalc >= -0.10 && s.upsideBearCalc <= 0.05).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
-    const sellZone = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc >= -0.05 && s.upsideBullCalc <= 0.10).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
+    const buyZone = withCmp.filter(s => s.upsideBearCalc != null && s.upsideBearCalc >= bLow && s.upsideBearCalc <= bHigh).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+    const sellZone = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc >= sLow && s.upsideBullCalc <= sHigh).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
     const bestUpside = [...withCmp].filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc > 0).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0)).slice(0, 10);
     const worstDownside = [...withCmp].filter(s => s.upsideBearCalc != null && s.upsideBearCalc < 0).sort((a, b) => (a.upsideBearCalc || 0) - (b.upsideBearCalc || 0)).slice(0, 10);
-    const overvalued = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc < -0.05).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
+    const overvalued = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc < sLow).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
     const highConviction = withCmp.filter(s => s.conviction != null && s.conviction === 5).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
 
     const sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }> = {};
@@ -894,6 +924,84 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const avgBearDownside = withCmp.length > 0 ? withCmp.reduce((sum, s) => sum + (s.upsideBearCalc || 0), 0) / withCmp.length * 100 : 0;
 
     return { buyZone, sellZone, bestUpside, worstDownside, overvalued, highConviction, sectors, vpStats, saStats, totalWithCmp: withCmp.length, totalStocks: enrichedStocks.length, totalHoldingsValue, avgBaseUpside, avgBearDownside };
+  }, [enrichedStocks, buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh]);
+
+  // Zone transition alerts
+  useEffect(() => {
+    if (!decisionData) return;
+    // Build current zone map
+    const currentZones: Record<string, string[]> = {};
+    decisionData.buyZone.forEach(s => { currentZones[s.tikr] = [...(currentZones[s.tikr] || []), "buy"]; });
+    decisionData.sellZone.forEach(s => { currentZones[s.tikr] = [...(currentZones[s.tikr] || []), "sell"]; });
+    decisionData.overvalued.forEach(s => { currentZones[s.tikr] = [...(currentZones[s.tikr] || []), "overvalued"]; });
+
+    if (!zonesInitialized.current) {
+      // First run: initialize without alerting
+      previousZonesRef.current = currentZones;
+      zonesInitialized.current = true;
+      // Load saved zones from server
+      fetch("/api/zones").then(r => r.ok ? r.json() : null).then(data => {
+        if (data?.zones) {
+          previousZonesRef.current = data.zones;
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    const prev = previousZonesRef.current;
+    const newToasts: typeof toasts = [];
+    const allTikrs = new Set([...Object.keys(prev), ...Object.keys(currentZones)]);
+
+    allTikrs.forEach(tikr => {
+      const prevZ = prev[tikr] || [];
+      const currZ = currentZones[tikr] || [];
+      const stock = enrichedStocks.find(s => s.tikr === tikr);
+      const name = stock?.companyShort || tikr;
+      const cmpStr = stock?.liveCmp ? ` (CMP ₹${fmt(stock.liveCmp, 0)})` : "";
+
+      // New entries
+      currZ.forEach(z => {
+        if (!prevZ.includes(z)) {
+          const tid = ++toastIdRef.current;
+          const label = z === "buy" ? "Buy Zone" : z === "sell" ? "Take Profit Zone" : "Overvalued";
+          newToasts.push({ id: tid, msg: `${name} entered ${label}${cmpStr}`, type: z as "buy" | "sell" | "overvalued", ts: Date.now() });
+        }
+      });
+      // Exits
+      prevZ.forEach(z => {
+        if (!currZ.includes(z)) {
+          const tid = ++toastIdRef.current;
+          const label = z === "buy" ? "Buy Zone" : z === "sell" ? "Take Profit Zone" : "Overvalued";
+          newToasts.push({ id: tid, msg: `${name} exited ${label}${cmpStr}`, type: "exit", ts: Date.now() });
+        }
+      });
+    });
+
+    if (newToasts.length > 0) {
+      setToasts(prev => [...prev, ...newToasts].slice(-20));
+      // Persist zones to server
+      fetch("/api/zones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zones: currentZones }) }).catch(() => {});
+    }
+    previousZonesRef.current = currentZones;
+  }, [decisionData, enrichedStocks]);
+
+  // Auto-dismiss toasts after 10s
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const t = setTimeout(() => {
+      const now = Date.now();
+      setToasts(prev => prev.filter(t => now - t.ts < 10000));
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [toasts]);
+
+  // Sector colors for scatter chart
+  const sectorColors = useMemo(() => {
+    const palette = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#F97316", "#14B8A6", "#6366F1", "#84CC16", "#D946EF", "#0EA5E9", "#F43F5E", "#A3E635", "#FB923C", "#2DD4BF", "#818CF8", "#FBBF24", "#E879F9", "#22D3EE", "#FB7185", "#A78BFA", "#4ADE80", "#FACC15"];
+    const sectors = Array.from(new Set(enrichedStocks.map(s => s.sector || "Other")));
+    const map: Record<string, string> = {};
+    sectors.forEach((s, i) => { map[s] = palette[i % palette.length]; });
+    return map;
   }, [enrichedStocks]);
 
   // Sortable table header
@@ -1572,6 +1680,43 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {activeTab === "decisions" && (
         <div id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions" className="space-y-4 animate-fade-in">
 
+          {/* Threshold Settings */}
+          <div className="metric-card animate-fade-in-up" style={{ padding: showThresholdSettings ? undefined : "8px 16px" }}>
+            <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowThresholdSettings(p => !p)}>
+              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
+                <span style={{ marginRight: 6, fontSize: "var(--text-xs)" }}>{showThresholdSettings ? "▾" : "▸"}</span>
+                Zone Thresholds
+              </h3>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Buy: {buyZoneLow}% to {buyZoneHigh}% | Sell: {sellZoneLow}% to {sellZoneHigh}%</span>
+            </div>
+            {showThresholdSettings && (
+              <div className="grid grid-cols-2 gap-6 mt-4">
+                <div>
+                  <p className="mb-2 font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Buy Zone (Upside to Bear)</p>
+                  <div className="flex items-center gap-3 mb-1">
+                    <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>Low: {buyZoneLow}%</label>
+                    <input type="range" min={-30} max={0} value={buyZoneLow} onChange={e => setBuyZoneLow(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-positive)" }} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {buyZoneHigh}%</label>
+                    <input type="range" min={0} max={20} value={buyZoneHigh} onChange={e => setBuyZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-positive)" }} />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>Sell Zone (Upside to Bull)</p>
+                  <div className="flex items-center gap-3 mb-1">
+                    <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>Low: {sellZoneLow}%</label>
+                    <input type="range" min={-20} max={0} value={sellZoneLow} onChange={e => setSellZoneLow(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-negative)" }} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {sellZoneHigh}%</label>
+                    <input type="range" min={0} max={30} value={sellZoneHigh} onChange={e => setSellZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-negative)" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Buy & Sell Zones */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card animate-fade-in-up delay-1" style={{ borderTop: "3px solid var(--color-positive)" }}>
@@ -1590,6 +1735,26 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
+          {/* Overvalued & High Conviction */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #DC2626" }}>
+              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Overvalued — CMP Above Bull <span className="pill pill-red ml-2">{decisionData.overvalued.length}</span></h3>
+              {decisionData.overvalued.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
+                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Bull</th><th>% Above Bull</th></tr></thead>
+                  <tbody>{decisionData.overvalued.map((s, i) => (<tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)", fontWeight: 600 }}>{s.upsideBullCalc != null ? `${(s.upsideBullCalc * 100).toFixed(1)}%` : "—"}</td></tr>))}</tbody></table></div>
+              )}
+            </div>
+            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
+              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>High Conviction (5) <span className="pill pill-purple ml-2">{decisionData.highConviction.length}</span></h3>
+              {decisionData.highConviction.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None</p> : (
+                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>Conv.</th><th>Sector</th><th>CMP</th><th>Upside Base</th></tr></thead>
+                  <tbody>{decisionData.highConviction.map((s, i) => (
+                    <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td className="text-center font-bold" style={{ color: "#A78BFA" }}>{s.conviction}</td><td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>
+                  ))}</tbody></table></div>
+              )}
+            </div>
+          </div>
+
           {/* Upside & Downside */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card animate-fade-in-up delay-3" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
@@ -1604,22 +1769,99 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
-          {/* Sector Allocation & High Conviction */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
-              <h3 className="font-bold mb-4" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation & Avg Upside</h3>
-              <SectorBar sectors={decisionData.sectors} />
-            </div>
-            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>High Conviction (5) <span className="pill pill-purple ml-2">{decisionData.highConviction.length}</span></h3>
-              {decisionData.highConviction.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>Conv.</th><th>Sector</th><th>CMP</th><th>Upside Base</th></tr></thead>
-                  <tbody>{decisionData.highConviction.map((s, i) => (
-                    <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td className="text-center font-bold" style={{ color: "#A78BFA" }}>{s.conviction}</td><td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>
-                  ))}</tbody></table></div>
-              )}
+          {/* Sector Allocation */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
+            <h3 className="font-bold mb-4" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation & Avg Upside</h3>
+            <SectorBar sectors={decisionData.sectors} />
+          </div>
+
+          {/* Risk/Reward Scatter Chart */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
+            <h3 className="font-bold mb-4" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Risk / Reward Scatter — Base Upside vs Bear Downside</h3>
+            <div style={{ position: "relative" }}>
+              {(() => {
+                const W = 900, H = 500, PAD = { t: 20, r: 30, b: 50, l: 60 };
+                const pts = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBearCalc != null && s.liveCmp);
+                if (pts.length === 0) return <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)", padding: 20 }}>No data</p>;
+                const xVals = pts.map(s => (s.upsideBaseCalc || 0) * 100);
+                const yVals = pts.map(s => (s.upsideBearCalc || 0) * 100);
+                const xMin = Math.min(-10, ...xVals) - 5, xMax = Math.max(10, ...xVals) + 5;
+                const yMin = Math.min(-50, ...yVals) - 5, yMax = Math.max(10, ...yVals) + 5;
+                const xScale = (v: number) => PAD.l + ((v - xMin) / (xMax - xMin)) * (W - PAD.l - PAD.r);
+                const yScale = (v: number) => H - PAD.b - ((v - yMin) / (yMax - yMin)) * (H - PAD.t - PAD.b);
+                const hoveredStock = scatterHover ? enrichedStocks.find(s => s.tikr === scatterHover.tikr) : null;
+
+                // Axis ticks
+                const xTicks: number[] = []; for (let x = Math.ceil(xMin / 20) * 20; x <= xMax; x += 20) xTicks.push(x);
+                const yTicks: number[] = []; for (let y = Math.ceil(yMin / 20) * 20; y <= yMax; y += 20) yTicks.push(y);
+
+                return (
+                  <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", maxHeight: 500, cursor: "crosshair" }}>
+                    {/* Grid lines */}
+                    {xTicks.map(x => <line key={`gx${x}`} x1={xScale(x)} y1={PAD.t} x2={xScale(x)} y2={H - PAD.b} stroke="var(--color-border-subtle)" strokeWidth={0.5} strokeDasharray={x === 0 ? "none" : "4,4"} />)}
+                    {yTicks.map(y => <line key={`gy${y}`} x1={PAD.l} y1={yScale(y)} x2={W - PAD.r} y2={yScale(y)} stroke="var(--color-border-subtle)" strokeWidth={0.5} strokeDasharray={y === 0 ? "none" : "4,4"} />)}
+                    {/* Zero lines (thicker) */}
+                    {xMin <= 0 && xMax >= 0 && <line x1={xScale(0)} y1={PAD.t} x2={xScale(0)} y2={H - PAD.b} stroke="var(--color-text-muted)" strokeWidth={1} />}
+                    {yMin <= 0 && yMax >= 0 && <line x1={PAD.l} y1={yScale(0)} x2={W - PAD.r} y2={yScale(0)} stroke="var(--color-text-muted)" strokeWidth={1} />}
+                    {/* Axis labels */}
+                    {xTicks.map(x => <text key={`lx${x}`} x={xScale(x)} y={H - PAD.b + 18} textAnchor="middle" fill="var(--color-text-muted)" style={{ fontSize: 10 }}>{x}%</text>)}
+                    {yTicks.map(y => <text key={`ly${y}`} x={PAD.l - 8} y={yScale(y) + 3} textAnchor="end" fill="var(--color-text-muted)" style={{ fontSize: 10 }}>{y}%</text>)}
+                    <text x={W / 2} y={H - 4} textAnchor="middle" fill="var(--color-text-secondary)" style={{ fontSize: 11, fontWeight: 600 }}>Upside to Base (%)</text>
+                    <text x={14} y={H / 2} textAnchor="middle" fill="var(--color-text-secondary)" style={{ fontSize: 11, fontWeight: 600 }} transform={`rotate(-90, 14, ${H / 2})`}>Downside to Bear (%)</text>
+                    {/* Quadrant labels */}
+                    {xMin <= 0 && yMax >= 0 && <text x={xScale(xMin) + 8} y={yScale(yMax) + 14} fill="var(--color-text-muted)" style={{ fontSize: 9, opacity: 0.6 }}>Low Upside + Low Risk</text>}
+                    {xMax >= 0 && yMax >= 0 && <text x={xScale(xMax) - 8} y={yScale(yMax) + 14} textAnchor="end" fill="var(--color-positive)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>High Upside + Low Risk</text>}
+                    {xMin <= 0 && yMin <= 0 && <text x={xScale(xMin) + 8} y={yScale(yMin) - 6} fill="var(--color-negative)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Low Upside + High Risk</text>}
+                    {/* Data points */}
+                    {pts.map(s => {
+                      const cx = xScale((s.upsideBaseCalc || 0) * 100);
+                      const cy = yScale((s.upsideBearCalc || 0) * 100);
+                      const r = Math.max(4, Math.min(16, (s.conviction || 1) * 3));
+                      const color = sectorColors[s.sector || "Other"] || "#6B7280";
+                      const isHovered = scatterHover?.tikr === s.tikr;
+                      return (
+                        <circle key={s.tikr} cx={cx} cy={cy} r={isHovered ? r + 2 : r} fill={color} fillOpacity={isHovered ? 0.95 : 0.7} stroke={isHovered ? "var(--color-text-primary)" : "none"} strokeWidth={isHovered ? 2 : 0}
+                          style={{ cursor: "pointer", transition: "r 0.15s, fill-opacity 0.15s" }}
+                          onMouseEnter={() => setScatterHover({ tikr: s.tikr, x: cx, y: cy })}
+                          onMouseLeave={() => setScatterHover(null)}
+                          onClick={() => setDetailStock(s)}
+                        />
+                      );
+                    })}
+                    {/* Tooltip */}
+                    {hoveredStock && scatterHover && (
+                      <g>
+                        <rect x={scatterHover.x + 12} y={scatterHover.y - 48} width={220} height={44} rx={6} fill="var(--color-bg-card)" stroke="var(--color-border)" strokeWidth={1} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }} />
+                        <text x={scatterHover.x + 20} y={scatterHover.y - 30} fill="var(--color-text-primary)" style={{ fontSize: 11, fontWeight: 700 }}>{hoveredStock.companyShort}</text>
+                        <text x={scatterHover.x + 20} y={scatterHover.y - 16} fill="var(--color-text-secondary)" style={{ fontSize: 10 }}>CMP ₹{fmt(hoveredStock.liveCmp, 0)} | Base ↑{((hoveredStock.upsideBaseCalc || 0) * 100).toFixed(1)}% | Bear ↓{((hoveredStock.upsideBearCalc || 0) * 100).toFixed(1)}%</text>
+                      </g>
+                    )}
+                  </svg>
+                );
+              })()}
+              {/* Sector legend */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 px-2">
+                {Object.entries(sectorColors).filter(([sec]) => enrichedStocks.some(s => s.sector === sec)).map(([sec, color]) => (
+                  <div key={sec} className="flex items-center gap-1">
+                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sec}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div className="toast-container">
+          {toasts.map(t => (
+            <div key={t.id} className={`toast toast-${t.type}`} onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}>
+              <span className="toast-icon">{t.type === "buy" ? "▲" : t.type === "sell" ? "▼" : t.type === "overvalued" ? "⚠" : "○"}</span>
+              <span>{t.msg}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -766,3 +766,76 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: white;
   min-width: 0;
 }
+
+/* ── Toast Notifications ── */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 380px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  pointer-events: auto;
+  animation: toast-slide-in 0.3s ease-out;
+}
+
+.toast-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.toast-buy {
+  border-left: 3px solid var(--color-positive);
+}
+.toast-buy .toast-icon {
+  color: var(--color-positive);
+}
+
+.toast-sell {
+  border-left: 3px solid var(--color-warning);
+}
+.toast-sell .toast-icon {
+  color: var(--color-warning);
+}
+
+.toast-overvalued {
+  border-left: 3px solid var(--color-negative);
+}
+.toast-overvalued .toast-icon {
+  color: var(--color-negative);
+}
+
+.toast-exit {
+  border-left: 3px solid var(--color-text-muted);
+}
+.toast-exit .toast-icon {
+  color: var(--color-text-muted);
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
