@@ -578,11 +578,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [sellZoneHigh, setSellZoneHigh] = useState(10);
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
 
-  // Zone alerts
-  const [toasts, setToasts] = useState<{ id: number; msg: string; type: "buy" | "sell" | "overvalued" | "exit"; ts: number }[]>([]);
+  // Zone alerts (stored, not auto-popup)
+  const [zoneAlerts, setZoneAlerts] = useState<{ id: number; msg: string; type: "buy" | "sell" | "overvalued" | "exit"; ts: number }[]>([]);
+  const [showZoneAlerts, setShowZoneAlerts] = useState(false);
+  const [unseenAlertCount, setUnseenAlertCount] = useState(0);
   const previousZonesRef = useRef<Record<string, string[]>>({});
   const zonesInitialized = useRef(false);
-  const toastIdRef = useRef(0);
+  const alertIdRef = useRef(0);
 
   // Scatter chart
   const [scatterHover, setScatterHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
@@ -966,7 +968,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     }
 
     const prev = previousZonesRef.current;
-    const newToasts: typeof toasts = [];
+    const newAlerts: typeof zoneAlerts = [];
     const allTikrs = new Set([...Object.keys(prev), ...Object.keys(currentZones)]);
 
     allTikrs.forEach(tikr => {
@@ -979,38 +981,39 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       // New entries
       currZ.forEach(z => {
         if (!prevZ.includes(z)) {
-          const tid = ++toastIdRef.current;
+          const tid = ++alertIdRef.current;
           const label = z === "buy" ? "Buy Zone" : z === "sell" ? "Take Profit Zone" : "Overvalued";
-          newToasts.push({ id: tid, msg: `${name} entered ${label}${cmpStr}`, type: z as "buy" | "sell" | "overvalued", ts: Date.now() });
+          newAlerts.push({ id: tid, msg: `${name} entered ${label}${cmpStr}`, type: z as "buy" | "sell" | "overvalued", ts: Date.now() });
         }
       });
       // Exits
       prevZ.forEach(z => {
         if (!currZ.includes(z)) {
-          const tid = ++toastIdRef.current;
+          const tid = ++alertIdRef.current;
           const label = z === "buy" ? "Buy Zone" : z === "sell" ? "Take Profit Zone" : "Overvalued";
-          newToasts.push({ id: tid, msg: `${name} exited ${label}${cmpStr}`, type: "exit", ts: Date.now() });
+          newAlerts.push({ id: tid, msg: `${name} exited ${label}${cmpStr}`, type: "exit", ts: Date.now() });
         }
       });
     });
 
-    if (newToasts.length > 0) {
-      setToasts(prev => [...prev, ...newToasts].slice(-20));
+    if (newAlerts.length > 0) {
+      setZoneAlerts(prev => [...prev, ...newAlerts].slice(-50));
+      setUnseenAlertCount(prev => prev + newAlerts.length);
       // Persist zones to server
       fetch("/api/zones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zones: currentZones }) }).catch(() => {});
     }
     previousZonesRef.current = currentZones;
   }, [decisionData, enrichedStocks]);
 
-  // Auto-dismiss toasts after 10s
+  // Clean up old alerts (keep last 24h)
   useEffect(() => {
-    if (toasts.length === 0) return;
+    if (zoneAlerts.length === 0) return;
     const t = setTimeout(() => {
-      const now = Date.now();
-      setToasts(prev => prev.filter(t => now - t.ts < 10000));
+      const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+      setZoneAlerts(prev => prev.filter(t => t.ts > cutoff));
     }, 1000);
     return () => clearTimeout(t);
-  }, [toasts]);
+  }, [zoneAlerts]);
 
   // Sector colors for scatter chart
   const sectorColors = useMemo(() => {
@@ -2155,17 +2158,42 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </div>
       )}
 
-      {/* Toast Notifications */}
-      {toasts.length > 0 && (
-        <div className="toast-container">
-          {toasts.map(t => (
-            <div key={t.id} className={`toast toast-${t.type}`} onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}>
-              <span className="toast-icon">{t.type === "buy" ? "▲" : t.type === "sell" ? "▼" : t.type === "overvalued" ? "⚠" : "○"}</span>
-              <span>{t.msg}</span>
+      {/* Zone Alerts Button (fixed bottom-right) */}
+      <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 9999 }}>
+        <button onClick={() => { setShowZoneAlerts(p => !p); setUnseenAlertCount(0); }} className="btn btn-primary" style={{ borderRadius: "50%", width: 48, height: 48, padding: 0, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 16px rgba(0,0,0,0.25)", position: "relative" }} aria-label="Zone Alerts">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          {unseenAlertCount > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--color-negative)", color: "#fff", borderRadius: "50%", width: 20, height: 20, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unseenAlertCount > 9 ? "9+" : unseenAlertCount}</span>}
+        </button>
+        {showZoneAlerts && (
+          <div style={{ position: "absolute", bottom: 56, right: 0, width: 360, maxHeight: 420, background: "var(--color-bg-card)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-elevated)", overflow: "hidden", animation: "fadeInUp 0.2s ease" }}>
+            <div className="flex items-center justify-between" style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
+              <h4 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Zone Alerts</h4>
+              <div className="flex items-center gap-2">
+                {zoneAlerts.length > 0 && <button onClick={() => setZoneAlerts([])} className="btn btn-ghost btn-sm" style={{ fontSize: 10 }}>Clear all</button>}
+                <button onClick={() => setShowZoneAlerts(false)} style={{ background: "none", border: "none", color: "var(--color-text-muted)", cursor: "pointer", fontSize: 16 }}>✕</button>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+            <div style={{ maxHeight: 360, overflowY: "auto", padding: "8px 0" }}>
+              {zoneAlerts.length === 0 ? (
+                <div style={{ padding: "24px 16px", textAlign: "center" }}>
+                  <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>No zone alerts yet</p>
+                  <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Alerts appear when stocks enter or exit Buy/Sell/Overvalued zones on CMP refresh</p>
+                </div>
+              ) : (
+                [...zoneAlerts].reverse().map(a => (
+                  <div key={a.id} className={`zone-alert-item zone-alert-${a.type}`} onClick={() => setZoneAlerts(prev => prev.filter(x => x.id !== a.id))}>
+                    <span className="zone-alert-icon">{a.type === "buy" ? "▲" : a.type === "sell" ? "▼" : a.type === "overvalued" ? "⚠" : "○"}</span>
+                    <div className="flex-1">
+                      <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)", fontWeight: 500 }}>{a.msg}</p>
+                      <p style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 1 }}>{new Date(a.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

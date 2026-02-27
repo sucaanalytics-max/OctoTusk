@@ -767,77 +767,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   min-width: 0;
 }
 
-/* ── Toast Notifications ── */
-.toast-container {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 9999;
+/* ── Zone Alert Items ── */
+.zone-alert-item {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 380px;
-  pointer-events: none;
-}
-
-.toast {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: var(--radius-md);
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  font-size: var(--text-xs);
-  color: var(--color-text-primary);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 16px;
   cursor: pointer;
-  pointer-events: auto;
-  animation: toast-slide-in 0.3s ease-out;
+  transition: background var(--transition-fast);
+  border-left: 3px solid transparent;
 }
-
-.toast-icon {
-  font-size: 14px;
+.zone-alert-item:hover {
+  background: var(--color-bg-hover);
+}
+.zone-alert-icon {
+  font-size: 12px;
   flex-shrink: 0;
+  margin-top: 2px;
 }
-
-.toast-buy {
-  border-left: 3px solid var(--color-positive);
+.zone-alert-buy {
+  border-left-color: var(--color-positive);
 }
-.toast-buy .toast-icon {
+.zone-alert-buy .zone-alert-icon {
   color: var(--color-positive);
 }
-
-.toast-sell {
-  border-left: 3px solid var(--color-warning);
+.zone-alert-sell {
+  border-left-color: var(--color-warning);
 }
-.toast-sell .toast-icon {
+.zone-alert-sell .zone-alert-icon {
   color: var(--color-warning);
 }
-
-.toast-overvalued {
-  border-left: 3px solid var(--color-negative);
+.zone-alert-overvalued {
+  border-left-color: var(--color-negative);
 }
-.toast-overvalued .toast-icon {
+.zone-alert-overvalued .zone-alert-icon {
   color: var(--color-negative);
 }
-
-.toast-exit {
-  border-left: 3px solid var(--color-text-muted);
+.zone-alert-exit {
+  border-left-color: var(--color-text-muted);
 }
-.toast-exit .toast-icon {
+.zone-alert-exit .zone-alert-icon {
   color: var(--color-text-muted);
-}
-
-@keyframes toast-slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
 }
 
 /* ── Scatter Plot Filter Pills ── */
