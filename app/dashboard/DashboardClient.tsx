@@ -237,6 +237,91 @@ const getCompanyShort = (stock: Stock): string => {
   return toTitleCase(name.replace(/ LIMITED$/i, "").replace(/ LTD$/i, "").replace(/ PRIVATE$/i, "").replace(/ CORPORATION LIMITED$/i, "").replace(/ CORPORATION$/i, "").trim());
 };
 
+// ── Treemap Heatmap Utilities ──
+interface TreeRect { id: string; x: number; y: number; w: number; h: number; value: number }
+interface TreeItem { id: string; value: number }
+
+function squarify(items: TreeItem[], container: { x: number; y: number; w: number; h: number }): TreeRect[] {
+  if (!items.length) return [];
+  const sorted = [...items].sort((a, b) => b.value - a.value);
+  const total = sorted.reduce((s, i) => s + i.value, 0);
+  if (total <= 0) return [];
+  const result: TreeRect[] = [];
+  let { x, y, w, h } = container;
+
+  const layoutRow = (row: TreeItem[], rowTotal: number, isVertical: boolean) => {
+    const span = isVertical ? (rowTotal / total) * w : (rowTotal / total) * h;
+    let offset = 0;
+    for (const item of row) {
+      const frac = item.value / rowTotal;
+      if (isVertical) {
+        const rh = frac * h;
+        result.push({ id: item.id, x, y: y + offset, w: span, h: rh, value: item.value });
+        offset += rh;
+      } else {
+        const rw = frac * w;
+        result.push({ id: item.id, x: x + offset, y, w: rw, h: span, value: item.value });
+        offset += rw;
+      }
+    }
+    if (isVertical) { x += span; w -= span; } else { y += span; h -= span; }
+    total_remaining -= rowTotal;
+  };
+
+  let total_remaining = total;
+  let idx = 0;
+  while (idx < sorted.length) {
+    const isVertical = w >= h;
+    const side = isVertical ? h : w;
+    let row: TreeItem[] = [];
+    let rowTotal = 0;
+    let worstRatio = Infinity;
+
+    while (idx < sorted.length) {
+      const candidate = sorted[idx];
+      const newRow = [...row, candidate];
+      const newTotal = rowTotal + candidate.value;
+      const span = (newTotal / (total_remaining > 0 ? total_remaining : 1)) * (isVertical ? w : h);
+      if (span <= 0) { idx++; continue; }
+      let worst = 0;
+      for (const it of newRow) {
+        const dim = (it.value / newTotal) * side;
+        const ratio = dim > 0 && span > 0 ? Math.max(span / dim, dim / span) : Infinity;
+        worst = Math.max(worst, ratio);
+      }
+      if (row.length > 0 && worst > worstRatio) break;
+      row = newRow; rowTotal = newTotal; worstRatio = worst; idx++;
+    }
+    if (row.length > 0) layoutRow(row, rowTotal, isVertical);
+  }
+  return result;
+}
+
+function heatmapColor(value: number | null | undefined, mode: string): string {
+  if (value == null || isNaN(value)) return "rgb(55, 55, 65)";
+  if (mode === "conviction") {
+    const v = Math.max(1, Math.min(5, value));
+    const blues: Record<number, string> = { 5: "rgb(59, 130, 246)", 4: "rgb(96, 165, 250)", 3: "rgb(147, 197, 253)", 2: "rgb(107, 114, 128)", 1: "rgb(156, 163, 175)" };
+    return blues[Math.round(v)] || "rgb(55, 55, 65)";
+  }
+  // Green/red gradient
+  const range = mode === "upsideBase" ? 30 : mode === "pnl" ? 30 : 3;
+  const pct = mode === "upsideBase" || mode === "pnl" ? value * 100 : value;
+  const t = Math.max(-1, Math.min(1, pct / range));
+  if (t >= 0) {
+    const r = Math.round(55 + (30 - 55) * t);
+    const g = Math.round(55 + (150 - 55) * t);
+    const b = Math.round(65 + (80 - 65) * t);
+    return `rgb(${r}, ${g}, ${b})`;
+  } else {
+    const at = -t;
+    const r = Math.round(55 + (180 - 55) * at);
+    const g = Math.round(55 + (30 - 55) * at);
+    const b = Math.round(65 + (30 - 65) * at);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+}
+
 // ── CountUp Component ──
 const CountUp = ({ value, prefix = "", suffix = "", decimals = 0, duration = 800 }: { value: number; prefix?: string; suffix?: string; decimals?: number; duration?: number }) => {
   const [display, setDisplay] = useState("0");
@@ -591,6 +676,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [scatterSectorFilters, setScatterSectorFilters] = useState<Set<string>>(new Set());
   const [scatterConvictionFilters, setScatterConvictionFilters] = useState<Set<number>>(new Set());
 
+  // Treemap heatmap
+  const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "pnl" | "conviction">("dayChange");
+  const [hmSizeMode, setHmSizeMode] = useState<"holding" | "equal" | "marketCap">("holding");
+  const [hmGroupBy, setHmGroupBy] = useState<"sector" | "subsector" | "flat">("sector");
+  const [hmScope, setHmScope] = useState<"portfolio" | "all">("portfolio");
+  const [hmHover, setHmHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
+
   // VP/SA expandable rows
   const [expandedVP, setExpandedVP] = useState<string | null>(null);
   const [expandedSA, setExpandedSA] = useState<string | null>(null);
@@ -944,6 +1036,64 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     if (decisionData.overvalued.some(s => s.tikr === tikr)) return { label: "Overvalued", color: "var(--color-negative)" };
     return null;
   }, [decisionData]);
+
+  // Treemap heatmap layout
+  const heatmapLayout = useMemo(() => {
+    const W = 1000, H = 600, PAD = 3;
+    // Filter by scope
+    let pool = enrichedStocks.filter(s => s.liveCmp);
+    if (hmScope === "portfolio") pool = pool.filter(s => s.holding_cash_lakhs && s.holding_cash_lakhs > 0);
+    if (!pool.length) return { rects: [] as (TreeRect & { tikr: string; sector: string; changePct: number; label: string; colorVal: number; sectorLabel: string })[], W, H };
+
+    // Compute value per stock
+    const getValue = (s: EnrichedStock): number => {
+      if (hmSizeMode === "equal") return 1;
+      if (hmSizeMode === "marketCap") return (quotes[s.tikr]?.marketCap || 0) / 10000000 || 1;
+      return s.holding_cash_lakhs || 0.1;
+    };
+    // Compute color value per stock
+    const getColorVal = (s: EnrichedStock): number => {
+      if (hmColorMode === "dayChange") return s.liveChangePct || 0;
+      if (hmColorMode === "upsideBase") return s.upsideBaseCalc || 0;
+      if (hmColorMode === "conviction") return s.conviction || 1;
+      return 0; // pnl handled below if holdings available
+    };
+
+    // Group stocks
+    const groupKey = (s: EnrichedStock): string => {
+      if (hmGroupBy === "flat") return "All";
+      if (hmGroupBy === "subsector") return (s.subsector && s.subsector !== "0" ? s.subsector : s.sector) || "Other";
+      return s.sector || "Other";
+    };
+    const groups: Record<string, EnrichedStock[]> = {};
+    pool.forEach(s => { const k = groupKey(s); (groups[k] ||= []).push(s); });
+
+    // Level 1: sector rects
+    const sectorItems: TreeItem[] = Object.entries(groups).map(([sec, stocks]) => ({
+      id: sec, value: stocks.reduce((sum, s) => sum + getValue(s), 0),
+    })).sort((a, b) => b.value - a.value);
+
+    const sectorRects = squarify(sectorItems, { x: 0, y: 0, w: W, h: H });
+
+    // Level 2: stock rects within each sector
+    const allRects: (TreeRect & { tikr: string; sector: string; changePct: number; label: string; colorVal: number; sectorLabel: string })[] = [];
+    for (const sr of sectorRects) {
+      const stocks = groups[sr.id] || [];
+      const stockItems: TreeItem[] = stocks.map(s => ({ id: s.tikr, value: Math.max(getValue(s), 0.01) }));
+      const inner = { x: sr.x + PAD, y: sr.y + PAD, w: Math.max(sr.w - PAD * 2, 1), h: Math.max(sr.h - PAD * 2, 1) };
+      const stockRects = squarify(stockItems, inner);
+      for (const rect of stockRects) {
+        const stock = stocks.find(s => s.tikr === rect.id);
+        if (!stock) continue;
+        allRects.push({
+          ...rect, tikr: stock.tikr, sector: stock.sector || "Other",
+          changePct: stock.liveChangePct || 0, label: stock.companyShort,
+          colorVal: getColorVal(stock), sectorLabel: sr.id,
+        });
+      }
+    }
+    return { rects: allRects, W, H, sectorRects };
+  }, [enrichedStocks, quotes, hmColorMode, hmSizeMode, hmGroupBy, hmScope]);
 
   // Zone transition alerts
   useEffect(() => {
@@ -1515,6 +1665,120 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </tbody>
             </table>
           </div>
+
+          {/* ── Portfolio Heatmap Treemap ── */}
+          <div className="metric-card animate-fade-in-up mt-4" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Portfolio Heatmap</h3>
+            </div>
+            {/* Toggle pills */}
+            <div className="flex flex-wrap gap-2 mb-3" style={{ fontSize: "var(--text-xs)" }}>
+              <span style={{ color: "var(--color-text-muted)", fontWeight: 600, alignSelf: "center" }}>Scope:</span>
+              {(["portfolio", "all"] as const).map(v => (
+                <button key={v} className="scatter-pill" style={{ background: hmScope === v ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: hmScope === v ? "#fff" : "var(--color-text-muted)" }} onClick={() => setHmScope(v)}>{v === "portfolio" ? "Portfolio" : "Full Universe"}</button>
+              ))}
+              <span style={{ width: 1, height: 20, background: "var(--color-border)", alignSelf: "center", margin: "0 4px" }} />
+              <span style={{ color: "var(--color-text-muted)", fontWeight: 600, alignSelf: "center" }}>Color:</span>
+              {(["dayChange", "upsideBase", "conviction"] as const).map(v => (
+                <button key={v} className="scatter-pill" style={{ background: hmColorMode === v ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: hmColorMode === v ? "#fff" : "var(--color-text-muted)" }} onClick={() => setHmColorMode(v)}>{{dayChange: "Day Chg", upsideBase: "↑ Base", conviction: "Conviction"}[v]}</button>
+              ))}
+              <span style={{ width: 1, height: 20, background: "var(--color-border)", alignSelf: "center", margin: "0 4px" }} />
+              <span style={{ color: "var(--color-text-muted)", fontWeight: 600, alignSelf: "center" }}>Size:</span>
+              {(["holding", "equal", "marketCap"] as const).map(v => (
+                <button key={v} className="scatter-pill" style={{ background: hmSizeMode === v ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: hmSizeMode === v ? "#fff" : "var(--color-text-muted)" }} onClick={() => setHmSizeMode(v)}>{{holding: "Holding ₹", equal: "Equal", marketCap: "Mkt Cap"}[v]}</button>
+              ))}
+              <span style={{ width: 1, height: 20, background: "var(--color-border)", alignSelf: "center", margin: "0 4px" }} />
+              <span style={{ color: "var(--color-text-muted)", fontWeight: 600, alignSelf: "center" }}>Group:</span>
+              {(["sector", "subsector", "flat"] as const).map(v => (
+                <button key={v} className="scatter-pill" style={{ background: hmGroupBy === v ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: hmGroupBy === v ? "#fff" : "var(--color-text-muted)" }} onClick={() => setHmGroupBy(v)}>{{sector: "Sector", subsector: "Subsector", flat: "Flat"}[v]}</button>
+              ))}
+            </div>
+            {/* SVG Treemap */}
+            {heatmapLayout.rects.length === 0 ? (
+              <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)", padding: 20, textAlign: "center" }}>No stocks with holdings data. Switch to "Full Universe" to see all stocks.</p>
+            ) : (
+              <svg viewBox={`0 0 ${heatmapLayout.W} ${heatmapLayout.H}`} style={{ width: "100%", height: "auto", maxHeight: 620, display: "block", borderRadius: 8, background: "rgb(30, 30, 38)" }}>
+                {/* Sector group backgrounds */}
+                {heatmapLayout.sectorRects?.map(sr => (
+                  <rect key={`sg-${sr.id}`} x={sr.x + 1} y={sr.y + 1} width={Math.max(sr.w - 2, 0)} height={Math.max(sr.h - 2, 0)} fill="rgba(255,255,255,0.06)" rx={2} />
+                ))}
+                {/* Sector labels */}
+                {hmGroupBy !== "flat" && heatmapLayout.sectorRects?.map(sr => {
+                  if (sr.w < 50 || sr.h < 20) return null;
+                  return (
+                    <text key={`sl-${sr.id}`} x={sr.x + 6} y={sr.y + 14} fill="rgba(255,255,255,0.5)" style={{ fontSize: Math.min(11, sr.w / 8), fontWeight: 700, pointerEvents: "none" }}>{sr.id}</text>
+                  );
+                })}
+                {/* Stock rects */}
+                {heatmapLayout.rects.map(r => {
+                  const area = r.w * r.h;
+                  const isHovered = hmHover?.tikr === r.tikr;
+                  const color = heatmapColor(r.colorVal, hmColorMode);
+                  return (
+                    <g key={r.tikr}>
+                      <rect x={r.x + 0.5} y={r.y + 0.5} width={Math.max(r.w - 1, 0)} height={Math.max(r.h - 1, 0)} fill={color} stroke={isHovered ? "#fff" : "rgba(0,0,0,0.3)"} strokeWidth={isHovered ? 2 : 0.5} rx={1}
+                        style={{ cursor: "pointer", transition: "stroke-width 0.1s" }}
+                        onMouseEnter={(e) => { const svg = e.currentTarget.ownerSVGElement; if (!svg) return; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const svgPt = pt.matrixTransform(svg.getScreenCTM()?.inverse()); setHmHover({ tikr: r.tikr, x: svgPt.x, y: svgPt.y }); }}
+                        onMouseLeave={() => setHmHover(null)}
+                        onClick={() => { const s = enrichedStocks.find(s => s.tikr === r.tikr); if (s) setDetailStock(s); }}
+                      />
+                      {area > 5000 && (
+                        <>
+                          <text x={r.x + r.w / 2} y={r.y + r.h / 2 - (area > 8000 ? 4 : 0)} textAnchor="middle" dominantBaseline="central" fill="#fff" style={{ fontSize: Math.min(13, r.w / 6, r.h / 3), fontWeight: 700, pointerEvents: "none", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>{cleanTikr(r.tikr)}</text>
+                          {area > 8000 && (
+                            <text x={r.x + r.w / 2} y={r.y + r.h / 2 + 12} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.85)" style={{ fontSize: Math.min(10, r.w / 8, r.h / 4), fontWeight: 500, pointerEvents: "none" }}>
+                              {hmColorMode === "dayChange" ? `${r.changePct >= 0 ? "+" : ""}${r.changePct.toFixed(2)}%` : hmColorMode === "upsideBase" ? `${((r.colorVal) * 100).toFixed(1)}%` : hmColorMode === "conviction" ? `Conv ${r.colorVal}` : ""}
+                            </text>
+                          )}
+                        </>
+                      )}
+                      {area > 2000 && area <= 5000 && (
+                        <text x={r.x + r.w / 2} y={r.y + r.h / 2} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.7)" style={{ fontSize: Math.min(9, r.w / 5), fontWeight: 600, pointerEvents: "none" }}>{cleanTikr(r.tikr)}</text>
+                      )}
+                    </g>
+                  );
+                })}
+                {/* Hover tooltip */}
+                {hmHover && (() => {
+                  const s = enrichedStocks.find(st => st.tikr === hmHover.tikr);
+                  if (!s) return null;
+                  const tw = 240, th = 56;
+                  let tx = hmHover.x + 14, ty = hmHover.y - th - 8;
+                  if (tx + tw > heatmapLayout.W) tx = hmHover.x - tw - 14;
+                  if (ty < 0) ty = hmHover.y + 14;
+                  return (
+                    <g style={{ pointerEvents: "none" }}>
+                      <rect x={tx} y={ty} width={tw} height={th} rx={6} fill="var(--color-bg-card)" stroke="var(--color-border)" strokeWidth={1} style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.3))" }} />
+                      <text x={tx + 8} y={ty + 16} fill="var(--color-text-primary)" style={{ fontSize: 11, fontWeight: 700 }}>{s.companyShort}</text>
+                      <text x={tx + 8} y={ty + 30} fill="var(--color-text-secondary)" style={{ fontSize: 10 }}>CMP ₹{fmt(s.liveCmp, 0)} | Day {s.liveChangePct != null ? `${s.liveChangePct >= 0 ? "+" : ""}${s.liveChangePct.toFixed(1)}%` : "—"}</text>
+                      <text x={tx + 8} y={ty + 44} fill="var(--color-text-secondary)" style={{ fontSize: 10 }}>Hold {s.holding_cash_lakhs ? fmtLakhs(s.holding_cash_lakhs) : "—"} | ↑Base {s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</text>
+                    </g>
+                  );
+                })()}
+              </svg>
+            )}
+            {/* Legend bar */}
+            <div className="flex items-center justify-between mt-2 px-1" style={{ fontSize: "var(--text-xs)" }}>
+              <div className="flex items-center gap-2">
+                {hmColorMode !== "conviction" ? (
+                  <>
+                    <span style={{ color: "var(--color-text-muted)" }}>{hmColorMode === "dayChange" ? "-3%" : "-30%"}</span>
+                    <div style={{ width: 120, height: 8, borderRadius: 4, background: "linear-gradient(to right, rgb(180,30,30), rgb(55,55,65), rgb(30,150,80))" }} />
+                    <span style={{ color: "var(--color-text-muted)" }}>{hmColorMode === "dayChange" ? "+3%" : "+50%"}</span>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    {[1,2,3,4,5].map(c => <div key={c} style={{ width: 14, height: 8, borderRadius: 2, background: heatmapColor(c, "conviction") }} />)}
+                    <span style={{ color: "var(--color-text-muted)", marginLeft: 4 }}>Conv 1–5</span>
+                  </div>
+                )}
+              </div>
+              <span style={{ color: "var(--color-text-muted)" }}>
+                {heatmapLayout.rects.length} stocks | {hmColorMode === "dayChange" ? "Day Change" : hmColorMode === "upsideBase" ? "Upside to Base" : hmColorMode === "conviction" ? "Conviction" : "P&L"}
+              </span>
+            </div>
+          </div>
+
         </div>
       )}
 
