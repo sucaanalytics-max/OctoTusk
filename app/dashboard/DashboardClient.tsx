@@ -244,55 +244,60 @@ interface TreeItem { id: string; value: number }
 function squarify(items: TreeItem[], container: { x: number; y: number; w: number; h: number }): TreeRect[] {
   if (!items.length) return [];
   const sorted = [...items].sort((a, b) => b.value - a.value);
-  const total = sorted.reduce((s, i) => s + i.value, 0);
-  if (total <= 0) return [];
+  const totalValue = sorted.reduce((s, i) => s + i.value, 0);
+  if (totalValue <= 0) return [];
   const result: TreeRect[] = [];
-  let { x, y, w, h } = container;
+  let cx = container.x, cy = container.y, cw = container.w, ch = container.h;
+  let remaining = totalValue;
 
-  const layoutRow = (row: TreeItem[], rowTotal: number, isVertical: boolean) => {
-    const span = isVertical ? (rowTotal / total) * w : (rowTotal / total) * h;
-    let offset = 0;
-    for (const item of row) {
-      const frac = item.value / rowTotal;
-      if (isVertical) {
-        const rh = frac * h;
-        result.push({ id: item.id, x, y: y + offset, w: span, h: rh, value: item.value });
-        offset += rh;
-      } else {
-        const rw = frac * w;
-        result.push({ id: item.id, x: x + offset, y, w: rw, h: span, value: item.value });
-        offset += rw;
-      }
+  const worstRatio = (row: TreeItem[], rowTotal: number, side: number, span: number): number => {
+    let worst = 0;
+    for (const it of row) {
+      const d = (it.value / rowTotal) * side;
+      if (d > 0 && span > 0) worst = Math.max(worst, Math.max(span / d, d / span));
+      else worst = Infinity;
     }
-    if (isVertical) { x += span; w -= span; } else { y += span; h -= span; }
-    total_remaining -= rowTotal;
+    return worst;
   };
 
-  let total_remaining = total;
+  const layoutRow = (row: TreeItem[], rowTotal: number) => {
+    const isVert = cw >= ch;
+    const span = remaining > 0 ? (rowTotal / remaining) * (isVert ? cw : ch) : 0;
+    const side = isVert ? ch : cw;
+    let off = 0;
+    for (const item of row) {
+      const frac = item.value / rowTotal;
+      const d = frac * side;
+      if (isVert) {
+        result.push({ id: item.id, x: cx, y: cy + off, w: span, h: d, value: item.value });
+        off += d;
+      } else {
+        result.push({ id: item.id, x: cx + off, y: cy, w: d, h: span, value: item.value });
+        off += d;
+      }
+    }
+    if (isVert) { cx += span; cw -= span; } else { cy += span; ch -= span; }
+    remaining -= rowTotal;
+  };
+
   let idx = 0;
-  while (idx < sorted.length) {
-    const isVertical = w >= h;
-    const side = isVertical ? h : w;
+  while (idx < sorted.length && cw > 0.1 && ch > 0.1) {
+    const isVert = cw >= ch;
+    const side = isVert ? ch : cw;
     let row: TreeItem[] = [];
     let rowTotal = 0;
-    let worstRatio = Infinity;
+    let bestWorst = Infinity;
 
     while (idx < sorted.length) {
-      const candidate = sorted[idx];
-      const newRow = [...row, candidate];
-      const newTotal = rowTotal + candidate.value;
-      const span = (newTotal / (total_remaining > 0 ? total_remaining : 1)) * (isVertical ? w : h);
+      const c = sorted[idx];
+      const nt = rowTotal + c.value;
+      const span = remaining > 0 ? (nt / remaining) * (isVert ? cw : ch) : 0;
       if (span <= 0) { idx++; continue; }
-      let worst = 0;
-      for (const it of newRow) {
-        const dim = (it.value / newTotal) * side;
-        const ratio = dim > 0 && span > 0 ? Math.max(span / dim, dim / span) : Infinity;
-        worst = Math.max(worst, ratio);
-      }
-      if (row.length > 0 && worst > worstRatio) break;
-      row = newRow; rowTotal = newTotal; worstRatio = worst; idx++;
+      const w = worstRatio([...row, c], nt, side, span);
+      if (row.length > 0 && w > bestWorst) break;
+      row.push(c); rowTotal = nt; bestWorst = w; idx++;
     }
-    if (row.length > 0) layoutRow(row, rowTotal, isVertical);
+    if (row.length > 0) layoutRow(row, rowTotal);
   }
   return result;
 }
@@ -679,7 +684,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "pnl" | "conviction">("dayChange");
   const [hmSizeMode, setHmSizeMode] = useState<"holding" | "equal" | "marketCap">("holding");
   const [hmGroupBy, setHmGroupBy] = useState<"sector" | "subsector" | "flat">("sector");
-  const [hmScope, setHmScope] = useState<"portfolio" | "all">("portfolio");
+  const [hmScope, setHmScope] = useState<"portfolio" | "all">("all");
   const [hmHover, setHmHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
 
   // VP/SA expandable rows
@@ -1698,48 +1703,62 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)", padding: 20, textAlign: "center" }}>No stocks with holdings data. Switch to &quot;Full Universe&quot; to see all stocks.</p>
             ) : (
               <svg viewBox={`0 0 ${heatmapLayout.W} ${heatmapLayout.H}`} preserveAspectRatio="xMidYMid meet" style={{ width: "100%", height: "auto", display: "block", borderRadius: 8, background: "rgb(24, 26, 32)" }}>
-                {/* Sector group outlines */}
-                {heatmapLayout.sectorRects?.map(sr => (
-                  <g key={`sg-${sr.id}`}>
-                    <rect x={sr.x} y={sr.y} width={sr.w} height={sr.h} fill="none" stroke="rgb(24, 26, 32)" strokeWidth={3} />
-                    {hmGroupBy !== "flat" && sr.w > 40 && sr.h > 24 && (
-                      <text x={sr.x + 5} y={sr.y + 12} fill="rgba(255,255,255,0.75)" style={{ fontSize: Math.max(8, Math.min(11, sr.w / 10)), fontWeight: 700, letterSpacing: "0.03em", pointerEvents: "none", textTransform: "uppercase" as const }}>{sr.id}</text>
-                    )}
-                  </g>
-                ))}
+                {/* Sector group borders + labels */}
+                {heatmapLayout.sectorRects?.map(sr => {
+                  const maxLabelChars = Math.max(3, Math.floor(sr.w / 7));
+                  const label = sr.id.length > maxLabelChars ? sr.id.slice(0, maxLabelChars - 1).trim() + "…" : sr.id;
+                  return (
+                    <g key={`sg-${sr.id}`}>
+                      <rect x={sr.x} y={sr.y} width={sr.w} height={sr.h} fill="none" stroke="rgb(24, 26, 32)" strokeWidth={2.5} />
+                      {hmGroupBy !== "flat" && sr.w > 30 && sr.h > 20 && (
+                        <text x={sr.x + 4} y={sr.y + 12} fill="rgba(255,255,255,0.65)" style={{ fontSize: Math.max(7, Math.min(10, sr.w / 12)), fontWeight: 700, letterSpacing: "0.04em", pointerEvents: "none", textTransform: "uppercase" as const }}>{label}</text>
+                      )}
+                    </g>
+                  );
+                })}
+                {/* Clip paths for text containment */}
+                <defs>
+                  {heatmapLayout.rects.map(r => {
+                    const g = 1.5;
+                    return <clipPath key={`cp-${r.tikr}`} id={`cp-${r.tikr.replace(/[^a-zA-Z0-9]/g, "_")}`}><rect x={r.x + g / 2 + 2} y={r.y + g / 2 + 1} width={Math.max(r.w - g - 4, 0)} height={Math.max(r.h - g - 2, 0)} /></clipPath>;
+                  })}
+                </defs>
                 {/* Stock rects */}
                 {heatmapLayout.rects.map(r => {
-                  const area = r.w * r.h;
                   const isHovered = hmHover?.tikr === r.tikr;
                   const color = heatmapColor(r.colorVal, hmColorMode);
-                  const gap = 1.5;
-                  const rx = r.x + gap / 2, ry = r.y + gap / 2, rw = Math.max(r.w - gap, 0), rh = Math.max(r.h - gap, 0);
-                  const showFullLabel = rw > 36 && rh > 28;
-                  const showTicker = rw > 22 && rh > 16;
-                  const showPct = rw > 50 && rh > 36;
-                  const nameFontSize = Math.max(7, Math.min(13, rw / 7, rh / 4));
-                  const pctFontSize = Math.max(6, Math.min(10, rw / 9, rh / 5));
+                  const g = 1.5;
+                  const bx = r.x + g / 2, by = r.y + g / 2, bw = Math.max(r.w - g, 0), bh = Math.max(r.h - g, 0);
+                  const showName = bw > 32 && bh > 22;
+                  const showPct = bw > 44 && bh > 32;
+                  const showTicker = !showName && bw > 18 && bh > 12;
+                  const nf = Math.max(6.5, Math.min(12, bw / 8, bh / 3.5));
+                  const pf = Math.max(5.5, Math.min(9, bw / 10, bh / 4.5));
+                  const clipId = `cp-${r.tikr.replace(/[^a-zA-Z0-9]/g, "_")}`;
+                  const nameStr = r.label || cleanTikr(r.tikr);
+                  const maxChars = Math.max(4, Math.floor(bw / (nf * 0.58)));
+                  const truncName = nameStr.length > maxChars ? nameStr.slice(0, maxChars - 1).trim() + "…" : nameStr;
                   return (
                     <g key={r.tikr}>
-                      <rect x={rx} y={ry} width={rw} height={rh} fill={color} stroke={isHovered ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.4)"} strokeWidth={isHovered ? 1.5 : 0.5} rx={2}
+                      <rect x={bx} y={by} width={bw} height={bh} fill={color} stroke={isHovered ? "rgba(255,255,255,0.95)" : "rgba(0,0,0,0.5)"} strokeWidth={isHovered ? 1.5 : 0.5} rx={1.5}
                         style={{ cursor: "pointer" }}
                         onMouseEnter={(e) => { const svg = e.currentTarget.ownerSVGElement; if (!svg) return; const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; const ctm = svg.getScreenCTM(); if (!ctm) return; const svgPt = pt.matrixTransform(ctm.inverse()); setHmHover({ tikr: r.tikr, x: svgPt.x, y: svgPt.y }); }}
                         onMouseLeave={() => setHmHover(null)}
                         onClick={() => { const s = enrichedStocks.find(s => s.tikr === r.tikr); if (s) setDetailStock(s); }}
                       />
-                      {showFullLabel && (
-                        <>
-                          <text x={rx + rw / 2} y={ry + rh / 2 - (showPct ? pctFontSize * 0.55 : 0)} textAnchor="middle" dominantBaseline="central" fill="#fff" style={{ fontSize: nameFontSize, fontWeight: 700, pointerEvents: "none", textShadow: "0 1px 3px rgba(0,0,0,0.7)" }}>{r.label || cleanTikr(r.tikr)}</text>
-                          {showPct && (
-                            <text x={rx + rw / 2} y={ry + rh / 2 + nameFontSize * 0.65} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.9)" style={{ fontSize: pctFontSize, fontWeight: 500, pointerEvents: "none", textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>
-                              {hmColorMode === "dayChange" ? `${r.changePct >= 0 ? "+" : ""}${r.changePct.toFixed(2)}%` : hmColorMode === "upsideBase" ? `${((r.colorVal) * 100).toFixed(1)}%` : hmColorMode === "conviction" ? `Conv ${r.colorVal}` : ""}
-                            </text>
-                          )}
-                        </>
-                      )}
-                      {!showFullLabel && showTicker && (
-                        <text x={rx + rw / 2} y={ry + rh / 2} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.8)" style={{ fontSize: Math.max(6, Math.min(8, rw / 5)), fontWeight: 600, pointerEvents: "none" }}>{cleanTikr(r.tikr)}</text>
-                      )}
+                      <g clipPath={`url(#${clipId})`} style={{ pointerEvents: "none" }}>
+                        {showName && (
+                          <text x={bx + bw / 2} y={by + bh / 2 - (showPct ? pf * 0.6 : 0)} textAnchor="middle" dominantBaseline="central" fill="#fff" style={{ fontSize: nf, fontWeight: 700, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{truncName}</text>
+                        )}
+                        {showName && showPct && (
+                          <text x={bx + bw / 2} y={by + bh / 2 + nf * 0.6} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.9)" style={{ fontSize: pf, fontWeight: 500, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>
+                            {hmColorMode === "dayChange" ? `${r.changePct >= 0 ? "+" : ""}${r.changePct.toFixed(2)}%` : hmColorMode === "upsideBase" ? `${((r.colorVal) * 100).toFixed(1)}%` : hmColorMode === "conviction" ? `C${r.colorVal}` : ""}
+                          </text>
+                        )}
+                        {showTicker && !showName && (
+                          <text x={bx + bw / 2} y={by + bh / 2} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.8)" style={{ fontSize: Math.max(5.5, Math.min(7.5, bw / 5)), fontWeight: 600 }}>{cleanTikr(r.tikr)}</text>
+                        )}
+                      </g>
                     </g>
                   );
                 })}
