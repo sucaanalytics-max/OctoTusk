@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -8,6 +9,11 @@ export const revalidate = 0;
 const yf = new (YahooFinance as any)();
 
 export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     // Load ticker map from database
     const db = await import("@/data/database.json");
@@ -89,7 +95,7 @@ export async function GET() {
       totalRequested: symbols.length,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[/api/quotes] Error:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,8 +10,25 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ tikr: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { tikr } = await params;
+
+  // Input validation: allow only alphanumeric, dots, hyphens, colons
+  if (!/^[a-zA-Z0-9._:-]+$/.test(tikr)) {
+    return NextResponse.json({ error: "Invalid ticker format" }, { status: 400 });
+  }
+
   const range = req.nextUrl.searchParams.get("range") || "1mo";
+
+  // Validate range parameter
+  const validRanges = ["1mo", "3mo", "6mo", "1y", "3y", "5y"];
+  if (!validRanges.includes(range)) {
+    return NextResponse.json({ error: "Invalid range" }, { status: 400 });
+  }
 
   try {
     const db = await import("@/data/database.json");
@@ -103,7 +121,7 @@ export async function GET(
       }
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message, tikr }, { status: 500 });
+    console.error(`[/api/chart/${tikr}] Error:`, error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

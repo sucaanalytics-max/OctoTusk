@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import staticDb from "@/data/database.json";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -432,6 +433,11 @@ const TIKR_ALIAS: Record<string, string> = {
 // ═══════════════════════════════════════════════════════════════
 
 export async function POST() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const token = await getGraphToken();
 
@@ -539,8 +545,7 @@ export async function POST() {
       refreshedAt: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[/api/sync] Error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[/api/sync] Error:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

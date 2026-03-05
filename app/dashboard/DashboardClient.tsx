@@ -651,9 +651,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [dataRefreshing, setDataRefreshing] = useState(false);
   const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(null);
   const [holdingsUnlocked, setHoldingsUnlocked] = useState(false);
-  const [holdingsPin, setHoldingsPin] = useState("");
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
-  const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [compareSearch, setCompareSearch] = useState("");
   const [selectedCompare, setSelectedCompare] = useState<string[]>([]);
@@ -783,8 +781,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   };
 
   const handleTabSwitch = (tab: typeof activeTab) => {
-    if (activeTab === "holdings" && tab !== "holdings") {
-      setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError("");
+    if (tab === "holdings" && !holdingsUnlocked && !holdingsLoading) {
+      unlockHoldings();
     }
     setDetailStock(null);
     setActiveTab(tab);
@@ -922,15 +920,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     });
   }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
-  // Holdings
+  // Holdings — session-gated (no PIN needed)
   const unlockHoldings = async () => {
-    setHoldingsLoading(true); setHoldingsError("");
+    setHoldingsLoading(true);
     try {
-      const res = await fetch("/api/holdings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: holdingsPin }) });
+      const res = await fetch("/api/holdings");
       const data = await res.json();
       if (data.unlocked) { setHoldingsData(data.holdings); setHoldingsUnlocked(true); }
-      else setHoldingsError(data.error || "Invalid PIN");
-    } catch { setHoldingsError("Failed to verify PIN"); }
+    } catch { /* session auth handles errors */ }
     finally { setHoldingsLoading(false); }
   };
 
@@ -1817,10 +1814,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-text-muted)" }}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                 </div>
                 <h2 className="font-bold mb-2" style={{ fontSize: "var(--text-xl)", color: "var(--color-text-primary)" }}>Holdings Analysis</h2>
-                <p className="mb-6" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>Enter PIN to access portfolio holdings data</p>
-                <input type="password" placeholder="Enter PIN" value={holdingsPin} onChange={e => setHoldingsPin(e.target.value)} onKeyDown={e => e.key === "Enter" && unlockHoldings()} className="input-dark w-full text-center text-lg tracking-widest mb-3" style={{ padding: "var(--space-3) var(--space-4)" }} aria-label="Holdings PIN" />
-                {holdingsError && <p className="mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-negative)" }}>{holdingsError}</p>}
-                <button onClick={unlockHoldings} disabled={holdingsLoading || !holdingsPin} className="btn btn-primary w-full" style={{ padding: "var(--space-3)" }}>{holdingsLoading ? "Verifying..." : "Unlock"}</button>
+                <p className="mb-6" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>{holdingsLoading ? "Loading holdings..." : "Authenticating..."}</p>
+                {holdingsLoading && <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: "var(--color-accent)", borderTopColor: "transparent" }} />}
               </div>
             </div>
           ) : (

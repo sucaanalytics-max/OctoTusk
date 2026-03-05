@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,17 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ tikr: string }> }
 ) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { tikr } = await params;
+
+  // Input validation: allow only alphanumeric, dots, hyphens, colons
+  if (!/^[a-zA-Z0-9._:-]+$/.test(tikr)) {
+    return NextResponse.json({ error: "Invalid ticker format" }, { status: 400 });
+  }
 
   try {
     // Load ticker map to resolve Yahoo symbol
@@ -113,9 +124,9 @@ export async function GET(
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[/api/enrichment/${tikr}] Error:`, error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { error: message, tikr },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

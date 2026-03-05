@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,11 @@ function saveToDisk(data: typeof memoryCache) {
  * GET /api/zones — Read zone snapshot
  */
 export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!memoryCacheLoaded) {
     memoryCache = loadFromDisk();
     memoryCacheLoaded = true;
@@ -46,6 +52,11 @@ export async function GET() {
  * POST /api/zones — Save zone snapshot
  */
 export async function POST(request: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const snapshot = {
@@ -59,8 +70,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, updatedAt: snapshot.updatedAt });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[/api/zones POST] Error:", message);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    console.error("[/api/zones POST] Error:", error instanceof Error ? error.message : error);
+    return NextResponse.json({ ok: false, error: "Internal server error" }, { status: 500 });
   }
 }
