@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { auth } from "@/auth";
+import { reportError, reportSuccess } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -88,6 +89,7 @@ export async function GET() {
       }
     }
 
+    reportSuccess("quotes");
     return NextResponse.json({
       quotes,
       fetchedAt: new Date().toISOString(),
@@ -95,6 +97,7 @@ export async function GET() {
       totalRequested: symbols.length,
     });
   } catch (error: unknown) {
+    reportError("quotes");
     console.error("[/api/quotes] Error:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

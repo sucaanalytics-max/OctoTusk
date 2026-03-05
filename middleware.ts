@@ -53,6 +53,26 @@ function maybeCleanup() {
   }
 }
 
+// ── Structured audit logging ──
+// Vercel captures console.log as structured logs; Vercel Log Drain can forward to external SIEM
+function auditLog(req: NextRequest, status: number, extra?: Record<string, unknown>) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "unknown";
+  const user = (req as any).auth?.user?.email || "anonymous";
+  const entry = {
+    _audit: true,
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.nextUrl.pathname,
+    status,
+    ip,
+    user,
+    userAgent: (req.headers.get("user-agent") || "").slice(0, 120),
+    origin: req.headers.get("origin") || null,
+    ...extra,
+  };
+  console.log(JSON.stringify(entry));
+}
+
 // ── CORS: allowed origins ──
 const ALLOWED_ORIGINS = [
   "https://octo-tusk.vercel.app",
@@ -83,6 +103,11 @@ export default auth((req: NextRequest) => {
     return NextResponse.next();
   }
 
+  // Skip health check — public endpoint for uptime monitoring
+  if (pathname === "/api/health") {
+    return NextResponse.next();
+  }
+
   // Handle CORS preflight (OPTIONS)
   if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
     const preflightRes = new NextResponse(null, { status: 204 });
@@ -91,6 +116,7 @@ export default auth((req: NextRequest) => {
 
   // Block cross-origin requests from unauthorized domains
   if (pathname.startsWith("/api/") && origin && !ALLOWED_ORIGINS.includes(origin)) {
+    auditLog(req, 403, { reason: "forbidden_origin", blockedOrigin: origin });
     return NextResponse.json(
       { error: "Forbidden origin" },
       { status: 403 }
@@ -104,6 +130,7 @@ export default auth((req: NextRequest) => {
 
     const { allowed, remaining, limit } = checkRateLimit(ip, pathname);
     if (!allowed) {
+      auditLog(req, 429, { reason: "rate_limit_exceeded", limit });
       return applyCors(
         NextResponse.json(
           { error: "Too many requests" },
@@ -119,6 +146,9 @@ export default auth((req: NextRequest) => {
         origin
       );
     }
+
+    // Audit log the API request
+    auditLog(req, 200, { rateLimit: { remaining, limit } });
 
     // Add rate limit + CORS headers to successful responses
     const response = NextResponse.next();

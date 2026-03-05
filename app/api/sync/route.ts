@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import staticDb from "@/data/database.json";
 import { auth } from "@/auth";
+import { reportError, reportSuccess } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -517,6 +518,7 @@ export async function POST() {
     // Step 4: Use static data (ticker_map, holdings) from imported database.json
     const uniqueStocks = mergedStocks.reduce((set, s) => { set.add(s.tikr as string); return set; }, new Set<string>());
 
+    reportSuccess("sync");
     return NextResponse.json({
       stocks: mergedStocks,
       holdings: staticDb.holdings,
@@ -545,6 +547,7 @@ export async function POST() {
       refreshedAt: new Date().toISOString(),
     });
   } catch (error: unknown) {
+    reportError("sync");
     console.error("[/api/sync] Error:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
