@@ -145,6 +145,15 @@ interface EnrichedStock extends Stock {
   upsideBullCalc?: number;
   displayTikr: string;
   companyShort: string;
+  // Tier 1A: Composite Decision Score (0-100)
+  cds?: number;
+  cdsBreakdown?: { val: number; tech: number; qual: number; pos: number };
+  // Tier 1B: Derived fields from unused data
+  forwardPE_fy27?: number;
+  forwardPE_fy28?: number;
+  qualityScore?: number; // (conviction + understanding) / 2
+  // Tier 1C: Analyst divergence (lazy — only when enrichment loaded)
+  streetDivergence?: number;
 }
 
 interface Props {
@@ -888,7 +897,35 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (liveCmp && s.bear_current) uB = (s.bear_current - liveCmp) / liveCmp;
       if (liveCmp && s.base_current) uBa = (s.base_current - liveCmp) / liveCmp;
       if (liveCmp && s.bull_current) uBu = (s.bull_current - liveCmp) / liveCmp;
-      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s) };
+      // ── Tier 1A: Composite Decision Score (CDS) 0–100 ──
+      // Valuation (40%): normalize upsideBaseCalc from [-50%, +50%] → [0, 40]
+      const valScore = uBa != null ? Math.max(0, Math.min(40, (uBa + 0.5) * 40)) : 0;
+      // Technical (25%): Golden=25, Above50=15, Above200only=8, Death=0, no data=12
+      const cmpVal = liveCmp || 0;
+      const techScore = (q?.fiftyDayAverage && q?.twoHundredDayAverage && cmpVal)
+        ? (cmpVal > q.fiftyDayAverage && cmpVal > q.twoHundredDayAverage ? 25
+          : cmpVal > q.fiftyDayAverage ? 15 : cmpVal > q.twoHundredDayAverage ? 8 : 0) : 12;
+      // Quality (20%): conviction * 4 (conviction is 1-5)
+      const qualScore = Math.min(20, (s.conviction || 0) * 4);
+      // 52-Week Position (15%): closer to low = higher score
+      const hi52 = q?.fiftyTwoWeekHigh, lo52 = q?.fiftyTwoWeekLow;
+      const posScore = (hi52 && lo52 && hi52 > lo52 && cmpVal)
+        ? (1 - Math.max(0, Math.min(1, (cmpVal - lo52) / (hi52 - lo52)))) * 15 : 7.5;
+      const cds = Math.round(valScore + techScore + qualScore + posScore);
+      const cdsBreakdown = { val: Math.round(valScore), tech: Math.round(techScore), qual: Math.round(qualScore), pos: Math.round(posScore) };
+
+      // ── Tier 1B: Derived fields from unused data ──
+      // Forward PE using exp_profit_fy27/28 and market cap
+      const mktCap = q?.marketCap;
+      const forwardPE_fy27 = (mktCap && s.exp_profit_fy27 && s.exp_profit_fy27 > 0)
+        ? mktCap / (s.exp_profit_fy27 * 10000000) : undefined; // exp_profit in Cr, marketCap in absolute
+      const forwardPE_fy28 = (mktCap && s.exp_profit_fy28 && s.exp_profit_fy28 > 0)
+        ? mktCap / (s.exp_profit_fy28 * 10000000) : undefined;
+      // Quality composite: average of conviction and understanding (both 1-5)
+      const qualityScore = (s.conviction != null && s.understanding != null)
+        ? (s.conviction + s.understanding) / 2 : undefined;
+
+      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore };
     });
   }, [liveStocks, quotes]);
 
@@ -1194,8 +1231,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   // ── CSV Export ──
   const exportCSV = () => {
-    const csv = ["Company,Sector,CMP,Bear,Base,Bull,Upside Bear,Upside Base,Upside Bull,1Y Upside,2Y Upside,Base PE,Base PB,Base EV/EBITDA,Conviction,VA,SA",
-      ...sortedStocks.map(s => [`"${s.companyShort}"`, `"${s.sector || ""}"`, s.liveCmp?.toFixed(0) || "", s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "", s.upsideBearCalc != null ? (s.upsideBearCalc * 100).toFixed(1) + "%" : "", s.upsideBaseCalc != null ? (s.upsideBaseCalc * 100).toFixed(1) + "%" : "", s.upsideBullCalc != null ? (s.upsideBullCalc * 100).toFixed(1) + "%" : "", s.upside_1y != null ? s.upside_1y.toFixed(1) + "%" : "", s.upside_2y != null ? s.upside_2y.toFixed(1) + "%" : "", s.base_pe?.toFixed(1) || "", s.base_pb?.toFixed(1) || "", s.base_evebitda?.toFixed(1) || "", String(s.conviction ?? ""), s.vp || "", s.sa || ""].join(","))
+    const csv = ["Company,Sector,CMP,Bear,Base,Bull,Upside Bear,Upside Base,Upside Bull,1Y Upside,2Y Upside,Base PE,Base PB,Base EV/EBITDA,Conviction,CDS,Quality,Fwd PE FY27,VA,SA",
+      ...sortedStocks.map(s => [`"${s.companyShort}"`, `"${s.sector || ""}"`, s.liveCmp?.toFixed(0) || "", s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "", s.upsideBearCalc != null ? (s.upsideBearCalc * 100).toFixed(1) + "%" : "", s.upsideBaseCalc != null ? (s.upsideBaseCalc * 100).toFixed(1) + "%" : "", s.upsideBullCalc != null ? (s.upsideBullCalc * 100).toFixed(1) + "%" : "", s.upside_1y != null ? s.upside_1y.toFixed(1) + "%" : "", s.upside_2y != null ? s.upside_2y.toFixed(1) + "%" : "", s.base_pe?.toFixed(1) || "", s.base_pb?.toFixed(1) || "", s.base_evebitda?.toFixed(1) || "", String(s.conviction ?? ""), String(s.cds ?? ""), s.qualityScore != null ? s.qualityScore.toFixed(1) : "", s.forwardPE_fy27 ? s.forwardPE_fy27.toFixed(1) : "", s.vp || "", s.sa || ""].join(","))
     ].join("\n");
     const b = new Blob([csv], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `octopus_${new Date().toISOString().split("T")[0]}.csv`; a.click(); URL.revokeObjectURL(u);
   };
@@ -1418,6 +1455,46 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           ))}
         </div>
 
+        {/* ── Tier 1: Decision Signals ── */}
+        <div className="grid grid-cols-4 gap-4 mb-4">
+          {/* CDS Badge */}
+          <div className="metric-card animate-fade-in-up delay-5">
+            <div className="uppercase tracking-wide" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CDS Score</div>
+            <div className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}<span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>/100</span></div>
+            {s.cdsBreakdown && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>V:{s.cdsBreakdown.val} T:{s.cdsBreakdown.tech} Q:{s.cdsBreakdown.qual} P:{s.cdsBreakdown.pos}</div>}
+          </div>
+          {/* Quality Score */}
+          <div className="metric-card animate-fade-in-up delay-5">
+            <div className="uppercase tracking-wide" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Quality</div>
+            <div className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{s.qualityScore != null ? s.qualityScore.toFixed(1) : "—"}<span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>/5</span></div>
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Conv: {s.conviction ?? "—"} · Und: {s.understanding ?? "—"}</div>
+          </div>
+          {/* Forward PE (Tier 1B) */}
+          <div className="metric-card animate-fade-in-up delay-5">
+            <div className="uppercase tracking-wide" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Fwd PE (FY27/28)</div>
+            <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>
+              {s.forwardPE_fy27 ? `${s.forwardPE_fy27.toFixed(1)}x` : "—"}{s.forwardPE_fy28 ? <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text-secondary)" }}> / {s.forwardPE_fy28.toFixed(1)}x</span> : null}
+            </div>
+            {(s.exp_profit_fy27 || s.exp_profit_fy28) && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Exp Profit: {s.exp_profit_fy27 ? `₹${s.exp_profit_fy27.toFixed(0)} Cr` : "—"} / {s.exp_profit_fy28 ? `₹${s.exp_profit_fy28.toFixed(0)} Cr` : "—"}</div>}
+          </div>
+          {/* Analyst Divergence (Tier 1C) */}
+          <div className="metric-card animate-fade-in-up delay-5">
+            <div className="uppercase tracking-wide" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Street Divergence</div>
+            {(() => {
+              const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
+              const div = (e?.targetMeanPrice && s.base_current) ? (e.targetMeanPrice - s.base_current) / s.base_current : undefined;
+              const flagged = div != null && Math.abs(div) > 0.2;
+              return (<>
+                <div className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: div != null ? (flagged ? (div > 0 ? "#059669" : "#EF4444") : "var(--color-text-primary)") : "var(--color-text-muted)" }}>
+                  {div != null ? `${div >= 0 ? "+" : ""}${(div * 100).toFixed(1)}%` : (enrichmentLoading[s.tikr] ? "…" : "—")}
+                </div>
+                {e?.targetMeanPrice && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Street: ₹{fmt(e.targetMeanPrice, 0)} vs Base: ₹{fmt(s.base_current, 0)}</div>}
+                {flagged && <div style={{ fontSize: "var(--text-xs)", marginTop: 2, color: div! > 0 ? "#059669" : "#EF4444", fontWeight: 600 }}>{div! > 0 ? "Street more bullish" : "Street more bearish"}</div>}
+              </>);
+            })()}
+          </div>
+        </div>
+
         {/* Valuation Table — Enhanced with live data */}
         <div className="metric-card mb-4 animate-fade-in-up delay-5">
           <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Valuation Multiples</h3>
@@ -1610,7 +1687,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <Th col="upsideBearCalc" label="↑ Bear" /><Th col="upsideBaseCalc" label="↑ Base" /><Th col="upsideBullCalc" label="↑ Bull" />
                 <Th col="upside_1y" label="1Y Upside" /><Th col="upside_2y" label="2Y Upside" />
                 <Th col="base_pe" label="PE" /><Th col="base_pb" label="PB" /><Th col="base_evebitda" label="EV/EBITDA" />
-                <Th col="conviction" label="Conv." /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
+                <Th col="conviction" label="Conv." /><Th col="cds" label="CDS" /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
               </tr></thead>
               <tbody>
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
@@ -1668,6 +1745,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
                       <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
+                      <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
                       <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"}</td>
                       <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.sa || "—"}</td>
                     </tr>
@@ -1979,6 +2057,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   { label: "PB", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</span> },
                   { label: "EV/EBITDA", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</span> },
                   { label: "Conviction", render: (s: EnrichedStock) => <span className="font-semibold">{s.conviction ?? "—"}</span> },
+                  { label: "CDS", render: (s: EnrichedStock) => <span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span> },
+                  { label: "Quality", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.qualityScore != null ? s.qualityScore.toFixed(1) : "—"}</span> },
+                  { label: "Fwd PE FY27", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.forwardPE_fy27 ? `${s.forwardPE_fy27.toFixed(1)}x` : "—"}</span> },
                   { label: "Score", render: (s: EnrichedStock) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.score ?? "—"}</span> },
                   { label: "VA / SA", render: (s: EnrichedStock) => <span style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"} / {s.sa || "—"}</span> },
                 ]},
@@ -2058,6 +2139,36 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 </div>
               </div>
             )}
+          </div>
+
+          {/* ── Tier 1A: CDS Ranking ── */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
+            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Composite Decision Score — Top 15 <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 400, marginLeft: 8 }}>Valuation 40% + Technical 25% + Quality 20% + 52W Position 15%</span></h3>
+            {(() => {
+              const cdsRanked = [...enrichedStocks].filter(s => s.cds != null && s.liveCmp).sort((a, b) => (b.cds || 0) - (a.cds || 0)).slice(0, 15);
+              return cdsRanked.length === 0 ? <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>No CDS data</p> : (
+                <div className="overflow-auto max-h-[400px]"><table className="data-table w-full"><thead><tr><th>#</th><th>Company</th><th>CDS</th><th>Val</th><th>Tech</th><th>Qual</th><th>Pos</th><th>CMP</th><th>↑ Base</th><th>Conv.</th><th>Zone</th></tr></thead>
+                  <tbody>{cdsRanked.map((s, i) => {
+                    const zone = getStockZone(s.tikr);
+                    const bd = s.cdsBreakdown;
+                    return (
+                      <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
+                        <td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td>
+                        <td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
+                        <td><span className="inline-block px-2 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", background: s.cds! >= 80 ? "rgba(5,150,105,0.2)" : s.cds! >= 60 ? "rgba(52,211,153,0.15)" : s.cds! >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)", color: s.cds! >= 80 ? "#059669" : s.cds! >= 60 ? "#10B981" : s.cds! >= 40 ? "#D97706" : "#EF4444" }}>{s.cds}</span></td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.val ?? "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.tech ?? "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.qual ?? "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.pos ?? "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td>
+                        <td className="text-center font-bold" style={{ color: "#A78BFA" }}>{s.conviction ?? "—"}</td>
+                        <td>{zone ? <span className="pill" style={{ background: `${zone.color}22`, color: zone.color, border: `1px solid ${zone.color}44` }}>{zone.label}</span> : <span style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>—</span>}</td>
+                      </tr>
+                    );
+                  })}</tbody></table></div>
+              );
+            })()}
           </div>
 
           {/* Buy & Sell Zones */}
