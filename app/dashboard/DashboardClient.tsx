@@ -710,6 +710,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   // Tier 2B: What-If Scenario Simulator
   const [simCmpOverrides, setSimCmpOverrides] = useState<Record<string, number>>({});
 
+  // Tier 3A: Decision Journal
+  interface JournalEntry { id: number; tikr: string; event_type: string; zone_name: string | null; annotation: string | null; cmp_at_event: number | null; upside_bear: number | null; upside_base: number | null; upside_bull: number | null; cds_at_event: number | null; user_email: string | null; created_at: string; }
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [journalLoading, setJournalLoading] = useState(false);
+  const [journalFilter, setJournalFilter] = useState<"all" | "transitions" | "annotations">("all");
+  const [showJournalForm, setShowJournalForm] = useState(false);
+  const [journalAnnotation, setJournalAnnotation] = useState("");
+  const [journalTikr, setJournalTikr] = useState("");
+  const journalFetched = useRef(false);
+
   // Theme
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -882,6 +892,31 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       fetchBatchEnrichment();
     }
   }, [quotes, batchEnrichmentLoaded, fetchBatchEnrichment]);
+
+  // Tier 3A: Fetch journal entries
+  const fetchJournal = useCallback(async (tikr?: string) => {
+    setJournalLoading(true);
+    try {
+      const url = tikr ? `/api/journal?tikr=${encodeURIComponent(tikr)}&limit=200` : "/api/journal?limit=200";
+      const res = await fetch(url);
+      if (res.ok) { const data = await res.json(); setJournalEntries(data.entries || []); }
+    } catch { /* silent */ }
+    setJournalLoading(false);
+  }, []);
+
+  const postJournalEntry = useCallback(async (entry: { tikr: string; event_type: string; zone_name?: string; annotation?: string; cmp_at_event?: number; upside_bear?: number; upside_base?: number; upside_bull?: number; cds_at_event?: number }) => {
+    try {
+      await fetch("/api/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) });
+    } catch { /* silent */ }
+  }, []);
+
+  // Auto-fetch journal on decisions tab
+  useEffect(() => {
+    if (activeTab === "decisions" && !journalFetched.current) {
+      journalFetched.current = true;
+      fetchJournal();
+    }
+  }, [activeTab, fetchJournal]);
 
   const fetchChart = useCallback(async (tikr: string, range = "1mo") => {
     const key = `${tikr}_${range}`;
@@ -1231,8 +1266,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     if (newAlerts.length > 0) {
       setZoneAlerts(prev => [...prev, ...newAlerts].slice(-50));
       setUnseenAlertCount(prev => prev + newAlerts.length);
-      // Persist zones to server
-      fetch("/api/zones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zones: currentZones }) }).catch(() => {});
+      // Build transitions for journal logging
+      const transitions = newAlerts.map(a => {
+        const stock = enrichedStocks.find(s => a.msg.includes(s.companyShort || "___"));
+        return { tikr: stock?.tikr || "", event_type: a.type === "exit" ? "zone_exit" : "zone_enter", zone_name: a.type === "exit" ? "" : a.type, cmp: stock?.liveCmp, upsideBear: stock?.upsideBearCalc ? Math.round(stock.upsideBearCalc * 10000) / 100 : undefined, upsideBase: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, upsideBull: stock?.upsideBullCalc ? Math.round(stock.upsideBullCalc * 10000) / 100 : undefined, cds: stock?.cds };
+      }).filter(t => t.tikr);
+      // Persist zones + log transitions to journal
+      fetch("/api/zones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zones: currentZones, transitions }) }).catch(() => {});
     }
     previousZonesRef.current = currentZones;
   }, [decisionData, enrichedStocks]);
@@ -1515,6 +1555,47 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   )}
                 </div>
                 {!simActive && <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Drag the slider to simulate a different CMP. All scores auto-recalculate.</p>}
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ── Tier 3A: Stock Journal Notes ── */}
+        <div className="metric-card mb-4 animate-fade-in-up delay-4" style={{ borderTop: "2px solid #8B5CF680" }}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold uppercase tracking-wider" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Decision Notes</h3>
+            <button className="btn btn-ghost btn-sm" style={{ fontSize: "var(--text-xs)", color: "#8B5CF6" }} onClick={() => fetchJournal(s.tikr)}>↻ Refresh</button>
+          </div>
+          {(() => {
+            const stockEntries = journalEntries.filter(e => e.tikr === s.tikr).slice(0, 10);
+            return (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <input value={journalTikr === s.tikr ? journalAnnotation : ""} onFocus={() => setJournalTikr(s.tikr)} onChange={e => { setJournalTikr(s.tikr); setJournalAnnotation(e.target.value); }} placeholder="Add a note about this stock..." style={{ flex: 1, padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-xs)", background: "var(--color-bg-secondary)", color: "var(--color-text-primary)" }} />
+                  <button disabled={journalTikr !== s.tikr || !journalAnnotation.trim()} onClick={async () => {
+                    await postJournalEntry({ tikr: s.tikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: s.liveCmp, upside_base: s.upsideBaseCalc ? Math.round(s.upsideBaseCalc * 10000) / 100 : undefined, cds_at_event: s.cds });
+                    setJournalAnnotation(""); fetchJournal();
+                  }} className="btn btn-sm" style={{ background: "#8B5CF6", color: "#fff", fontSize: "var(--text-xs)", opacity: (journalTikr !== s.tikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
+                </div>
+                {stockEntries.length > 0 ? (
+                  <div style={{ maxHeight: 200, overflowY: "auto" }}>
+                    {stockEntries.map(e => (
+                      <div key={e.id} style={{ padding: "4px 0", borderBottom: "1px solid var(--color-border)", fontSize: "var(--text-xs)" }}>
+                        <div className="flex items-center gap-2">
+                          <span style={{ color: e.event_type === "annotation" ? "#8B5CF6" : e.event_type === "zone_enter" ? "var(--color-positive)" : "var(--color-text-muted)", fontWeight: 600 }}>
+                            {e.event_type === "annotation" ? "Note" : e.event_type === "zone_enter" ? `→ ${e.zone_name === "buy" ? "Buy Zone" : e.zone_name === "sell" ? "Take Profit" : "Overvalued"}` : `← Exited`}
+                          </span>
+                          <span style={{ color: "var(--color-text-muted)" }}>·</span>
+                          <span style={{ color: "var(--color-text-muted)" }}>{new Date(e.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} {new Date(e.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
+                          {e.cmp_at_event != null && <span style={{ color: "var(--color-text-muted)" }}>· ₹{fmt(e.cmp_at_event, 0)}</span>}
+                        </div>
+                        {e.annotation && <div style={{ color: "var(--color-text-secondary)", marginTop: 2 }}>{e.annotation}</div>}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: "8px 0", color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>No notes yet for this stock.</div>
+                )}
               </div>
             );
           })()}
@@ -2748,6 +2829,109 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       </tr>
                     </tbody>
                   </table>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* ── Tier 3A: Decision Journal ── */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
+                Decision Journal <span className="pill" style={{ background: "#8B5CF620", color: "#8B5CF6", marginLeft: 8 }}>{journalEntries.length}</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                {(["all", "transitions", "annotations"] as const).map(f => (
+                  <button key={f} className={`scatter-pill${journalFilter === f ? " active" : ""}`} onClick={() => setJournalFilter(f)} style={journalFilter === f ? { background: "#8B5CF620", color: "#8B5CF6", borderColor: "#8B5CF6" } : {}}>
+                    {f === "all" ? "All" : f === "transitions" ? "Zone Changes" : "Notes"}
+                  </button>
+                ))}
+                <button className="scatter-pill" onClick={() => { setShowJournalForm(p => !p); setJournalTikr(""); setJournalAnnotation(""); }} style={{ background: showJournalForm ? "#8B5CF620" : undefined, color: showJournalForm ? "#8B5CF6" : undefined }}>
+                  + Add Note
+                </button>
+                <button className="scatter-pill" onClick={() => fetchJournal()} style={{ fontSize: 10 }}>↻</button>
+              </div>
+            </div>
+
+            {/* Add annotation form */}
+            {showJournalForm && (
+              <div style={{ padding: "12px 16px", background: "var(--color-bg-secondary)", borderRadius: "var(--radius-md)", marginBottom: 12, border: "1px solid var(--color-border)" }}>
+                <div className="flex items-center gap-3 mb-2">
+                  <select value={journalTikr} onChange={e => setJournalTikr(e.target.value)} style={{ flex: "0 0 200px", padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}>
+                    <option value="">Select stock...</option>
+                    {enrichedStocks.filter(s => s.tikr).sort((a, b) => (a.companyShort || "").localeCompare(b.companyShort || "")).map(s => <option key={s.tikr} value={s.tikr}>{s.companyShort || s.tikr}</option>)}
+                  </select>
+                  <input value={journalAnnotation} onChange={e => setJournalAnnotation(e.target.value)} placeholder="Add your note or thesis update..." style={{ flex: 1, padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }} />
+                  <button disabled={!journalTikr || !journalAnnotation.trim()} onClick={async () => {
+                    const stock = enrichedStocks.find(s => s.tikr === journalTikr);
+                    await postJournalEntry({ tikr: journalTikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: stock?.liveCmp, upside_base: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, cds_at_event: stock?.cds });
+                    setJournalAnnotation(""); setShowJournalForm(false);
+                    fetchJournal();
+                  }} className="btn btn-primary btn-sm" style={{ background: "#8B5CF6", opacity: (!journalTikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
+                </div>
+              </div>
+            )}
+
+            {/* Journal timeline */}
+            {journalLoading ? (
+              <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>Loading journal...</div>
+            ) : (() => {
+              const filtered = journalEntries.filter(e => {
+                if (journalFilter === "transitions") return e.event_type === "zone_enter" || e.event_type === "zone_exit";
+                if (journalFilter === "annotations") return e.event_type === "annotation";
+                return true;
+              });
+              if (filtered.length === 0) return (
+                <div style={{ padding: 24, textAlign: "center" }}>
+                  <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>
+                    {journalEntries.length === 0 ? "No journal entries yet. Zone transitions will be logged automatically." : "No entries match this filter."}
+                  </p>
+                </div>
+              );
+              // Group by date
+              const byDate: Record<string, typeof filtered> = {};
+              filtered.forEach(e => {
+                const d = new Date(e.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+                if (!byDate[d]) byDate[d] = [];
+                byDate[d].push(e);
+              });
+              return (
+                <div style={{ maxHeight: 400, overflowY: "auto" }}>
+                  {Object.entries(byDate).map(([date, entries]) => (
+                    <div key={date} style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 600, padding: "4px 0", borderBottom: "1px solid var(--color-border)", marginBottom: 6 }}>{date}</div>
+                      {entries.map(e => {
+                        const isEnter = e.event_type === "zone_enter";
+                        const isExit = e.event_type === "zone_exit";
+                        const isNote = e.event_type === "annotation";
+                        const color = isEnter ? (e.zone_name === "buy" ? "var(--color-positive)" : e.zone_name === "overvalued" ? "var(--color-negative)" : "#F59E0B") : isExit ? "var(--color-text-muted)" : "#8B5CF6";
+                        const icon = isEnter ? "→" : isExit ? "←" : "✎";
+                        const zoneLabel = e.zone_name === "buy" ? "Buy Zone" : e.zone_name === "sell" ? "Take Profit" : e.zone_name === "overvalued" ? "Overvalued" : e.zone_name || "";
+                        const stock = enrichedStocks.find(s => s.tikr === e.tikr);
+                        const name = stock?.companyShort || e.tikr;
+                        const time = new Date(e.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+                        return (
+                          <div key={e.id} style={{ display: "flex", gap: 8, padding: "6px 8px", borderRadius: "var(--radius-md)", cursor: "pointer", transition: "background 0.15s" }} className="hover-highlight" onClick={() => { const s = enrichedStocks.find(x => x.tikr === e.tikr); if (s) setDetailStock(s); }}>
+                            <div style={{ fontSize: 14, color, width: 20, textAlign: "center", flexShrink: 0, marginTop: 1 }}>{icon}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
+                                <span className="font-semibold">{name}</span>
+                                {(isEnter || isExit) && <span style={{ color }}> {isEnter ? "entered" : "exited"} {zoneLabel}</span>}
+                                {isNote && <span style={{ color: "var(--color-text-muted)" }}> — note</span>}
+                              </div>
+                              {isNote && e.annotation && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", marginTop: 2, lineHeight: 1.4 }}>{e.annotation}</div>}
+                              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 2 }}>
+                                {time}
+                                {e.cmp_at_event != null && <span> · CMP ₹{fmt(e.cmp_at_event, 0)}</span>}
+                                {e.upside_base != null && <span> · Base {e.upside_base > 0 ? "+" : ""}{fmt(e.upside_base, 1)}%</span>}
+                                {e.cds_at_event != null && <span> · CDS {e.cds_at_event}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               );
             })()}
