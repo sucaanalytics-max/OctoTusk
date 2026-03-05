@@ -707,6 +707,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [chartLoading, setChartLoading] = useState<Record<string, boolean>>({});
   const [chartRange, setChartRange] = useState("1mo");
 
+  // Tier 2B: What-If Scenario Simulator
+  const [simCmpOverrides, setSimCmpOverrides] = useState<Record<string, number>>({});
+
   // Theme
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
@@ -892,7 +895,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const enrichedStocks: EnrichedStock[] = useMemo(() => {
     return liveStocks.map(s => {
       const q = s.tikr ? quotes[s.tikr] : undefined;
-      const liveCmp = q?.price || s.cmp;
+      const liveCmp = simCmpOverrides[s.tikr] || q?.price || s.cmp;
       let uB: number | undefined, uBa: number | undefined, uBu: number | undefined;
       if (liveCmp && s.bear_current) uB = (s.bear_current - liveCmp) / liveCmp;
       if (liveCmp && s.base_current) uBa = (s.base_current - liveCmp) / liveCmp;
@@ -927,7 +930,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
       return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore };
     });
-  }, [liveStocks, quotes]);
+  }, [liveStocks, quotes, simCmpOverrides]);
 
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -1342,7 +1345,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   {s.liveChange != null ? `${s.liveChange >= 0 ? "+" : ""}${s.liveChange.toFixed(2)}` : ""} ({s.liveChangePct >= 0 ? "+" : ""}{s.liveChangePct.toFixed(2)}%)
                 </div>
               )}
-              <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8 }}>Current Market Price</div>
+              <div style={{ fontSize: "var(--text-xs)", color: simCmpOverrides[s.tikr] ? "#8B5CF6" : "var(--color-text-muted)", marginBottom: 8 }}>{simCmpOverrides[s.tikr] ? "Simulated Price" : "Current Market Price"}</div>
               {s.conviction != null && (
                 <div className="flex items-center gap-2 justify-end">
                   <ConvictionDots level={s.conviction} />
@@ -1437,6 +1440,53 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               )}
             </div>
           ))}
+        </div>
+
+        {/* ── Tier 2B: What-If Scenario Simulator ── */}
+        <div className="metric-card mb-4 animate-fade-in-up delay-3" style={{ borderTop: "3px solid #8B5CF6" }}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold uppercase tracking-wider" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>What-If Simulator</h3>
+            {simCmpOverrides[s.tikr] && (
+              <button onClick={() => setSimCmpOverrides(prev => { const next = { ...prev }; delete next[s.tikr]; return next; })} className="btn btn-ghost btn-sm" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>Reset to Live</button>
+            )}
+          </div>
+          {(() => {
+            const realCmp = (s.tikr ? quotes[s.tikr]?.price : undefined) || s.cmp || 0;
+            const simCmp = simCmpOverrides[s.tikr] || realCmp;
+            const lo = Math.round(realCmp * 0.5);
+            const hi = Math.round(realCmp * 1.5);
+            const simActive = !!simCmpOverrides[s.tikr];
+            const simUpside = s.base_current && simCmp ? ((s.base_current - simCmp) / simCmp) : undefined;
+            return (
+              <div>
+                <div className="flex items-center gap-4 mb-2">
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 54 }}>₹{fmt(lo, 0)}</span>
+                  <input type="range" min={lo} max={hi} step={1} value={Math.round(simCmp)} onChange={e => { const v = Number(e.target.value); setSimCmpOverrides(prev => ({ ...prev, [s.tikr]: v })); }} className="flex-1" style={{ accentColor: "#8B5CF6" }} />
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 54, textAlign: "right" }}>₹{fmt(hi, 0)}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Simulated CMP:</span>
+                    <span className="font-bold" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: simActive ? "#8B5CF6" : "var(--color-text-primary)" }}>₹{fmt(simCmp, 1)}</span>
+                    {simActive && <span style={{ fontSize: "var(--text-xs)", color: simCmp > realCmp ? "var(--color-positive)" : simCmp < realCmp ? "var(--color-negative)" : "var(--color-text-muted)" }}>({simCmp > realCmp ? "+" : ""}{(((simCmp - realCmp) / realCmp) * 100).toFixed(1)}% vs live)</span>}
+                  </div>
+                  {simUpside != null && (
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside to Base:</span>
+                      <span className="font-bold" style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", color: simUpside >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{simUpside >= 0 ? "+" : ""}{(simUpside * 100).toFixed(1)}%</span>
+                    </div>
+                  )}
+                  {simActive && s.cds != null && (
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CDS:</span>
+                      <span className="font-bold" style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", color: s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444" }}>{s.cds}</span>
+                    </div>
+                  )}
+                </div>
+                {!simActive && <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Drag the slider to simulate a different CMP. All scores auto-recalculate.</p>}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Metrics Grid */}
@@ -2511,45 +2561,118 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             })()}
           </div>
 
-          {/* ── Earnings Calendar & Catalysts ── */}
+          {/* ── Tier 2C: Catalyst Calendar & Analysis Freshness ── */}
           <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #F59E0B" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Upcoming Catalysts — Earnings & Ex-Dividend Dates</h3>
+            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Catalyst Calendar — Earnings, Ex-Dividend & Analysis Freshness</h3>
             {(() => {
               const now = new Date();
-              const events: { tikr: string; name: string; type: "Earnings" | "Ex-Dividend"; date: Date; daysUntil: number }[] = [];
+              type CalEvent = { tikr: string; name: string; type: "Earnings" | "Ex-Dividend" | "Stale Analysis"; date: Date; daysUntil: number; sector?: string };
+              const events: CalEvent[] = [];
+              // Enrichment-based events (earnings, ex-div)
               Object.entries(enrichmentCache).forEach(([tikr, data]) => {
                 const stock = enrichedStocks.find(s => s.tikr === tikr);
                 const name = stock?.companyShort || tikr;
+                const sector = stock?.sector;
                 if (data.earningsDate) {
                   const d = new Date(data.earningsDate);
                   const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diff >= -7 && diff <= 90) events.push({ tikr, name, type: "Earnings", date: d, daysUntil: diff });
+                  if (diff >= -7 && diff <= 90) events.push({ tikr, name, type: "Earnings", date: d, daysUntil: diff, sector });
                 }
                 if (data.exDividendDate) {
                   const d = new Date(data.exDividendDate);
                   const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diff >= -7 && diff <= 90) events.push({ tikr, name, type: "Ex-Dividend", date: d, daysUntil: diff });
+                  if (diff >= -7 && diff <= 90) events.push({ tikr, name, type: "Ex-Dividend", date: d, daysUntil: diff, sector });
                 }
               });
+              // last_updated staleness (from database.json — available on all stocks)
+              const staleStocks = enrichedStocks.filter(s => {
+                if (!s.last_updated) return true; // never updated = stale
+                const d = new Date(s.last_updated);
+                return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) > 60;
+              }).sort((a, b) => {
+                const da = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+                const db = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+                return da - db;
+              });
+
               events.sort((a, b) => a.date.getTime() - b.date.getTime());
               const enrichedCount = Object.keys(enrichmentCache).length;
+
+              // Group events by week
+              const weekGroups: { label: string; events: CalEvent[] }[] = [];
+              events.forEach(e => {
+                const weekStart = new Date(e.date);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                const label = e.daysUntil < 0 ? "Recent" : e.daysUntil <= 7 ? "This Week" : e.daysUntil <= 14 ? "Next Week" : weekStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + " week";
+                const existing = weekGroups.find(g => g.label === label);
+                if (existing) existing.events.push(e);
+                else weekGroups.push({ label, events: [e] });
+              });
+
+              const typeColor = (t: string) => t === "Earnings" ? { bg: "var(--color-info-bg)", fg: "var(--color-accent-blue)", border: "rgba(79,142,247,0.25)" } : t === "Ex-Dividend" ? { bg: "var(--color-positive-bg)", fg: "var(--color-positive)", border: "var(--color-positive-border)" } : { bg: "rgba(251,191,36,0.15)", fg: "#D97706", border: "rgba(251,191,36,0.3)" };
+
               return (
                 <div>
                   {enrichedCount < enrichedStocks.length && (
-                    <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8, padding: "4px 8px", background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>Showing data for {enrichedCount} of {enrichedStocks.length} stocks. Click on stocks in the Octopus tab to load enrichment data for more.</p>
+                    <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8, padding: "4px 8px", background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>Catalyst data loaded for {enrichedCount} of {enrichedStocks.length} stocks. Click stocks in Octopus tab to load more.</p>
                   )}
-                  {events.length > 0 ? (
-                    <div className="overflow-auto max-h-[300px]">
-                    <table className="data-table w-full"><thead><tr><th>Stock</th><th>Event</th><th>Date</th><th>Days</th></tr></thead>
-                      <tbody>{events.map((e, i) => (
-                        <tr key={`${e.tikr}-${e.type}-${i}`} className="cursor-pointer" onClick={() => { const s = enrichedStocks.find(s => s.tikr === e.tikr); if (s) setDetailStock(s); }}>
-                          <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{e.name}</td>
-                          <td><span className="pill" style={{ background: e.type === "Earnings" ? "var(--color-info-bg)" : "var(--color-positive-bg)", color: e.type === "Earnings" ? "var(--color-accent-blue)" : "var(--color-positive)", border: `1px solid ${e.type === "Earnings" ? "rgba(79,142,247,0.25)" : "var(--color-positive-border)"}`, fontSize: 10 }}>{e.type}</span></td>
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{e.date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" })}</td>
-                          <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: e.daysUntil <= 7 ? "var(--color-warning)" : e.daysUntil < 0 ? "var(--color-text-muted)" : "var(--color-text-primary)" }}>{e.daysUntil < 0 ? `${Math.abs(e.daysUntil)}d ago` : e.daysUntil === 0 ? "Today" : `${e.daysUntil}d`}</td>
-                        </tr>
-                      ))}</tbody></table></div>
-                  ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: 12 }}>No upcoming events found. Click on stocks in the Octopus tab to load enrichment data.</p>}
+
+                  {/* Timeline view */}
+                  {weekGroups.length > 0 ? (
+                    <div className="space-y-3 mb-4">
+                      {weekGroups.map(g => (
+                        <div key={g.label}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: g.label === "This Week" ? "#F59E0B" : "var(--color-text-muted)" }}>{g.label}</span>
+                            <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+                            <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>{g.events.length} event{g.events.length > 1 ? "s" : ""}</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-1">
+                            {g.events.map((e, i) => {
+                              const tc = typeColor(e.type);
+                              return (
+                                <div key={`${e.tikr}-${e.type}-${i}`} className="flex items-center gap-3 px-3 py-1.5 rounded cursor-pointer" style={{ background: "var(--color-bg-hover)" }} onClick={() => { const st = enrichedStocks.find(x => x.tikr === e.tikr); if (st) setDetailStock(st); }}>
+                                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: e.daysUntil <= 7 && e.daysUntil >= 0 ? "#F59E0B" : "var(--color-text-muted)", minWidth: 52 }}>{e.date.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                                  <span className="pill" style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.border}`, fontSize: 9, minWidth: 65, textAlign: "center" }}>{e.type}</span>
+                                  <span className="font-semibold flex-1" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{e.name}</span>
+                                  {e.sector && <span style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{e.sector}</span>}
+                                  <span className="font-bold" style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: e.daysUntil < 0 ? "var(--color-text-muted)" : e.daysUntil <= 7 ? "#F59E0B" : "var(--color-text-primary)", minWidth: 36, textAlign: "right" }}>{e.daysUntil < 0 ? `${Math.abs(e.daysUntil)}d ago` : e.daysUntil === 0 ? "Today" : `${e.daysUntil}d`}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: 12 }}>No upcoming events. Click stocks in the Octopus tab to load enrichment data.</p>}
+
+                  {/* Analysis Freshness — Stale Stocks */}
+                  {staleStocks.length > 0 && (
+                    <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12, marginTop: 8 }}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span style={{ fontSize: 14 }}>⏰</span>
+                        <span className="font-bold" style={{ fontSize: "var(--text-sm)", color: "#D97706" }}>Stale Analysis — Not Updated in 60+ Days</span>
+                        <span className="pill pill-amber" style={{ marginLeft: 4 }}>{staleStocks.length}</span>
+                      </div>
+                      <div className="overflow-auto max-h-[240px]">
+                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>Sector</th><th>Last Updated</th><th>Age</th><th>Conv.</th><th>CDS</th></tr></thead>
+                          <tbody>{staleStocks.slice(0, 20).map(s => {
+                            const d = s.last_updated ? new Date(s.last_updated) : null;
+                            const age = d ? Math.ceil((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                            return (
+                              <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
+                                <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
+                                <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{d ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "Never"}</td>
+                                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: age && age > 90 ? "#EF4444" : "#D97706", fontWeight: 600 }}>{age ? `${age}d` : "∞"}</td>
+                                <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
+                                <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
+                              </tr>
+                            );
+                          })}</tbody></table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
