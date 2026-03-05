@@ -59,8 +59,28 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+
+    // Input validation: zones must be a plain object with string[] values
+    const rawZones = body.zones;
+    if (rawZones && (typeof rawZones !== "object" || Array.isArray(rawZones))) {
+      return NextResponse.json({ ok: false, error: "Invalid zones format" }, { status: 400 });
+    }
+
+    // Prototype pollution guard: strip dangerous keys
+    const sanitizedZones: Record<string, string[]> = {};
+    if (rawZones) {
+      const dangerousKeys = new Set(["__proto__", "constructor", "prototype"]);
+      for (const key of Object.keys(rawZones)) {
+        if (dangerousKeys.has(key)) continue;
+        const val = rawZones[key];
+        if (Array.isArray(val) && val.every((v: unknown) => typeof v === "string")) {
+          sanitizedZones[key] = val;
+        }
+      }
+    }
+
     const snapshot = {
-      zones: body.zones || {},
+      zones: sanitizedZones,
       updatedAt: new Date().toISOString(),
     };
 

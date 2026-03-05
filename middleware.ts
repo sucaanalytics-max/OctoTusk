@@ -53,13 +53,48 @@ function maybeCleanup() {
   }
 }
 
+// ── CORS: allowed origins ──
+const ALLOWED_ORIGINS = [
+  "https://octo-tusk.vercel.app",
+  "https://octotusk.tuskinvest.com",
+];
+if (process.env.NODE_ENV === "development") {
+  ALLOWED_ORIGINS.push("http://localhost:3000");
+}
+
+function applyCors(response: NextResponse, origin: string | null): NextResponse {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    response.headers.set("Access-Control-Max-Age", "86400");
+    response.headers.set("Vary", "Origin");
+  }
+  return response;
+}
+
 // ── Middleware ──
 export default auth((req: NextRequest) => {
   const { pathname } = req.nextUrl;
+  const origin = req.headers.get("origin");
 
   // Skip auth routes — NextAuth needs these open
   if (pathname.startsWith("/api/auth")) {
     return NextResponse.next();
+  }
+
+  // Handle CORS preflight (OPTIONS)
+  if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    const preflightRes = new NextResponse(null, { status: 204 });
+    return applyCors(preflightRes, origin);
+  }
+
+  // Block cross-origin requests from unauthorized domains
+  if (pathname.startsWith("/api/") && origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return NextResponse.json(
+      { error: "Forbidden origin" },
+      { status: 403 }
+    );
   }
 
   // Apply rate limiting to all API routes
@@ -69,24 +104,27 @@ export default auth((req: NextRequest) => {
 
     const { allowed, remaining, limit } = checkRateLimit(ip, pathname);
     if (!allowed) {
-      return NextResponse.json(
-        { error: "Too many requests" },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": "60",
-            "X-RateLimit-Limit": String(limit),
-            "X-RateLimit-Remaining": "0",
-          },
-        }
+      return applyCors(
+        NextResponse.json(
+          { error: "Too many requests" },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": "60",
+              "X-RateLimit-Limit": String(limit),
+              "X-RateLimit-Remaining": "0",
+            },
+          }
+        ),
+        origin
       );
     }
 
-    // Add rate limit headers to successful responses
+    // Add rate limit + CORS headers to successful responses
     const response = NextResponse.next();
     response.headers.set("X-RateLimit-Limit", String(limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
-    return response;
+    return applyCors(response, origin);
   }
 
   // For dashboard routes, NextAuth middleware handles auth automatically

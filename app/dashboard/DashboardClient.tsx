@@ -651,7 +651,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [dataRefreshing, setDataRefreshing] = useState(false);
   const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(null);
   const [holdingsUnlocked, setHoldingsUnlocked] = useState(false);
+  const [holdingsPin, setHoldingsPin] = useState("");
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
+  const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [compareSearch, setCompareSearch] = useState("");
   const [selectedCompare, setSelectedCompare] = useState<string[]>([]);
@@ -712,18 +714,24 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  // Persist watchlists & hidden stocks to localStorage
+  // Safe JSON parse — prevents crashes from corrupted storage (M-5)
+  const safeParse = (raw: string | null): unknown => {
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  };
+
+  // Persist watchlists & hidden stocks to sessionStorage (H-2: no persistent client-side storage)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("octotusk-watchlists");
-      if (saved) setWatchlists(JSON.parse(saved));
-      const hidden = localStorage.getItem("octotusk-hidden");
-      if (hidden) setHiddenStocks(new Set(JSON.parse(hidden)));
-      const savedTheme = localStorage.getItem("octotusk-theme");
+      const saved = safeParse(sessionStorage.getItem("octotusk-watchlists"));
+      if (saved && typeof saved === "object") setWatchlists(saved as Record<string, string[]>);
+      const hidden = safeParse(sessionStorage.getItem("octotusk-hidden"));
+      if (Array.isArray(hidden)) setHiddenStocks(new Set(hidden as string[]));
+      const savedTheme = sessionStorage.getItem("octotusk-theme");
       if (savedTheme === "dark") setTheme("dark");
-      const savedThresholds = localStorage.getItem("octotusk-thresholds");
-      if (savedThresholds) {
-        const t = JSON.parse(savedThresholds);
+      const savedThresholds = safeParse(sessionStorage.getItem("octotusk-thresholds"));
+      if (savedThresholds && typeof savedThresholds === "object") {
+        const t = savedThresholds as Record<string, number>;
         if (t.buyZoneLow != null) setBuyZoneLow(t.buyZoneLow);
         if (t.buyZoneHigh != null) setBuyZoneHigh(t.buyZoneHigh);
         if (t.sellZoneLow != null) setSellZoneLow(t.sellZoneLow);
@@ -733,19 +741,19 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   }, []);
 
   useEffect(() => {
-    try { localStorage.setItem("octotusk-watchlists", JSON.stringify(watchlists)); } catch { /* ignore */ }
+    try { sessionStorage.setItem("octotusk-watchlists", JSON.stringify(watchlists)); } catch { /* ignore */ }
   }, [watchlists]);
 
   useEffect(() => {
-    try { localStorage.setItem("octotusk-hidden", JSON.stringify(Array.from(hiddenStocks))); } catch { /* ignore */ }
+    try { sessionStorage.setItem("octotusk-hidden", JSON.stringify(Array.from(hiddenStocks))); } catch { /* ignore */ }
   }, [hiddenStocks]);
 
   useEffect(() => {
-    try { localStorage.setItem("octotusk-theme", theme); } catch { /* ignore */ }
+    try { sessionStorage.setItem("octotusk-theme", theme); } catch { /* ignore */ }
   }, [theme]);
 
   useEffect(() => {
-    try { localStorage.setItem("octotusk-thresholds", JSON.stringify({ buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh })); } catch { /* ignore */ }
+    try { sessionStorage.setItem("octotusk-thresholds", JSON.stringify({ buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh })); } catch { /* ignore */ }
   }, [buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh]);
 
   const toggleHideStock = (tikr: string) => {
@@ -781,8 +789,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   };
 
   const handleTabSwitch = (tab: typeof activeTab) => {
-    if (tab === "holdings" && !holdingsUnlocked && !holdingsLoading) {
-      unlockHoldings();
+    if (activeTab === "holdings" && tab !== "holdings") {
+      setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError("");
     }
     setDetailStock(null);
     setActiveTab(tab);
@@ -920,14 +928,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     });
   }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
-  // Holdings — session-gated (no PIN needed)
+  // Holdings — session + PIN gated
   const unlockHoldings = async () => {
-    setHoldingsLoading(true);
+    setHoldingsLoading(true); setHoldingsError("");
     try {
-      const res = await fetch("/api/holdings");
+      const res = await fetch("/api/holdings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: holdingsPin }) });
       const data = await res.json();
       if (data.unlocked) { setHoldingsData(data.holdings); setHoldingsUnlocked(true); }
-    } catch { /* session auth handles errors */ }
+      else setHoldingsError(data.error || "Invalid PIN");
+    } catch { setHoldingsError("Failed to verify"); }
     finally { setHoldingsLoading(false); }
   };
 
@@ -1814,8 +1823,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-text-muted)" }}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                 </div>
                 <h2 className="font-bold mb-2" style={{ fontSize: "var(--text-xl)", color: "var(--color-text-primary)" }}>Holdings Analysis</h2>
-                <p className="mb-6" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>{holdingsLoading ? "Loading holdings..." : "Authenticating..."}</p>
-                {holdingsLoading && <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto" style={{ borderColor: "var(--color-accent)", borderTopColor: "transparent" }} />}
+                <p className="mb-6" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>Enter PIN to access portfolio holdings data</p>
+                <input type="password" placeholder="Enter PIN" value={holdingsPin} onChange={e => setHoldingsPin(e.target.value)} onKeyDown={e => e.key === "Enter" && unlockHoldings()} className="input-dark w-full text-center text-lg tracking-widest mb-3" style={{ padding: "var(--space-3) var(--space-4)" }} aria-label="Holdings PIN" />
+                {holdingsError && <p className="mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-negative)" }}>{holdingsError}</p>}
+                <button onClick={unlockHoldings} disabled={holdingsLoading || !holdingsPin} className="btn btn-primary w-full" style={{ padding: "var(--space-3)" }}>{holdingsLoading ? "Verifying..." : "Unlock"}</button>
               </div>
             </div>
           ) : (

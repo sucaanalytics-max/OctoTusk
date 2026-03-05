@@ -116,7 +116,7 @@ async function getGraphToken(): Promise<string> {
         grant_type: "client_credentials",
         client_id: clientId,
         client_secret: clientSecret,
-        scope: "https://graph.microsoft.com/.default",
+        scope: "https://graph.microsoft.com/.default", // Note: Azure AD app registration should restrict to Files.Read.All + Sites.Read.All
       }),
     }
   );
