@@ -1303,13 +1303,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   const activeFilters = [filterSector, filterVP, filterConviction].filter(f => f !== "all").length;
 
-  // ── CSV Export ──
-  const exportCSV = () => {
-    const csv = ["Company,Sector,CMP,Bear,Base,Bull,Upside Bear,Upside Base,Upside Bull,1Y Upside,2Y Upside,Base PE,Base PB,Base EV/EBITDA,Conviction,CDS,Quality,Fwd PE FY27,VA,SA",
-      ...sortedStocks.map(s => [`"${s.companyShort}"`, `"${s.sector || ""}"`, s.liveCmp?.toFixed(0) || "", s.bear_current?.toFixed(0) || "", s.base_current?.toFixed(0) || "", s.bull_current?.toFixed(0) || "", s.upsideBearCalc != null ? (s.upsideBearCalc * 100).toFixed(1) + "%" : "", s.upsideBaseCalc != null ? (s.upsideBaseCalc * 100).toFixed(1) + "%" : "", s.upsideBullCalc != null ? (s.upsideBullCalc * 100).toFixed(1) + "%" : "", s.upside_1y != null ? s.upside_1y.toFixed(1) + "%" : "", s.upside_2y != null ? s.upside_2y.toFixed(1) + "%" : "", s.base_pe?.toFixed(1) || "", s.base_pb?.toFixed(1) || "", s.base_evebitda?.toFixed(1) || "", String(s.conviction ?? ""), String(s.cds ?? ""), s.qualityScore != null ? s.qualityScore.toFixed(1) : "", s.forwardPE_fy27 ? s.forwardPE_fy27.toFixed(1) : "", s.vp || "", s.sa || ""].join(","))
-    ].join("\n");
-    const b = new Blob([csv], { type: "text/csv" }); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `octopus_${new Date().toISOString().split("T")[0]}.csv`; a.click(); URL.revokeObjectURL(u);
-  };
 
   // ── SECTOR ALLOCATION BAR (visual, with expandable dropdown) ──
   const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
@@ -1802,7 +1795,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}</option>)}</select>
             {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
             <span className="ml-auto filter-stats" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
-            <button onClick={exportCSV} className="btn btn-success btn-sm" aria-label="Export data as CSV">Export CSV</button>
           </div>
 
           {/* Watchlist bar */}
