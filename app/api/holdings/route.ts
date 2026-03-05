@@ -4,18 +4,21 @@ import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-// SHA-256 hash of the holdings PIN — stored as env var for easy rotation
-// To generate: echo -n "0909@" | sha256sum
-const FALLBACK_PIN_HASH = "09127e5b2566846f1d751100db3441af84f6f2265489fb4adc72acc2593ce31d";
-
 /**
  * POST /api/holdings — Session + PIN gated holdings data
  * Requires: (1) authenticated @tuskinvest.com session AND (2) correct PIN
+ * PIN hash MUST be set via HOLDINGS_PIN_HASH env var — no hardcoded fallback.
  */
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const expectedHash = process.env.HOLDINGS_PIN_HASH;
+  if (!expectedHash) {
+    console.error("[/api/holdings] HOLDINGS_PIN_HASH env var is not set — holdings endpoint disabled");
+    return NextResponse.json({ error: "Holdings unavailable — contact admin" }, { status: 503 });
   }
 
   try {
@@ -28,7 +31,6 @@ export async function POST(request: NextRequest) {
 
     // Rate limiting is handled by middleware (10 req/min for /api/holdings)
     const pinHash = crypto.createHash("sha256").update(pin).digest("hex");
-    const expectedHash = process.env.HOLDINGS_PIN_HASH || FALLBACK_PIN_HASH;
 
     if (pinHash !== expectedHash) {
       return NextResponse.json({ error: "Invalid PIN" }, { status: 403 });
