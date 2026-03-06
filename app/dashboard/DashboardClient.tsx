@@ -318,8 +318,8 @@ function heatmapColor(value: number | null | undefined, mode: string): string {
     const blues: Record<number, string> = { 5: "rgb(37, 99, 235)", 4: "rgb(59, 130, 246)", 3: "rgb(96, 165, 250)", 2: "rgb(71, 85, 105)", 1: "rgb(100, 116, 139)" };
     return blues[Math.round(v)] || "rgb(45, 48, 55)";
   }
-  const range = mode === "upsideBase" ? 30 : mode === "pnl" ? 30 : 3;
-  const pct = mode === "upsideBase" || mode === "pnl" ? value * 100 : value;
+  const range = (mode === "upsideBase" || mode === "upsideBear" || mode === "upsideBull") ? 30 : mode === "pnl" ? 30 : 3;
+  const pct = (mode === "upsideBase" || mode === "upsideBear" || mode === "upsideBull" || mode === "pnl") ? value * 100 : value;
   const t = Math.max(-1, Math.min(1, pct / range));
   if (t >= 0) {
     const r = Math.round(45 + (20 - 45) * t);
@@ -689,8 +689,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [scatterSectorFilters, setScatterSectorFilters] = useState<Set<string>>(new Set());
   const [scatterConvictionFilters, setScatterConvictionFilters] = useState<Set<number>>(new Set());
 
+  // Holdings table sort
+  const [holdSortCol, setHoldSortCol] = useState<string>("value");
+  const [holdSortDir, setHoldSortDir] = useState<"asc" | "desc">("desc");
+
   // Treemap heatmap
-  const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "pnl" | "conviction">("dayChange");
+  const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "upsideBear" | "upsideBull" | "pnl" | "conviction">("dayChange");
   const [hmSizeMode, setHmSizeMode] = useState<"holding" | "equal" | "marketCap">("holding");
   const [hmGroupBy, setHmGroupBy] = useState<"sector" | "subsector" | "flat">("sector");
   const [hmScope, setHmScope] = useState<"portfolio" | "all">("all");
@@ -1171,6 +1175,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const getColorVal = (s: EnrichedStock): number => {
       if (hmColorMode === "dayChange") return s.liveChangePct || 0;
       if (hmColorMode === "upsideBase") return s.upsideBaseCalc || 0;
+      if (hmColorMode === "upsideBear") return s.upsideBearCalc || 0;
+      if (hmColorMode === "upsideBull") return s.upsideBullCalc || 0;
       if (hmColorMode === "conviction") return s.conviction || 1;
       return 0; // pnl handled below if holdings available
     };
@@ -1210,7 +1216,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       }
     }
     return { rects: allRects, W, H, sectorRects };
-  }, [enrichedStocks, quotes, hmColorMode, hmSizeMode, hmGroupBy, hmScope]);
+  }, [enrichedStocks, quotes, hmColorMode, hmSizeMode, hmGroupBy, hmScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Zone transition alerts
   useEffect(() => {
@@ -1922,8 +1928,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               ))}
               <span style={{ width: 1, height: 20, background: "var(--color-border)", alignSelf: "center", margin: "0 4px" }} />
               <span style={{ color: "var(--color-text-muted)", fontWeight: 600, alignSelf: "center" }}>Color:</span>
-              {(["dayChange", "upsideBase", "conviction"] as const).map(v => (
-                <button key={v} className="scatter-pill" style={{ background: hmColorMode === v ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: hmColorMode === v ? "#fff" : "var(--color-text-muted)" }} onClick={() => setHmColorMode(v)}>{{dayChange: "Day Chg", upsideBase: "↑ Base", conviction: "Conviction"}[v]}</button>
+              {(["dayChange", "upsideBear", "upsideBase", "upsideBull", "conviction"] as const).map(v => (
+                <button key={v} className="scatter-pill" style={{ background: hmColorMode === v ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: hmColorMode === v ? "#fff" : "var(--color-text-muted)" }} onClick={() => setHmColorMode(v)}>{{ dayChange: "Day Chg", upsideBear: "↑ Bear", upsideBase: "↑ Base", upsideBull: "↑ Bull", conviction: "Conviction" }[v]}</button>
               ))}
               <span style={{ width: 1, height: 20, background: "var(--color-border)", alignSelf: "center", margin: "0 4px" }} />
               <span style={{ color: "var(--color-text-muted)", fontWeight: 600, alignSelf: "center" }}>Size:</span>
@@ -1990,7 +1996,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                         )}
                         {showName && showPct && (
                           <text x={bx + bw / 2} y={by + bh / 2 + nf * 0.6} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.9)" style={{ fontSize: pf, fontWeight: 500, textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}>
-                            {hmColorMode === "dayChange" ? `${r.changePct >= 0 ? "+" : ""}${r.changePct.toFixed(2)}%` : hmColorMode === "upsideBase" ? `${((r.colorVal) * 100).toFixed(1)}%` : hmColorMode === "conviction" ? `C${r.colorVal}` : ""}
+                            {hmColorMode === "dayChange" ? `${r.changePct >= 0 ? "+" : ""}${r.changePct.toFixed(2)}%` : (hmColorMode === "upsideBase" || hmColorMode === "upsideBear" || hmColorMode === "upsideBull") ? `${(r.colorVal * 100) >= 0 ? "+" : ""}${(r.colorVal * 100).toFixed(1)}%` : hmColorMode === "conviction" ? `C${r.colorVal}` : ""}
                           </text>
                         )}
                         {showTicker && !showName && (
@@ -2037,7 +2043,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 )}
               </div>
               <span style={{ color: "var(--color-text-muted)" }}>
-                {heatmapLayout.rects.length} stocks | {hmColorMode === "dayChange" ? "Day Change" : hmColorMode === "upsideBase" ? "Upside to Base" : hmColorMode === "conviction" ? "Conviction" : "P&L"}
+                {heatmapLayout.rects.length} stocks | {hmColorMode === "dayChange" ? "Day Change" : hmColorMode === "upsideBase" ? "Upside to Base" : hmColorMode === "upsideBear" ? "Upside to Bear" : hmColorMode === "upsideBull" ? "Upside to Bull" : hmColorMode === "conviction" ? "Conviction" : "P&L"}
               </span>
             </div>
           </div>
@@ -2079,11 +2085,46 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </>);
                 })()}
               </div>
-              <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 340px)" }}>
+              {(() => {
+                // Holdings sort helper
+                const holdCols: Record<string, (h: typeof enrichedHoldings[0]) => number | string> = {
+                  name: h => h.asset_name || "",
+                  qty: h => h.quantity,
+                  avgCost: h => h.avg_price,
+                  cmp: h => h.livePrice,
+                  dayPct: h => h.liveChangePct,
+                  dayPnl: h => h.liveChange * h.quantity,
+                  invested: h => h.amt_invested,
+                  value: h => h.liveValue,
+                  pnl: h => h.liveGain,
+                  pnlPct: h => h.liveGainPct,
+                  bear: h => h.stockData?.bear_current ?? 0,
+                  base: h => h.stockData?.base_current ?? 0,
+                  bull: h => h.stockData?.bull_current ?? 0,
+                  uBear: h => h.upsideToBear ?? -999,
+                  uBase: h => h.upsideToBase ?? -999,
+                  uBull: h => h.upsideToBull ?? -999,
+                };
+                const sortedHoldings = [...enrichedHoldings].sort((a, b) => {
+                  const fn = holdCols[holdSortCol] || holdCols.value;
+                  const av = fn(a), bv = fn(b);
+                  const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+                  return holdSortDir === "desc" ? -cmp : cmp;
+                });
+                const hTh = (label: string, col: string) => {
+                  const active = holdSortCol === col;
+                  return (
+                    <th key={col} onClick={() => { if (holdSortCol === col) setHoldSortDir(d => d === "asc" ? "desc" : "asc"); else { setHoldSortCol(col); setHoldSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", color: active ? "var(--color-accent-blue)" : undefined }}>
+                      {label}{active ? (holdSortDir === "desc" ? " ▾" : " ▴") : ""}
+                    </th>
+                  );
+                };
+                return (
+              <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: 1360 }}>
                 <table className="data-table w-full" role="table" aria-label="Holdings data">
-                  <thead><tr><th>Stock</th><th>Qty</th><th>Avg Cost</th><th>CMP</th><th>Day %</th><th>Day P&L</th><th>Invested</th><th>Value</th><th>P&L</th><th>P&L %</th><th>Bear</th><th>Base</th><th>Bull</th><th>↑ Bear</th><th>↑ Base</th><th>↑ Bull</th></tr></thead>
+                  <thead><tr>{hTh("Stock","name")}{hTh("Qty","qty")}{hTh("Avg Cost","avgCost")}{hTh("CMP","cmp")}{hTh("Day %","dayPct")}{hTh("Day P&L","dayPnl")}{hTh("Invested","invested")}{hTh("Value","value")}{hTh("P&L","pnl")}{hTh("P&L %","pnlPct")}{hTh("Bear","bear")}{hTh("Base","base")}{hTh("Bull","bull")}{hTh("↑ Bear","uBear")}{hTh("↑ Base","uBase")}{hTh("↑ Bull","uBull")}</tr></thead>
                   <tbody>
-                    {enrichedHoldings.sort((a, b) => b.liveValue - a.liveValue).map((h, i) => (
+                    {sortedHoldings.map((h, i) => (
                       <tr key={i}>
                         <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
@@ -2106,6 +2147,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </tbody>
                 </table>
               </div>
+                ); // end IIFE return
+              })()} {/* end holdings sort IIFE */}
 
               {/* VA & SA Analysis (moved from Decision Support) */}
               <div className="grid grid-cols-2 gap-4 mt-4">
@@ -2150,6 +2193,68 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                     ))}</tbody></table></div>
                 </div>
               </div>
+
+              {/* ── Sector Pie Chart by Holdings % ── */}
+              {(() => {
+                // Aggregate sector holdings from enrichedHoldings
+                const sectorMap: Record<string, number> = {};
+                let totalVal = 0;
+                enrichedHoldings.forEach(h => {
+                  const sec = h.stockData?.sector || "Other";
+                  sectorMap[sec] = (sectorMap[sec] || 0) + h.liveValue;
+                  totalVal += h.liveValue;
+                });
+                if (totalVal === 0) return null;
+                const sectors = Object.entries(sectorMap).sort((a, b) => b[1] - a[1]);
+                const COLORS = ["#3B82F6","#10B981","#F59E0B","#EF4444","#8B5CF6","#EC4899","#06B6D4","#84CC16","#F97316","#6366F1","#14B8A6","#A855F7","#D97706","#0EA5E9","#E11D48","#22C55E","#7C3AED","#0891B2","#CA8A04","#DC2626"];
+                // Build pie slices
+                const cx = 140, cy = 140, r = 120, ri = 55; // donut
+                let startAngle = -Math.PI / 2;
+                const slices = sectors.map(([sec, val], i) => {
+                  const pct = val / totalVal;
+                  const angle = pct * 2 * Math.PI;
+                  const endAngle = startAngle + angle;
+                  const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+                  const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+                  const ix1 = cx + ri * Math.cos(startAngle), iy1 = cy + ri * Math.sin(startAngle);
+                  const ix2 = cx + ri * Math.cos(endAngle), iy2 = cy + ri * Math.sin(endAngle);
+                  const large = angle > Math.PI ? 1 : 0;
+                  const d = `M${ix1},${iy1} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A${ri},${ri} 0 ${large},0 ${ix1},${iy1} Z`;
+                  const midAngle = startAngle + angle / 2;
+                  const lx = cx + (r + 14) * Math.cos(midAngle);
+                  const ly = cy + (r + 14) * Math.sin(midAngle);
+                  const result = { sec, pct, val, d, color: COLORS[i % COLORS.length], lx, ly, midAngle };
+                  startAngle = endAngle;
+                  return result;
+                });
+                return (
+                  <div className="metric-card animate-fade-in-up mt-4" style={{ borderTop: "3px solid #3B82F6" }}>
+                    <h3 className="font-bold mb-4" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation by Holdings Value</h3>
+                    <div className="flex items-start gap-8 flex-wrap">
+                      {/* Donut chart */}
+                      <svg width={280} height={280} style={{ flexShrink: 0 }}>
+                        {slices.map((sl, i) => (
+                          <path key={i} d={sl.d} fill={sl.color} stroke="var(--color-bg-card)" strokeWidth={2} opacity={0.9} />
+                        ))}
+                        {/* Centre label */}
+                        <text x={cx} y={cy - 8} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 11, fill: "var(--color-text-muted)" }}>Total</text>
+                        <text x={cx} y={cy + 10} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 13, fontWeight: 700, fill: "var(--color-text-primary)" }}>{fmtCr(totalVal)}</text>
+                      </svg>
+                      {/* Legend */}
+                      <div style={{ flex: 1, minWidth: 200, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 16px", alignContent: "start" }}>
+                        {slices.map((sl, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 0" }}>
+                            <div style={{ width: 10, height: 10, borderRadius: 2, background: sl.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sl.sec}</span>
+                            <span style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)", fontWeight: 600 }}>{(sl.pct * 100).toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
           )}
         </div>
