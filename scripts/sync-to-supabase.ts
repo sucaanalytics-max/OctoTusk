@@ -223,19 +223,42 @@ function strVal(ws: XLSX.WorkSheet, addr: string): string {
   return String(v).trim();
 }
 
-async function parseVFFile(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
+type ParseFailure = { ok: false; reason: "no_sheet" | "no_tikr" | "http_error" | "parse_error"; file: string; detail: string };
+type ParseSuccess = { ok: true; data: Record<string, unknown> };
+type ParseResult = ParseSuccess | ParseFailure;
+
+async function fetchWithRetry(url: string, opts: RequestInit, fileName: string, maxAttempts = 3): Promise<Response> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(url, { ...opts, signal: AbortSignal.timeout(30000) });
+      return res;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (attempt < maxAttempts) {
+        const delay = attempt * 2000;
+        console.warn(`[vF] Retry ${attempt}/${maxAttempts}: ${fileName} (${msg}), waiting ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error("unreachable");
+}
+
+async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
   try {
     const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
-    if (!res.ok) { console.warn(`[vF] Failed to download ${file.name}: ${res.status}`); return null; }
+    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }, file.name);
+    if (!res.ok) { return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${res.status}` }; }
     const buffer = await res.arrayBuffer();
     const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
     const summarySheet = wb.SheetNames.find(s => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
-    if (!summarySheet) return null;
+    if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
     const ws = wb.Sheets[summarySheet];
     const tikr = strVal(ws, "B2");
-    if (!tikr) { console.warn(`[vF] No TIKR in ${file.name}`); return null; }
-    return {
+    if (!tikr) { return { ok: false, reason: "no_tikr", file: file.name, detail: "no TIKR in B2" }; }
+    return { ok: true, data: {
       tikr,
       last_updated: (() => { const v = cellVal(ws, "A5"); if (v === null || v === undefined) return ""; if (typeof v === "number") return excelDateToISO(v); if (v instanceof Date) return v.toISOString().split("T")[0]; return String(v); })(),
       vp: strVal(ws, "B5"), sa: strVal(ws, "C5"),
@@ -250,27 +273,38 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
       base_evebitda: numVal(ws, "C18"), base_evebitda_2sd: numVal(ws, "F18"),
       comments: strVal(ws, "B21"),
       _vf_source: file.name,
-    };
+    } };
   } catch (err) {
-    console.warn(`[vF] Error parsing ${file.name}:`, err instanceof Error ? err.message : err);
-    return null;
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, reason: "parse_error", file: file.name, detail: msg };
   }
 }
 
 async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
   const results = new Map<string, Record<string, unknown>>();
-  const failures: string[] = [];
+  const skipped: string[] = [];
+  const failed: string[] = [];
   const queue = [...files];
   async function worker() {
     while (queue.length > 0) {
       const file = queue.shift()!;
-      const data = await parseVFFile(token, file);
-      if (data && data.tikr && typeof data.tikr === "string") results.set(data.tikr as string, data);
-      else if (data === null) failures.push(file.name);
+      const result = await parseVFFile(token, file);
+      if (result.ok) {
+        const { data } = result;
+        if (data.tikr && typeof data.tikr === "string") results.set(data.tikr as string, data);
+      } else {
+        const failure = result as ParseFailure;
+        if (failure.reason === "no_sheet") {
+          skipped.push(failure.file);
+        } else {
+          console.warn(`[vF] FAIL ${failure.file}: ${failure.reason} — ${failure.detail}`);
+          failed.push(failure.file);
+        }
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, () => worker()));
-  return { results, failures };
+  return { results, skipped, failed };
 }
 
 // ── Holdings ──
@@ -388,8 +422,9 @@ async function main() {
   const dedupedFiles = deduplicateVFFiles(allFiles);
   console.log(`[sync] Found ${allFiles.length} files, deduplicated to ${dedupedFiles.length}`);
 
-  const { results: vfMap, failures: vfFailures } = await processVFFiles(token, dedupedFiles, 3);
-  console.log(`[sync] Parsed ${vfMap.size} vF files, ${vfFailures.length} failures`);
+  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 3);
+  console.log(`[sync] Parsed ${vfMap.size} vF files, skipped ${vfSkipped.length} (no sheet), ${vfFailed.length} errors`);
+  if (vfFailed.length > 0) console.warn(`[sync] Failed files: ${vfFailed.join(", ")}`);
 
   // Apply aliases
   for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
