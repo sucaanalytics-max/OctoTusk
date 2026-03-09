@@ -1216,9 +1216,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   // Decision data (uses configurable thresholds)
   const holdingTikrs = useMemo(() => {
     const set = new Set<string>();
-    enrichedHoldings.forEach(h => { if (h.tikr) set.add(h.tikr); });
+    enrichedStocks.forEach(s => {
+      if (s.holding_cash_lakhs && s.holding_cash_lakhs > 0) set.add(s.tikr);
+    });
     return set;
-  }, [enrichedHoldings]);
+  }, [enrichedStocks]);
 
   const decisionData = useMemo(() => {
     const bLow = buyZoneLow / 100, bHigh = buyZoneHigh / 100;
