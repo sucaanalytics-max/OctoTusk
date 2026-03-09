@@ -2537,36 +2537,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
 
-          {/* ── Tier 1A: CDS Ranking ── */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Composite Decision Score — Top 15 <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 400, marginLeft: 8 }}>Valuation 40% + Technical 25% + Quality 20% + 52W Position 15%</span></h3>
-            {(() => {
-              const cdsRanked = [...enrichedStocks].filter(s => s.cds != null && s.liveCmp).sort((a, b) => (b.cds || 0) - (a.cds || 0)).slice(0, 15);
-              return cdsRanked.length === 0 ? <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>No CDS data</p> : (
-                <div className="overflow-auto max-h-[400px]"><table className="data-table w-full"><thead><tr><th>#</th><th>Company</th><th>CDS</th><th>Val</th><th>Tech</th><th>Qual</th><th>Pos</th><th>CMP</th><th>↑ Base</th><th>Conv.</th><th>Zone</th></tr></thead>
-                  <tbody>{cdsRanked.map((s, i) => {
-                    const zone = getStockZone(s.tikr);
-                    const bd = s.cdsBreakdown;
-                    return (
-                      <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
-                        <td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td>
-                        <td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
-                        <td><span className="inline-block px-2 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", background: s.cds! >= 80 ? "rgba(5,150,105,0.2)" : s.cds! >= 60 ? "rgba(52,211,153,0.15)" : s.cds! >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)", color: s.cds! >= 80 ? "#059669" : s.cds! >= 60 ? "#10B981" : s.cds! >= 40 ? "#D97706" : "#EF4444" }}>{s.cds}</span></td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.val ?? "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.tech ?? "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.qual ?? "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{bd?.pos ?? "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td>
-                        <td className="text-center font-bold" style={{ color: "#A78BFA" }}>{s.conviction ?? "—"}</td>
-                        <td>{zone ? <span className="pill" style={{ background: `${zone.color}22`, color: zone.color, border: `1px solid ${zone.color}44` }}>{zone.label}</span> : <span style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>—</span>}</td>
-                      </tr>
-                    );
-                  })}</tbody></table></div>
-              );
-            })()}
-          </div>
-
           {/* ── Tier 2A: Portfolio Risk Dashboard ── */}
           <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #EC4899" }}>
             <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Portfolio Risk Dashboard</h3>
