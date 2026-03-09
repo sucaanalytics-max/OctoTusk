@@ -62,6 +62,17 @@ export async function POST() {
       ON CONFLICT (id) DO NOTHING
     `;
 
+    // Sync snapshot: persists synced data across page refreshes
+    await sql`
+      CREATE TABLE IF NOT EXISTS sync_snapshot (
+        id INTEGER PRIMARY KEY DEFAULT 1,
+        stocks JSONB NOT NULL DEFAULT '[]',
+        holdings JSONB NOT NULL DEFAULT '[]',
+        ticker_map JSONB NOT NULL DEFAULT '{}',
+        synced_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `;
+
     return NextResponse.json({ ok: true, message: "Tables created successfully" });
   } catch (error: unknown) {
     console.error("[/api/db/setup]", error instanceof Error ? error.message : error);
