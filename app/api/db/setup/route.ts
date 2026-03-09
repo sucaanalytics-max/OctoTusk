@@ -8,6 +8,10 @@ export const dynamic = "force-dynamic";
  * POST /api/db/setup — One-time migration to create tables.
  * Safe to call multiple times (IF NOT EXISTS).
  */
+export async function GET() {
+  return POST();
+}
+
 export async function POST() {
   const session = await auth();
   if (!session?.user) {
