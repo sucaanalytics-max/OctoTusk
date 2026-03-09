@@ -1917,7 +1917,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <Th col="upsideBearCalc" label="↑ Bear" /><Th col="upsideBaseCalc" label="↑ Base" /><Th col="upsideBullCalc" label="↑ Bull" />
                 <Th col="upside1YCalc" label="1Y Upside" /><Th col="upside2YCalc" label="2Y Upside" />
                 <Th col="base_pe" label="PE" /><Th col="base_pb" label="PB" /><Th col="base_evebitda" label="EV/EBITDA" />
-                <Th col="conviction" label="Conv." /><Th col="cds" label="CDS" /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
+                <Th col="conviction" label="Conv." /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
               </tr></thead>
               <tbody>
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
@@ -1975,7 +1975,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
                       <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
-                      <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
                       <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"}</td>
                       <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.sa || "—"}</td>
                     </tr>
@@ -2139,19 +2138,21 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           ) : (
             <div className="animate-fade-in">
-              <div className="grid grid-cols-5 gap-4 mb-4">
+              <div className="grid grid-cols-6 gap-4 mb-4">
                 {(() => {
                   const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
                   const tv = enrichedHoldings.reduce((s, h) => s + h.liveValue, 0);
                   const tg = tv - ti; const tp = ti > 0 ? (tg / ti) * 100 : 0;
                   const bv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
                   const buv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
+                  const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.liveChange * h.quantity, 0);
                   return (<>
                     <div className="kpi-card animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Total Invested</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(ti)}</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Current Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(tv)}</p></div>
                     <div className={`kpi-card ${tg >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-3`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Unrealized P&L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: tg >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{tg >= 0 ? "+" : ""}{fmtCr(tg)} ({tp.toFixed(1)}%)</p></div>
-                    <div className="kpi-card kpi-negative animate-fade-in-up delay-4"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bear Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{fmtCr(bv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Drawdown: {tv ? ((bv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
-                    <div className="kpi-card kpi-positive animate-fade-in-up delay-5"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bull Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{fmtCr(buv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: +{tv ? ((buv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
+                    <div className={`kpi-card ${dayPnlTotal >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-4`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Day P&L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: dayPnlTotal >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{dayPnlTotal >= 0 ? "+" : ""}{fmtCr(dayPnlTotal)}</p></div>
+                    <div className="kpi-card kpi-negative animate-fade-in-up delay-5"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bear Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{fmtCr(bv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Drawdown: {tv ? ((bv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
+                    <div className="kpi-card kpi-positive animate-fade-in-up delay-6"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bull Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{fmtCr(buv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: +{tv ? ((buv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                   </>);
                 })()}
               </div>
