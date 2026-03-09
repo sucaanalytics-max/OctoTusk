@@ -6,14 +6,22 @@ import { reportError, reportSuccess } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 300; // Allow up to 300s for vF processing (Pro plan)
+export const maxDuration = 60; // Hobby tier max
 
-// ── OneDrive coordinates ──
+// ── OneDrive coordinates (configurable via env vars) ──
 const DRIVE_ID =
+  process.env.GRAPH_DRIVE_ID ||
   "b!LcM7MjLpqECPVA1oAGku5GTNwdNGnpZEk5y0fEC278Vi3k0yqnVQSqZRTvNCeYLH";
-const OCTOPUS_ITEM_ID = "01XUUXNQ72HPRIFGFYLVGID3Y3UPXXUV4H"; // Octopus Dashboard_.xlsx
+const OCTOPUS_ITEM_ID =
+  process.env.GRAPH_OCTOPUS_ITEM_ID ||
+  "01XUUXNQ72HPRIFGFYLVGID3Y3UPXXUV4H"; // Octopus Dashboard_.xlsx
 const SHEET_NAME = "JVB Output";
-const VF_FOLDER_ID = "01XUUXNQYRQ7B5PBRKMZGLUVNKA5K5MXY5"; // Portfolio Stock Valuations folder
+// Use path-based lookup by default; fall back to hardcoded ID
+const VF_FOLDER_PATH =
+  process.env.GRAPH_VF_FOLDER_PATH ||
+  "Portfolio Stock Valuations - Bull Base Bear (Tusk Prop)";
+const VF_FOLDER_ID_FALLBACK =
+  process.env.GRAPH_VF_FOLDER_ID || "";
 
 // ── Column index → database.json field mapping (JVB Output baseline) ──
 const COL_MAP: Record<number, string> = {
@@ -117,7 +125,7 @@ async function getGraphToken(): Promise<string> {
         grant_type: "client_credentials",
         client_id: clientId,
         client_secret: clientSecret,
-        scope: "https://graph.microsoft.com/.default", // Note: Azure AD app registration should restrict to Files.Read.All + Sites.Read.All
+        scope: "https://graph.microsoft.com/.default",
       }),
     }
   );
@@ -130,7 +138,7 @@ async function getGraphToken(): Promise<string> {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// JVB Output baseline reader (unchanged from before)
+// JVB Output baseline reader
 // ═══════════════════════════════════════════════════════════════
 
 async function readJVBOutput(token: string): Promise<unknown[][]> {
@@ -140,7 +148,7 @@ async function readJVBOutput(token: string): Promise<unknown[][]> {
   });
   const data = await res.json();
   if (data.error) {
-    throw new Error(`Graph Excel error: ${data.error.message || JSON.stringify(data.error)}`);
+    throw new Error(`Graph Excel error (JVB Output): ${data.error.message || JSON.stringify(data.error)}`);
   }
   return data.values || [];
 }
@@ -202,10 +210,37 @@ interface VFFile {
   lastModifiedDateTime: string;
 }
 
-/** List all xlsx/xlsm files in the Portfolio Stock Valuations folder */
+/** Resolve the vF folder — try path-based lookup first, then fallback to hardcoded ID */
+async function resolveVFFolderUrl(token: string): Promise<string> {
+  // Try path-based lookup first (handles folder renames/moves)
+  if (VF_FOLDER_PATH) {
+    const encodedPath = encodeURIComponent(VF_FOLDER_PATH);
+    const pathUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+
+    const testRes = await fetch(pathUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (testRes.ok) {
+      console.log(`[sync] Resolved vF folder by path: "${VF_FOLDER_PATH}"`);
+      return pathUrl;
+    }
+    const errData = await testRes.json().catch(() => ({}));
+    console.warn(`[sync] Path lookup failed for "${VF_FOLDER_PATH}": ${errData?.error?.message || testRes.status}`);
+  }
+
+  // Fallback to hardcoded folder ID
+  if (VF_FOLDER_ID_FALLBACK) {
+    console.log(`[sync] Using fallback folder ID: ${VF_FOLDER_ID_FALLBACK}`);
+    return `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID_FALLBACK}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+  }
+
+  throw new Error(`Could not resolve vF folder. Path "${VF_FOLDER_PATH}" not found and no fallback ID configured. Set GRAPH_VF_FOLDER_PATH or GRAPH_VF_FOLDER_ID env vars.`);
+}
+
+/** List all xlsx/xlsm files in the vF folder */
 async function listVFFiles(token: string): Promise<VFFile[]> {
   const allFiles: VFFile[] = [];
-  let url: string | null = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+  let url: string | null = await resolveVFFolderUrl(token);
 
   while (url) {
     const res: Response = await fetch(url, {
@@ -246,7 +281,6 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
 
 /** Pick the latest vF file per stock (by date prefix in filename) */
 function deduplicateVFFiles(files: VFFile[]): VFFile[] {
-  // Group by stock name (strip date prefix and _vf suffix)
   const stockMap = new Map<string, VFFile>();
 
   for (const f of files) {
@@ -265,7 +299,6 @@ function deduplicateVFFiles(files: VFFile[]): VFFile[] {
     }
 
     const key = match[1].trim().toLowerCase();
-    // Keep the one with the latest date prefix (lexicographic comparison works for YYYYMMDD)
     if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) {
       stockMap.set(key, f);
     }
@@ -278,7 +311,6 @@ function deduplicateVFFiles(files: VFFile[]): VFFile[] {
 function cellVal(ws: XLSX.WorkSheet, addr: string): unknown {
   const cell = ws[addr];
   if (!cell) return null;
-  // Prefer cached value (v) which is the calculated result
   return cell.v ?? null;
 }
 
@@ -300,7 +332,6 @@ function strVal(ws: XLSX.WorkSheet, addr: string): string {
 /** Download a vF file as binary and parse the "Tusk - Summary" Output Section */
 async function parseVFFile(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
   try {
-    // Download binary content
     const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -320,27 +351,22 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
       (s) => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary"
     );
     if (!summarySheet) {
-      // Not a vF file with our expected layout — skip silently
       return null;
     }
 
     const ws = wb.Sheets[summarySheet];
 
-    // Row 2, col B = TIKR
     const tikr = strVal(ws, "B2");
     if (!tikr) {
       console.warn(`[vF] No TIKR in ${file.name}`);
       return null;
     }
 
-    // Parse the Output Section per the known layout
     const vfData: Record<string, unknown> = {
       tikr,
-      // Row 5: metadata
       last_updated: (() => {
         const v = cellVal(ws, "A5");
         if (v === null || v === undefined) return "";
-        // Could be a date object, serial number, or string
         if (typeof v === "number") return excelDateToISO(v);
         if (v instanceof Date) return v.toISOString().split("T")[0];
         return String(v);
@@ -352,23 +378,19 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
       sector: strVal(ws, "F5"),
       subsector: strVal(ws, "G5"),
 
-      // Row 9: Bear / Base / Bull current
       bear_current: numVal(ws, "B9"),
       base_current: numVal(ws, "C9"),
       bull_current: numVal(ws, "D9"),
 
-      // Row 10: Upside current
       upside_bear: numVal(ws, "B10"),
       upside_base: numVal(ws, "C10"),
       upside_bull: numVal(ws, "D10"),
 
-      // Row 11-12: Target prices
       target_1y: numVal(ws, "C11"),
       upside_1y: numVal(ws, "E11"),
       target_2y: numVal(ws, "C12"),
       upside_2y: numVal(ws, "E12"),
 
-      // Row 16-18: Target multiples (base case)
       base_pe: numVal(ws, "C16"),
       base_pe_2sd: numVal(ws, "F16"),
       base_pb: numVal(ws, "C17"),
@@ -376,10 +398,8 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
       base_evebitda: numVal(ws, "C18"),
       base_evebitda_2sd: numVal(ws, "F18"),
 
-      // Row 21: Comments
       comments: strVal(ws, "B21"),
 
-      // Metadata for debugging
       _vf_source: file.name,
     };
 
@@ -412,7 +432,6 @@ async function processVFFiles(
     }
   }
 
-  // Launch workers
   const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => worker());
   await Promise.all(workers);
 
@@ -423,7 +442,6 @@ async function processVFFiles(
 // TIKR alias map: vF TIKR → JVB TIKR (for known mismatches)
 // ═══════════════════════════════════════════════════════════════
 const TIKR_ALIAS: Record<string, string> = {
-  // Case mismatches
   "SMARTWORKS": "Smartworks",
   "INDIANB": "IndianB",
   "UNIONBANK": "unionbank",
@@ -431,24 +449,34 @@ const TIKR_ALIAS: Record<string, string> = {
 
 // ═══════════════════════════════════════════════════════════════
 // Main POST handler — merges JVB baseline + vF overrides
+// Supports chunked sync via request body: { offset, batchSize }
 // ═══════════════════════════════════════════════════════════════
 
-export async function POST() {
+export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Parse optional chunking params
+  let offset = 0;
+  let batchSize = 0; // 0 = process all
+  try {
+    const body = await request.json().catch(() => ({}));
+    offset = Number(body.offset) || 0;
+    batchSize = Number(body.batchSize) || 0;
+  } catch { /* use defaults */ }
+
   try {
     const token = await getGraphToken();
 
-    // Step 1: Read JVB Output baseline (for fields NOT in vF: holdings, scores, etc.)
+    // Step 1: Read JVB Output baseline
     console.log("[sync] Reading JVB Output baseline...");
     const rows = await readJVBOutput(token);
     const baselineStocks = parseStocks(rows);
     console.log(`[sync] JVB baseline: ${baselineStocks.length} stocks`);
 
-    // Step 2: List and process vF files
+    // Step 2: List and deduplicate vF files
     console.log("[sync] Listing vF files...");
     const allFiles = await listVFFiles(token);
     console.log(`[sync] Found ${allFiles.length} xlsx/xlsm files in folder`);
@@ -456,45 +484,50 @@ export async function POST() {
     const dedupedFiles = deduplicateVFFiles(allFiles);
     console.log(`[sync] Deduplicated to ${dedupedFiles.length} unique files`);
 
-    console.log("[sync] Downloading and parsing vF files...");
+    // Step 3: Apply chunking if requested
+    const filesToProcess = batchSize > 0
+      ? dedupedFiles.slice(offset, offset + batchSize)
+      : dedupedFiles;
+    const isChunked = batchSize > 0;
+    const isDone = !isChunked || (offset + batchSize >= dedupedFiles.length);
+
+    console.log(`[sync] Processing ${filesToProcess.length} vF files (offset=${offset}, batch=${batchSize || "all"})...`);
     const vfStart = Date.now();
-    const { results: vfMap, failures: vfFailures } = await processVFFiles(token, dedupedFiles, 10);
+    const { results: vfMap, failures: vfFailures } = await processVFFiles(token, filesToProcess, 8);
     console.log(`[sync] Parsed ${vfMap.size} vF files with valid TIKR in ${((Date.now() - vfStart) / 1000).toFixed(1)}s`);
     if (vfFailures.length > 0) {
       console.log(`[sync] Failed to parse: ${vfFailures.join(", ")}`);
     }
 
-    // Apply TIKR aliases: copy vF data under the JVB TIKR name too
+    // Apply TIKR aliases
     for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
       const data = vfMap.get(vfTikr);
       if (data && !vfMap.has(jvbTikr)) {
         vfMap.set(jvbTikr, data);
       }
     }
-    // Also try substring matching for long TIKRs containing "(XBOM:...)" or "(XNSE:...)"
+    // Substring matching for long TIKRs
     const jvbTikrs = baselineStocks.map((s) => s.tikr as string);
     for (const [vfTikr, data] of Array.from(vfMap.entries())) {
-      // Check if any JVB TIKR is contained within the vF TIKR or vice versa
       for (const jt of jvbTikrs) {
-        if (vfMap.has(jt)) continue; // Already matched
+        if (vfMap.has(jt)) continue;
         if (vfTikr.includes(jt) || jt.includes(vfTikr)) {
           vfMap.set(jt, data);
         }
       }
     }
 
-    // Step 3: Merge — vF overrides valuation fields on JVB baseline
+    // Step 4: Merge — vF overrides valuation fields on JVB baseline
     let vfMatchCount = 0;
     const mergedStocks = baselineStocks.map((stock) => {
       const tikr = stock.tikr as string;
       const vfData = vfMap.get(tikr);
 
-      if (!vfData) return stock; // No vF file for this stock — keep baseline as-is
+      if (!vfData) return stock;
 
       vfMatchCount++;
       const merged = { ...stock };
 
-      // Override valuation fields from vF (only if vF has a non-null value)
       for (const field of VF_OVERRIDE_FIELDS) {
         const vfVal = vfData[field];
         if (vfVal !== null && vfVal !== undefined && vfVal !== "") {
@@ -502,7 +535,6 @@ export async function POST() {
         }
       }
 
-      // Tag with vF source for debugging
       merged._vf_source = vfData._vf_source;
 
       return merged;
@@ -515,7 +547,6 @@ export async function POST() {
       );
     }
 
-    // Step 4: Use static data (ticker_map, holdings) from imported database.json
     const uniqueStocks = mergedStocks.reduce((set, s) => { set.add(s.tikr as string); return set; }, new Set<string>());
 
     reportSuccess("sync");
@@ -528,27 +559,37 @@ export async function POST() {
         extracted_at: new Date().toISOString(),
         total_stocks: mergedStocks.length,
         unique_stocks: uniqueStocks.size,
+        vf_folder_path: VF_FOLDER_PATH,
         vf_files_found: allFiles.length,
+        vf_files_deduped: dedupedFiles.length,
+        vf_files_processed: filesToProcess.length,
         vf_files_parsed: vfMap.size,
         vf_stocks_matched: vfMatchCount,
         total_holdings: staticDb.holdings?.length || 0,
         vf_parse_failures: vfFailures,
-        // Diagnostic: ALL files found with sizes
+        // Chunking info
+        chunked: isChunked,
+        chunk_offset: offset,
+        chunk_size: batchSize,
+        chunk_done: isDone,
+        total_vf_files: dedupedFiles.length,
+        // Diagnostics
         vf_all_files: allFiles.map((f) => ({ name: f.name, sizeMB: (f.size / 1024 / 1024).toFixed(1) })),
-        // Diagnostic: files that were deduplicated out
         vf_deduped_out: allFiles.filter((f) => !dedupedFiles.some((d) => d.id === f.id)).map((f) => f.name),
-        // Diagnostic: vF TIKRs that didn't match any JVB stock
         vf_unmatched_tikrs: Array.from(vfMap.entries())
           .filter(([tikr]) => !baselineStocks.some((s) => s.tikr === tikr))
           .map(([tikr, data]) => ({ tikr, file: data._vf_source })),
-        // Diagnostic: JVB stocks without vF match
         jvb_unmatched: mergedStocks.filter((s) => !s._vf_source).map((s) => s.tikr),
       },
       refreshedAt: new Date().toISOString(),
     });
   } catch (error: unknown) {
     reportError("sync");
-    console.error("[/api/sync] Error:", error instanceof Error ? error.message : error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[/api/sync] Error:", message);
+    return NextResponse.json(
+      { error: `Sync failed: ${message}` },
+      { status: 500 }
+    );
   }
 }

@@ -846,12 +846,32 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const refreshData = useCallback(async () => {
     setDataRefreshing(true);
     try {
-      // Live sync from OneDrive Octopus Dashboard via Graph API
-      const res = await fetch("/api/sync", { method: "POST" });
+      // Live sync from OneDrive vF workbooks via Graph API
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
       const data = await res.json();
-      if (data.error) { console.error("Sync error:", data.error); alert("Sync failed: " + data.error); return; }
-      if (data.stocks) { setLiveStocks(data.stocks); setDataLastRefreshed(data.refreshedAt); }
-    } catch (err) { console.error("Failed to sync data:", err); alert("Sync failed — check console for details."); }
+      if (data.error) {
+        console.error("Sync error:", data.error);
+        alert("Sync failed: " + data.error);
+        return;
+      }
+      if (data.stocks) {
+        setLiveStocks(data.stocks);
+        setDataLastRefreshed(data.refreshedAt);
+        const m = data.metadata;
+        if (m) {
+          console.log(`[sync] ${m.vf_stocks_matched}/${m.total_stocks} stocks updated from ${m.vf_files_parsed} vF files (${m.vf_folder_path})`);
+          if (m.vf_parse_failures?.length > 0) console.warn("[sync] Parse failures:", m.vf_parse_failures);
+          if (m.jvb_unmatched?.length > 0) console.warn("[sync] Unmatched JVB stocks:", m.jvb_unmatched);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync data:", err);
+      alert("Sync failed — check console for details.");
+    }
     finally { setDataRefreshing(false); }
   }, []);
 
