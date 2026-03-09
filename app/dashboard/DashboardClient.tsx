@@ -677,6 +677,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [buyZoneHigh, setBuyZoneHigh] = useState(5);
   const [sellZoneLow, setSellZoneLow] = useState(-5);
   const [sellZoneHigh, setSellZoneHigh] = useState(10);
+  const [baseZoneLow, setBaseZoneLow] = useState(-10);
+  const [baseZoneHigh, setBaseZoneHigh] = useState(10);
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
 
   // Zone alerts (stored, not auto-popup)
@@ -1172,13 +1174,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const decisionData = useMemo(() => {
     const bLow = buyZoneLow / 100, bHigh = buyZoneHigh / 100;
     const sLow = sellZoneLow / 100, sHigh = sellZoneHigh / 100;
+    const baseLow = baseZoneLow / 100, baseHigh = baseZoneHigh / 100;
     const withCmp = enrichedStocks.filter(s => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
     const buyZone = withCmp.filter(s => s.upsideBearCalc != null && s.upsideBearCalc >= bLow && s.upsideBearCalc <= bHigh).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
     const sellZone = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc >= sLow && s.upsideBullCalc <= sHigh).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
     const bestUpside = [...withCmp].filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc > 0).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0)).slice(0, 10);
     const worstDownside = [...withCmp].filter(s => s.upsideBearCalc != null && s.upsideBearCalc < 0).sort((a, b) => (a.upsideBearCalc || 0) - (b.upsideBearCalc || 0)).slice(0, 10);
     const overvalued = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc < sLow).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
-    const highConviction = withCmp.filter(s => s.conviction != null && s.conviction === 5).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+    const cmpNearBase = withCmp.filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc >= baseLow && s.upsideBaseCalc <= baseHigh).sort((a, b) => Math.abs(a.upsideBaseCalc || 0) - Math.abs(b.upsideBaseCalc || 0));
 
     const sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }> = {};
     withCmp.forEach(s => {
@@ -1215,8 +1218,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const avgBaseUpside = withCmp.length > 0 ? withCmp.reduce((sum, s) => sum + (s.upsideBaseCalc || 0), 0) / withCmp.length * 100 : 0;
     const avgBearDownside = withCmp.length > 0 ? withCmp.reduce((sum, s) => sum + (s.upsideBearCalc || 0), 0) / withCmp.length * 100 : 0;
 
-    return { buyZone, sellZone, bestUpside, worstDownside, overvalued, highConviction, sectors, vpStats, saStats, totalWithCmp: withCmp.length, totalStocks: enrichedStocks.length, totalHoldingsValue, avgBaseUpside, avgBearDownside };
-  }, [enrichedStocks, buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh]);
+    return { buyZone, sellZone, bestUpside, worstDownside, overvalued, cmpNearBase, sectors, vpStats, saStats, totalWithCmp: withCmp.length, totalStocks: enrichedStocks.length, totalHoldingsValue, avgBaseUpside, avgBearDownside };
+  }, [enrichedStocks, buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh, baseZoneLow, baseZoneHigh]);
 
   // Helper: get zone badge for a stock
   const getStockZone = useCallback((tikr: string) => {
@@ -2441,10 +2444,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <span style={{ marginRight: 6, fontSize: "var(--text-xs)" }}>{showThresholdSettings ? "▾" : "▸"}</span>
                 Zone Thresholds
               </h3>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Buy: {buyZoneLow}% to {buyZoneHigh}% | Sell: {sellZoneLow}% to {sellZoneHigh}%</span>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Buy: {buyZoneLow}% to {buyZoneHigh}% | Base: {baseZoneLow}% to {baseZoneHigh}% | Sell: {sellZoneLow}% to {sellZoneHigh}%</span>
             </div>
             {showThresholdSettings && (
-              <div className="grid grid-cols-2 gap-6 mt-4">
+              <div className="grid grid-cols-3 gap-6 mt-4">
                 <div>
                   <p className="mb-2 font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Buy Zone (Upside to Bear)</p>
                   <div className="flex items-center gap-3 mb-1">
@@ -2465,6 +2468,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   <div className="flex items-center gap-3">
                     <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {sellZoneHigh}%</label>
                     <input type="range" min={0} max={30} value={sellZoneHigh} onChange={e => setSellZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-negative)" }} />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 font-semibold" style={{ fontSize: "var(--text-xs)", color: "#3B82F6" }}>Base Zone (Upside to Base)</p>
+                  <div className="flex items-center gap-3 mb-1">
+                    <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>Low: {baseZoneLow}%</label>
+                    <input type="range" min={-30} max={0} value={baseZoneLow} onChange={e => setBaseZoneLow(Number(e.target.value))} className="flex-1" style={{ accentColor: "#3B82F6" }} />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {baseZoneHigh}%</label>
+                    <input type="range" min={0} max={30} value={baseZoneHigh} onChange={e => setBaseZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "#3B82F6" }} />
                   </div>
                 </div>
               </div>
@@ -2498,12 +2512,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   <tbody>{decisionData.overvalued.map((s, i) => (<tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)", fontWeight: 600 }}>{s.upsideBullCalc != null ? `${(s.upsideBullCalc * 100).toFixed(1)}%` : "—"}</td></tr>))}</tbody></table></div>
               )}
             </div>
-            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>High Conviction (5) <span className="pill pill-purple ml-2">{decisionData.highConviction.length}</span></h3>
-              {decisionData.highConviction.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>Conv.</th><th>Sector</th><th>CMP</th><th>Upside Base</th></tr></thead>
-                  <tbody>{decisionData.highConviction.map((s, i) => (
-                    <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td className="text-center font-bold" style={{ color: "#A78BFA" }}>{s.conviction}</td><td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>
+            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #3B82F6" }}>
+              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>CMP Near Base <span className="pill ml-2" style={{ background: "rgba(59,130,246,0.15)", color: "#3B82F6" }}>{decisionData.cmpNearBase.length}</span></h3>
+              {decisionData.cmpNearBase.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
+                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Base</th><th>Upside to Base</th></tr></thead>
+                  <tbody>{decisionData.cmpNearBase.map((s, i) => (
+                    <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.base_current, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>
                   ))}</tbody></table></div>
               )}
             </div>
