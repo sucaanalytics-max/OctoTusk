@@ -1,5 +1,6 @@
 import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import DashboardClient from "./DashboardClient";
 import db from "@/data/database.json";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
@@ -57,11 +58,10 @@ export default async function DashboardPage() {
       <header style={{ background: "var(--color-bg-secondary)", borderBottom: "1px solid var(--color-border)" }}>
         <div className="max-w-[1600px] mx-auto px-5 py-3 flex items-center justify-between app-header-inner">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-accent-tusk)" }}>
-              <span className="text-white font-bold text-base" style={{ fontFamily: "var(--font-sans)" }}>T</span>
-            </div>
+            <Image src="/tusk-logo.svg" alt="Tusk Investments" width={160} height={32} priority unoptimized />
+            <div style={{ width: 1, height: 24, background: "var(--color-border)", margin: "0 4px" }} />
             <div>
-              <h1 className="font-bold leading-tight" style={{ fontSize: "var(--text-lg)", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>OctoTusk</h1>
+              <p className="font-semibold leading-tight" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>OctoTusk</p>
               <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{db.metadata.unique_stocks} Equities &middot; {db.holdings.length} Holdings</p>
             </div>
           </div>

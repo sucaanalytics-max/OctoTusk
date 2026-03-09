@@ -703,6 +703,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [hmSizeMode, setHmSizeMode] = useState<"holding" | "equal" | "marketCap">("holding");
   const [hmGroupBy, setHmGroupBy] = useState<"sector" | "subsector" | "flat">("sector");
   const [hmScope, setHmScope] = useState<"portfolio" | "all">("all");
+  const [dsScope, setDsScope] = useState<"all" | "holdings">("all");
+  const [sectorGroupBy, setSectorGroupBy] = useState<"sector" | "subsector">("sector");
   const [hmHover, setHmHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
 
   // VP/SA expandable rows
@@ -1212,11 +1214,18 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   }, [enrichedStocks, selectedCompare, compareSectorFilter, compareSearch]);
 
   // Decision data (uses configurable thresholds)
+  const holdingTikrs = useMemo(() => {
+    const set = new Set<string>();
+    enrichedHoldings.forEach(h => { if (h.tikr) set.add(h.tikr); });
+    return set;
+  }, [enrichedHoldings]);
+
   const decisionData = useMemo(() => {
     const bLow = buyZoneLow / 100, bHigh = buyZoneHigh / 100;
     const sLow = sellZoneLow / 100, sHigh = sellZoneHigh / 100;
     const baseLow = baseZoneLow / 100, baseHigh = baseZoneHigh / 100;
-    const withCmp = enrichedStocks.filter(s => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
+    const sourceStocks = dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks;
+    const withCmp = sourceStocks.filter(s => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
     const buyZone = withCmp.filter(s => s.upsideBearCalc != null && s.upsideBearCalc >= bLow && s.upsideBearCalc <= bHigh).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
     const sellZone = withCmp.filter(s => s.upsideBullCalc != null && s.upsideBullCalc >= sLow && s.upsideBullCalc <= sHigh).sort((a, b) => (a.upsideBullCalc || 0) - (b.upsideBullCalc || 0));
     const bestUpside = [...withCmp].filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc > 0).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0)).slice(0, 10);
@@ -1235,7 +1244,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     Object.values(sectors).forEach(v => { v.avgUpsideBase /= v.count || 1; v.avgUpsideBear /= v.count || 1; });
 
     const vpStats: Record<string, { count: number; avgUpside: number; holdingsValue: number; holdingsStocks: number }> = {};
-    enrichedStocks.forEach(s => {
+    sourceStocks.forEach(s => {
       const vp = s.vp || "Unassigned";
       if (!vpStats[vp]) vpStats[vp] = { count: 0, avgUpside: 0, holdingsValue: 0, holdingsStocks: 0 };
       vpStats[vp].count++;
@@ -1245,7 +1254,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     Object.values(vpStats).forEach(v => { v.avgUpside = v.count > 0 ? v.avgUpside / v.count : 0; });
 
     const saStats: Record<string, { count: number; avgUpside: number; holdingsValue: number; holdingsStocks: number }> = {};
-    enrichedStocks.forEach(s => {
+    sourceStocks.forEach(s => {
       const sa = s.sa || "Unassigned";
       if (!saStats[sa]) saStats[sa] = { count: 0, avgUpside: 0, holdingsValue: 0, holdingsStocks: 0 };
       saStats[sa].count++;
@@ -1255,12 +1264,28 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     Object.values(saStats).forEach(v => { v.avgUpside = v.count > 0 ? v.avgUpside / v.count : 0; });
 
     // KPI aggregates
-    const totalHoldingsValue = enrichedStocks.reduce((sum, s) => sum + (s.holding_cash_lakhs || 0), 0);
+    const totalHoldingsValue = sourceStocks.reduce((sum, s) => sum + (s.holding_cash_lakhs || 0), 0);
     const avgBaseUpside = withCmp.length > 0 ? withCmp.reduce((sum, s) => sum + (s.upsideBaseCalc || 0), 0) / withCmp.length * 100 : 0;
     const avgBearDownside = withCmp.length > 0 ? withCmp.reduce((sum, s) => sum + (s.upsideBearCalc || 0), 0) / withCmp.length * 100 : 0;
 
-    return { buyZone, sellZone, bestUpside, worstDownside, overvalued, cmpNearBase, sectors, vpStats, saStats, totalWithCmp: withCmp.length, totalStocks: enrichedStocks.length, totalHoldingsValue, avgBaseUpside, avgBearDownside };
-  }, [enrichedStocks, buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh, baseZoneLow, baseZoneHigh]);
+    return { buyZone, sellZone, bestUpside, worstDownside, overvalued, cmpNearBase, sectors, vpStats, saStats, totalWithCmp: withCmp.length, totalStocks: sourceStocks.length, totalHoldingsValue, avgBaseUpside, avgBearDownside };
+  }, [enrichedStocks, buyZoneLow, buyZoneHigh, sellZoneLow, sellZoneHigh, baseZoneLow, baseZoneHigh, dsScope, holdingTikrs]);
+
+  // Separate memo for sector grouping — avoids recomputing all decision data when toggling sector/subsector
+  const sectorDisplayData = useMemo(() => {
+    const sourceStocks = dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks;
+    const withCmp = sourceStocks.filter(s => s.liveCmp && s.bear_current && s.base_current && s.bull_current);
+    const sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }> = {};
+    withCmp.forEach(s => {
+      const sec = sectorGroupBy === "subsector" ? ((s.subsector && s.subsector !== "0" ? s.subsector : s.sector) || "Other") : (s.sector || "Other");
+      if (!sectors[sec]) sectors[sec] = { count: 0, avgUpsideBase: 0, avgUpsideBear: 0 };
+      sectors[sec].count++;
+      sectors[sec].avgUpsideBase += (s.upsideBaseCalc || 0) * 100;
+      sectors[sec].avgUpsideBear += (s.upsideBearCalc || 0) * 100;
+    });
+    Object.values(sectors).forEach(v => { v.avgUpsideBase /= v.count || 1; v.avgUpsideBear /= v.count || 1; });
+    return sectors;
+  }, [enrichedStocks, dsScope, holdingTikrs, sectorGroupBy]);
 
   // Helper: get zone badge for a stock
   const getStockZone = useCallback((tikr: string) => {
@@ -1424,16 +1449,27 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const activeFilters = [filterSector, filterVP, filterConviction].filter(f => f !== "all").length;
 
 
+  // ── Pill toggle style helper ──
+  const pillStyle = (active: boolean) => ({
+    background: active ? "var(--color-accent-blue)" : "var(--color-bg-hover)",
+    color: active ? "#fff" : "var(--color-text-muted)",
+    fontWeight: (active ? 600 : 400) as number,
+  });
+
   // ── SECTOR ALLOCATION BAR (visual, with expandable dropdown) ──
   const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
-  const SectorBar = ({ sectors }: { sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }> }) => {
+  const SectorBar = ({ sectors, groupBy }: { sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }>; groupBy: "sector" | "subsector" }) => {
     const sorted = Object.entries(sectors).sort((a, b) => b[1].count - a[1].count);
     const max = sorted.length > 0 ? sorted[0][1].count : 1;
+    const sourceForSector = dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks;
     return (
       <div className="space-y-1">
         {sorted.map(([sec, d]) => {
           const isOpen = expandedSectors[sec];
-          const sectorStocks = enrichedStocks.filter(s => s.sector === sec).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+          const sectorStocks = sourceForSector.filter(s => {
+            const val = groupBy === "subsector" ? (s.subsector && s.subsector !== "0" ? s.subsector : s.sector) || "Other" : s.sector || "Other";
+            return val === sec;
+          }).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
           return (
             <div key={sec}>
               <div className="flex items-center gap-3 cursor-pointer py-1 rounded-md transition-all" style={{ background: isOpen ? "var(--color-bg-hover)" : "transparent", paddingLeft: 4, paddingRight: 4 }} onClick={() => setExpandedSectors(prev => ({ ...prev, [sec]: !prev[sec] }))}>
@@ -2648,6 +2684,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {activeTab === "decisions" && (
         <div id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions" className="space-y-4 animate-fade-in">
 
+          {/* Universe Filter */}
+          <div className="flex items-center gap-2">
+            {(["all", "holdings"] as const).map(v => (
+              <button key={v} className="scatter-pill" style={pillStyle(dsScope === v)} onClick={() => setDsScope(v)}>
+                {v === "holdings" ? "Holdings Only" : "Full Universe"}
+              </button>
+            ))}
+            {dsScope === "holdings" && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Showing {holdingTikrs.size} holdings</span>}
+          </div>
+
           {/* Threshold Settings */}
           <div className="metric-card animate-fade-in-up" style={{ padding: showThresholdSettings ? undefined : "8px 16px" }}>
             <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowThresholdSettings(p => !p)}>
@@ -2701,8 +2747,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <div className="metric-card animate-fade-in-up delay-1" style={{ borderTop: "3px solid var(--color-positive)" }}>
               <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Buy Zone — CMP Near Bear <span className="pill pill-green ml-2">{decisionData.buyZone.length}</span></h3>
               {decisionData.buyZone.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Bear</th><th>Upside to Base</th></tr></thead>
-                  <tbody>{decisionData.buyZone.map((s, i) => (<tr key={i} className="row-buy-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
+                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Bear</th><th>↑ Bear</th><th>↑ Base</th></tr></thead>
+                  <tbody>{decisionData.buyZone.map((s, i) => (<tr key={i} className="row-buy-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td><td><UpsideBar value={(s.upsideBearCalc || 0) * 100} /></td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
               )}
             </div>
             <div className="metric-card animate-fade-in-up delay-2" style={{ borderTop: "3px solid var(--color-negative)" }}>
@@ -2750,8 +2796,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
           {/* Sector Allocation */}
           <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
-            <h3 className="font-bold mb-4" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation & Avg Upside</h3>
-            <SectorBar sectors={decisionData.sectors} />
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation & Avg Upside</h3>
+              <div className="flex gap-1">
+                {(["sector", "subsector"] as const).map(v => (
+                  <button key={v} className="scatter-pill" style={pillStyle(sectorGroupBy === v)} onClick={() => setSectorGroupBy(v)}>
+                    {v === "sector" ? "Sectors" : "Subsectors"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <SectorBar sectors={sectorDisplayData} groupBy={sectorGroupBy} />
           </div>
 
           {/* Risk/Reward Scatter Chart */}
