@@ -24,6 +24,7 @@ function getClient(): ReturnType<typeof postgres> {
     idle_timeout: 20,
     connect_timeout: 10,
     ssl: "require",       // Supabase requires SSL
+    prepare: false,        // Required for Supabase transaction pooler (port 6543)
   });
   return _sql;
 }
