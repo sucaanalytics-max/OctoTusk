@@ -143,6 +143,8 @@ interface EnrichedStock extends Stock {
   upsideBearCalc?: number;
   upsideBaseCalc?: number;
   upsideBullCalc?: number;
+  upside1YCalc?: number;
+  upside2YCalc?: number;
   displayTikr: string;
   companyShort: string;
   // Tier 1A: Composite Decision Score (0-100)
@@ -1025,6 +1027,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (liveCmp && s.bear_current) uB = (s.bear_current - liveCmp) / liveCmp;
       if (liveCmp && s.base_current) uBa = (s.base_current - liveCmp) / liveCmp;
       if (liveCmp && s.bull_current) uBu = (s.bull_current - liveCmp) / liveCmp;
+      let u1Y: number | undefined, u2Y: number | undefined;
+      if (liveCmp && s.target_1y) u1Y = (s.target_1y - liveCmp) / liveCmp;
+      if (liveCmp && s.target_2y) u2Y = (s.target_2y - liveCmp) / liveCmp;
       // ── Tier 1A: Composite Decision Score (CDS) 0–100 ──
       // Valuation (40%): normalize upsideBaseCalc from [-50%, +50%] → [0, 40]
       const valScore = uBa != null ? Math.max(0, Math.min(40, (uBa + 0.5) * 40)) : 0;
@@ -1053,7 +1058,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       const qualityScore = (s.conviction != null && s.understanding != null)
         ? (s.conviction + s.understanding) / 2 : undefined;
 
-      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore };
+      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, upside1YCalc: u1Y, upside2YCalc: u2Y, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore };
     });
   }, [liveStocks, quotes, simCmpOverrides]);
 
@@ -1658,8 +1663,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         {/* Metrics Grid */}
         <div className="grid grid-cols-4 gap-4 mb-4 metrics-grid">
           {[
-            { label: "1Y Target", value: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", sub: s.upside_1y != null ? fmtPct(s.upside_1y) : undefined, subColor: s.upside_1y != null ? (s.upside_1y >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
-            { label: "2Y Target", value: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", sub: s.upside_2y != null ? fmtPct(s.upside_2y) : undefined, subColor: s.upside_2y != null ? (s.upside_2y >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
+            { label: "1Y Target", value: s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—", sub: s.upside1YCalc != null ? fmtPct(s.upside1YCalc) : undefined, subColor: s.upside1YCalc != null ? (s.upside1YCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
+            { label: "2Y Target", value: s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—", sub: s.upside2YCalc != null ? fmtPct(s.upside2YCalc) : undefined, subColor: s.upside2YCalc != null ? (s.upside2YCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)") : undefined },
             { label: "Dividend Yield", value: q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : s.div_yield != null ? `${s.div_yield.toFixed(1)}%` : "—", sub: q?.dividendRate ? `₹${q.dividendRate.toFixed(2)}/share` : undefined },
             { label: "Score", value: String(s.score ?? "—"), sub: s.score_adj_1y != null ? `1Y adj: ${s.score_adj_1y}` : undefined },
           ].map((m, idx) => (
@@ -1900,7 +1905,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <Th col="companyShort" label="Company" /><Th col="sector" label="Sector" /><Th col="liveCmp" label="CMP" />
                 <Th col="bear_current" label="Bear" /><Th col="base_current" label="Base" /><Th col="bull_current" label="Bull" />
                 <Th col="upsideBearCalc" label="↑ Bear" /><Th col="upsideBaseCalc" label="↑ Base" /><Th col="upsideBullCalc" label="↑ Bull" />
-                <Th col="upside_1y" label="1Y Upside" /><Th col="upside_2y" label="2Y Upside" />
+                <Th col="upside1YCalc" label="1Y Upside" /><Th col="upside2YCalc" label="2Y Upside" />
                 <Th col="base_pe" label="PE" /><Th col="base_pb" label="PB" /><Th col="base_evebitda" label="EV/EBITDA" />
                 <Th col="conviction" label="Conv." /><Th col="cds" label="CDS" /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
               </tr></thead>
@@ -1954,8 +1959,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upsideBearCalc) }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", fontWeight: 600, ...pctBgStyle(s.upsideBaseCalc) }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upsideBullCalc) }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside_1y) }}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside_2y) }}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside1YCalc) }}>{s.upside1YCalc != null ? fmtPct(s.upside1YCalc) : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside2YCalc) }}>{s.upside2YCalc != null ? fmtPct(s.upside2YCalc) : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
@@ -2221,7 +2226,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 0)}` : "—"}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{fmtLakhs(s.holding_cash_lakhs)}</td>
                             <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upsideBaseCalc ?? null) }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside_1y ?? null) }}>{s.upside_1y != null ? `${((s.upside_1y) * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside1YCalc ?? null) }}>{s.upside1YCalc != null ? `${((s.upside1YCalc) * 100).toFixed(1)}%` : "—"}</td>
                           </tr>
                       ))}
                       </Fragment>
@@ -2241,7 +2246,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 0)}` : "—"}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{fmtLakhs(s.holding_cash_lakhs)}</td>
                             <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upsideBaseCalc ?? null) }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside_1y ?? null) }}>{s.upside_1y != null ? `${((s.upside_1y) * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside1YCalc ?? null) }}>{s.upside1YCalc != null ? `${((s.upside1YCalc) * 100).toFixed(1)}%` : "—"}</td>
                           </tr>
                       ))}
                       </Fragment>
@@ -2362,8 +2367,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   { label: "↑ Bear", render: (s: EnrichedStock) => <span className={pctColor(s.upsideBearCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</span> },
                   { label: "↑ Base", render: (s: EnrichedStock) => <span className={pctColor(s.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</span> },
                   { label: "↑ Bull", render: (s: EnrichedStock) => <span className={pctColor(s.upsideBullCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</span> },
-                  { label: "1Y Upside", render: (s: EnrichedStock) => <span className={pctColor(s.upside_1y)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside_1y != null ? fmtPct(s.upside_1y) : "—"}</span> },
-                  { label: "2Y Upside", render: (s: EnrichedStock) => <span className={pctColor(s.upside_2y)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside_2y != null ? fmtPct(s.upside_2y) : "—"}</span> },
+                  { label: "1Y Upside", render: (s: EnrichedStock) => <span className={pctColor(s.upside1YCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside1YCalc != null ? fmtPct(s.upside1YCalc) : "—"}</span> },
+                  { label: "2Y Upside", render: (s: EnrichedStock) => <span className={pctColor(s.upside2YCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside2YCalc != null ? fmtPct(s.upside2YCalc) : "—"}</span> },
                 ]},
                 { title: "Fundamentals", rows: [
                   { label: "PE", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</span> },
