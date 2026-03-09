@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import * as fs from "fs";
 import * as path from "path";
 import { auth } from "@/auth";
-import { sql, isDbConfigured } from "@/lib/db";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-// ── Fallback: /tmp file storage (used when Postgres not configured) ──
+// ── Fallback: /tmp file storage (used when Supabase not configured) ──
 const ZONE_FILE = path.join("/tmp", "octotusk_zone_snapshot.json");
 let memoryCache: { zones: Record<string, string[]>; updatedAt: string | null } = { zones: {}, updatedAt: null };
 let memoryCacheLoaded = false;
@@ -37,7 +37,7 @@ function sanitizeZones(rawZones: unknown): Record<string, string[]> {
 }
 
 /**
- * GET /api/zones — Read zone snapshot (Postgres → /tmp fallback)
+ * GET /api/zones — Read zone snapshot (Supabase → /tmp fallback)
  */
 export async function GET() {
   const session = await auth();
@@ -45,16 +45,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (isDbConfigured()) {
+  if (isSupabaseConfigured()) {
     try {
-      const result = await sql`SELECT zones, updated_at FROM zone_snapshot WHERE id = 1`;
-      if (result.rows.length > 0) {
-        return NextResponse.json({ zones: result.rows[0].zones || {}, updatedAt: result.rows[0].updated_at });
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("zone_snapshot")
+        .select("zones, updated_at")
+        .eq("id", 1)
+        .single();
+
+      if (!error && data) {
+        return NextResponse.json({ zones: data.zones || {}, updatedAt: data.updated_at });
       }
       return NextResponse.json({ zones: {}, updatedAt: null });
     } catch (err) {
       console.error("[/api/zones GET] DB error, falling back to /tmp:", err instanceof Error ? err.message : err);
-      // Fall through to /tmp
     }
   }
 
@@ -65,7 +70,6 @@ export async function GET() {
 
 /**
  * POST /api/zones — Save zone snapshot + log transitions to journal
- * Body: { zones: Record<string, string[]>, transitions?: { tikr, event_type, zone_name, cmp, upsideBear, upsideBase, upsideBull, cds }[] }
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -77,13 +81,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const sanitizedZones = sanitizeZones(body.zones);
 
-    if (isDbConfigured()) {
+    if (isSupabaseConfigured()) {
       try {
+        const supabase = getSupabase();
+
         // Upsert zone snapshot
-        await sql`
-          INSERT INTO zone_snapshot (id, zones, updated_at) VALUES (1, ${JSON.stringify(sanitizedZones)}::jsonb, NOW())
-          ON CONFLICT (id) DO UPDATE SET zones = ${JSON.stringify(sanitizedZones)}::jsonb, updated_at = NOW()
-        `;
+        const { error: zoneErr } = await supabase
+          .from("zone_snapshot")
+          .upsert({ id: 1, zones: sanitizedZones, updated_at: new Date().toISOString() });
+
+        if (zoneErr) throw zoneErr;
 
         // Log transitions to decision_journal if provided
         const transitions: Array<{
@@ -92,15 +99,20 @@ export async function POST(request: Request) {
         }> = body.transitions || [];
         const userEmail = session.user.email || "unknown";
 
-        for (const t of transitions.slice(0, 50)) { // cap at 50 per request
+        for (const t of transitions.slice(0, 50)) {
           if (!t.tikr || !t.event_type) continue;
-          await sql`
-            INSERT INTO decision_journal (tikr, event_type, zone_name, cmp_at_event, upside_bear, upside_base, upside_bull, cds_at_event, user_email)
-            VALUES (${t.tikr}, ${t.event_type}, ${t.zone_name || null}, ${t.cmp || null}, ${t.upsideBear || null}, ${t.upsideBase || null}, ${t.upsideBull || null}, ${t.cds || null}, ${userEmail})
-          `;
+          const { error: jErr } = await supabase
+            .from("decision_journal")
+            .insert({
+              tikr: t.tikr, event_type: t.event_type, zone_name: t.zone_name || null,
+              cmp_at_event: t.cmp || null, upside_bear: t.upsideBear || null,
+              upside_base: t.upsideBase || null, upside_bull: t.upsideBull || null,
+              cds_at_event: t.cds || null, user_email: userEmail,
+            });
+          if (jErr) console.warn("[zones] journal insert error:", jErr.message);
         }
 
-        return NextResponse.json({ ok: true, updatedAt: new Date().toISOString(), persisted: "postgres" });
+        return NextResponse.json({ ok: true, updatedAt: new Date().toISOString(), persisted: "supabase" });
       } catch (err) {
         console.error("[/api/zones POST] DB error, falling back to /tmp:", err instanceof Error ? err.message : err);
       }

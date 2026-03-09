@@ -2,7 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import DashboardClient from "./DashboardClient";
 import db from "@/data/database.json";
-import { isDbConfigured, sql } from "@/lib/db";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export default async function DashboardPage() {
   let session = null;
@@ -27,22 +27,23 @@ export default async function DashboardPage() {
   let tickerMap: DbTickerMap = db.ticker_map;
   let snapshotSyncedAt: string | null = null;
 
-  if (isDbConfigured()) {
+  if (isSupabaseConfigured()) {
     try {
-      const result = await sql`
-        SELECT stocks, ticker_map, synced_at
-        FROM sync_snapshot
-        WHERE id = 1
-      `;
-      if (result.rows.length > 0) {
-        const row = result.rows[0];
-        if (Array.isArray(row.stocks) && (row.stocks as unknown[]).length > 0) {
-          stocks = row.stocks as DbStocks;
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from("sync_snapshot")
+        .select("stocks, ticker_map, synced_at")
+        .eq("id", 1)
+        .single();
+
+      if (!error && data) {
+        if (Array.isArray(data.stocks) && (data.stocks as unknown[]).length > 0) {
+          stocks = data.stocks as DbStocks;
         }
-        if (row.ticker_map && typeof row.ticker_map === "object") {
-          tickerMap = row.ticker_map as DbTickerMap;
+        if (data.ticker_map && typeof data.ticker_map === "object") {
+          tickerMap = data.ticker_map as DbTickerMap;
         }
-        snapshotSyncedAt = row.synced_at as string ?? null;
+        snapshotSyncedAt = data.synced_at as string ?? null;
       }
     } catch (err) {
       // Supabase unavailable — fall back silently to database.json

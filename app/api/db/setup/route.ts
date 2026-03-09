@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { sql, isDbConfigured } from "@/lib/db";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/db/setup — One-time migration to create tables.
- * Safe to call multiple times (IF NOT EXISTS).
+ * GET/POST /api/db/setup — Health check + seed empty rows if needed.
+ * Tables are managed via Supabase dashboard/migrations now.
  */
 export async function GET() {
   return POST();
@@ -18,70 +18,41 @@ export async function POST() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isDbConfigured()) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json(
-      { error: "Database not configured. Add POSTGRES_URL to env." },
+      { error: "Supabase not configured. Add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to env." },
       { status: 503 }
     );
   }
 
   try {
-    // Decision Journal: stores zone transitions + user annotations
-    await sql`
-      CREATE TABLE IF NOT EXISTS decision_journal (
-        id SERIAL PRIMARY KEY,
-        tikr VARCHAR(30) NOT NULL,
-        event_type VARCHAR(50) NOT NULL,
-        zone_name VARCHAR(50),
-        annotation TEXT,
-        cmp_at_event NUMERIC,
-        upside_bear NUMERIC,
-        upside_base NUMERIC,
-        upside_bull NUMERIC,
-        cds_at_event INTEGER,
-        user_email VARCHAR(255),
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `;
-
-    // Index for fast per-ticker lookups
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_journal_tikr
-      ON decision_journal (tikr, created_at DESC)
-    `;
-
-    // Zone snapshot: replaces /tmp file storage
-    await sql`
-      CREATE TABLE IF NOT EXISTS zone_snapshot (
-        id INTEGER PRIMARY KEY DEFAULT 1,
-        zones JSONB NOT NULL DEFAULT '{}',
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `;
+    const supabase = getSupabase();
 
     // Seed zone_snapshot with empty row if not exists
-    await sql`
-      INSERT INTO zone_snapshot (id, zones, updated_at)
-      VALUES (1, '{}', NOW())
-      ON CONFLICT (id) DO NOTHING
-    `;
+    const { error: zoneErr } = await supabase
+      .from("zone_snapshot")
+      .upsert({ id: 1, zones: {}, updated_at: new Date().toISOString() }, { onConflict: "id", ignoreDuplicates: true });
 
-    // Sync snapshot: persists synced data across page refreshes
-    await sql`
-      CREATE TABLE IF NOT EXISTS sync_snapshot (
-        id INTEGER PRIMARY KEY DEFAULT 1,
-        stocks JSONB NOT NULL DEFAULT '[]',
-        holdings JSONB NOT NULL DEFAULT '[]',
-        ticker_map JSONB NOT NULL DEFAULT '{}',
-        synced_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `;
+    if (zoneErr) {
+      console.warn("[db/setup] zone_snapshot seed warning:", zoneErr.message);
+    }
 
-    return NextResponse.json({ ok: true, message: "Tables created successfully" });
+    // Verify sync_snapshot table is accessible
+    const { error: snapErr } = await supabase
+      .from("sync_snapshot")
+      .select("id")
+      .eq("id", 1)
+      .maybeSingle();
+
+    if (snapErr) {
+      throw new Error(`sync_snapshot check failed: ${snapErr.message}`);
+    }
+
+    return NextResponse.json({ ok: true, message: "Supabase connection verified" });
   } catch (error: unknown) {
     console.error("[/api/db/setup]", error instanceof Error ? error.message : error);
     return NextResponse.json(
-      { error: "Migration failed", details: error instanceof Error ? error.message : String(error) },
+      { error: "Setup failed", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

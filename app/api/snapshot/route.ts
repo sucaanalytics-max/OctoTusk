@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import staticDb from "@/data/database.json";
 import { auth } from "@/auth";
-import { isDbConfigured, sql } from "@/lib/db";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,7 +12,7 @@ export const revalidate = 0;
  * Falls back to database.json if Supabase is not configured or no snapshot exists.
  */
 export async function GET() {
-  if (!isDbConfigured()) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json({
       stocks: staticDb.stocks,
       holdings: staticDb.holdings,
@@ -23,13 +23,14 @@ export async function GET() {
   }
 
   try {
-    const result = await sql`
-      SELECT stocks, holdings, ticker_map, synced_at
-      FROM sync_snapshot
-      WHERE id = 1
-    `;
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from("sync_snapshot")
+      .select("stocks, holdings, ticker_map, synced_at")
+      .eq("id", 1)
+      .single();
 
-    if (result.rows.length === 0) {
+    if (error || !data) {
       return NextResponse.json({
         stocks: staticDb.stocks,
         holdings: staticDb.holdings,
@@ -39,17 +40,15 @@ export async function GET() {
       });
     }
 
-    const row = result.rows[0];
     return NextResponse.json({
-      stocks: row.stocks,
-      holdings: row.holdings,
-      ticker_map: row.ticker_map,
+      stocks: data.stocks,
+      holdings: data.holdings,
+      ticker_map: data.ticker_map,
       source: "supabase",
-      synced_at: row.synced_at,
+      synced_at: data.synced_at,
     });
   } catch (err) {
     console.error("[snapshot] GET error:", err instanceof Error ? err.message : err);
-    // Graceful fallback — dashboard never breaks
     return NextResponse.json({
       stocks: staticDb.stocks,
       holdings: staticDb.holdings,
@@ -71,7 +70,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isDbConfigured()) {
+  if (!isSupabaseConfigured()) {
     return NextResponse.json({ ok: false, reason: "db_not_configured" });
   }
 
@@ -82,26 +81,19 @@ export async function POST(request: Request) {
     /* empty body is fine */
   }
 
-  const stocksJson = JSON.stringify(body.stocks ?? []);
-  const holdingsJson = JSON.stringify(body.holdings ?? []);
-  const tickerMapJson = JSON.stringify(body.ticker_map ?? {});
-
   try {
-    await sql`
-      INSERT INTO sync_snapshot (id, stocks, holdings, ticker_map, synced_at)
-      VALUES (
-        1,
-        ${stocksJson}::jsonb,
-        ${holdingsJson}::jsonb,
-        ${tickerMapJson}::jsonb,
-        now()
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        stocks      = EXCLUDED.stocks,
-        holdings    = EXCLUDED.holdings,
-        ticker_map  = EXCLUDED.ticker_map,
-        synced_at   = EXCLUDED.synced_at
-    `;
+    const supabase = getSupabase();
+    const { error } = await supabase
+      .from("sync_snapshot")
+      .upsert({
+        id: 1,
+        stocks: body.stocks ?? [],
+        holdings: body.holdings ?? [],
+        ticker_map: body.ticker_map ?? {},
+        synced_at: new Date().toISOString(),
+      });
+
+    if (error) throw error;
 
     return NextResponse.json({ ok: true, saved_at: new Date().toISOString() });
   } catch (err) {
