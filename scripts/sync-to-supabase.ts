@@ -223,30 +223,10 @@ function strVal(ws: XLSX.WorkSheet, addr: string): string {
   return String(v).trim();
 }
 
-async function fetchWithRetry(url: string, opts: RequestInit, retries = 3): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(url, { ...opts, signal: AbortSignal.timeout(30000) });
-      if (res.ok) return res;
-      if (i < retries - 1) {
-        console.warn(`[retry] HTTP ${res.status} for ${url.slice(-60)}, attempt ${i + 1}/${retries}`);
-        await new Promise(r => setTimeout(r, 2000 * (i + 1)));
-        continue;
-      }
-      return res;
-    } catch (e) {
-      if (i === retries - 1) throw e;
-      console.warn(`[retry] ${e instanceof Error ? e.message : e}, attempt ${i + 1}/${retries}`);
-      await new Promise(r => setTimeout(r, 2000 * (i + 1)));
-    }
-  }
-  throw new Error("Unreachable");
-}
-
 async function parseVFFile(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
   try {
     const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
-    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
     if (!res.ok) { console.warn(`[vF] Failed to download ${file.name}: ${res.status}`); return null; }
     const buffer = await res.arrayBuffer();
     const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
