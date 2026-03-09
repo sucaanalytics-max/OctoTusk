@@ -428,9 +428,15 @@ const TIKR_ALIAS: Record<string, string> = {
 // ═══════════════════════════════════════════════════════════════
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Auth: user session OR internal cron secret
+  const cronSecret = request.headers.get("x-cron-secret");
+  const isCron = cronSecret && process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET;
+
+  if (!isCron) {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
   }
 
   let body: Record<string, unknown> = {};
