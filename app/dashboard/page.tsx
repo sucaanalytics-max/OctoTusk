@@ -2,6 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import DashboardClient from "./DashboardClient";
 import db from "@/data/database.json";
+import { isDbConfigured, sql } from "@/lib/db";
 
 export default async function DashboardPage() {
   let session = null;
@@ -16,6 +17,38 @@ export default async function DashboardPage() {
   }
 
   const userEmail = String(session.user.email || "");
+
+  // ── Load latest synced snapshot from Supabase (server-side, no client flash) ──
+  // Falls back to database.json if Supabase not configured or no snapshot exists.
+  type DbStocks = typeof db.stocks;
+  type DbTickerMap = typeof db.ticker_map;
+
+  let stocks: DbStocks = db.stocks;
+  let tickerMap: DbTickerMap = db.ticker_map;
+  let snapshotSyncedAt: string | null = null;
+
+  if (isDbConfigured()) {
+    try {
+      const result = await sql`
+        SELECT stocks, ticker_map, synced_at
+        FROM sync_snapshot
+        WHERE id = 1
+      `;
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        if (Array.isArray(row.stocks) && (row.stocks as unknown[]).length > 0) {
+          stocks = row.stocks as DbStocks;
+        }
+        if (row.ticker_map && typeof row.ticker_map === "object") {
+          tickerMap = row.ticker_map as DbTickerMap;
+        }
+        snapshotSyncedAt = row.synced_at as string ?? null;
+      }
+    } catch (err) {
+      // Supabase unavailable — fall back silently to database.json
+      console.warn("[page] Snapshot load failed, using static db:", err instanceof Error ? err.message : err);
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ background: "var(--color-bg-primary)" }}>
@@ -52,9 +85,9 @@ export default async function DashboardPage() {
       </header>
 
       <DashboardClient
-        stocks={db.stocks as unknown as Parameters<typeof DashboardClient>[0]["stocks"]}
-        tickerMap={db.ticker_map as Record<string, string>}
-        metadata={db.metadata as Record<string, unknown>}
+        stocks={stocks as unknown as Parameters<typeof DashboardClient>[0]["stocks"]}
+        tickerMap={tickerMap as Record<string, string>}
+        metadata={{ ...(db.metadata as Record<string, unknown>), snapshot_synced_at: snapshotSyncedAt }}
       />
     </div>
   );

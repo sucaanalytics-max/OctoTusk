@@ -740,6 +740,19 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [newWatchlistName, setNewWatchlistName] = useState("");
   const [showHidden, setShowHidden] = useState(false);
 
+  // ── Snapshot: load last persisted sync on mount (survives page refresh) ──
+  useEffect(() => {
+    fetch("/api/snapshot")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.stocks?.length > 0 && data.source === "supabase") {
+          setLiveStocks(data.stocks as Stock[]);
+          if (data.synced_at) setDataLastRefreshed(data.synced_at as string);
+        }
+      })
+      .catch(() => {/* silent — falls back to prop data from database.json */});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Theme: apply class to html element
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -861,6 +874,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const refreshData = useCallback(async () => {
     setDataRefreshing(true);
     setSyncStatus("Loading baseline...");
+    // Capture holdings + ticker_map from baseline for snapshot persistence
+    let snapshotHoldings: unknown[] = [];
+    let snapshotTickerMap: Record<string, string> = {};
     try {
       // Step 1: Fetch JVB baseline + vF file list (fast)
       const baseRes = await fetch("/api/sync", {
@@ -871,6 +887,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       const baseData = await baseRes.json();
       if (baseData.error) { alert("Sync failed: " + baseData.error); return; }
 
+      snapshotHoldings = (baseData.holdings ?? []) as unknown[];
+      snapshotTickerMap = (baseData.ticker_map ?? {}) as Record<string, string>;
+
       let currentStocks = baseData.stocks;
       setLiveStocks(currentStocks);
       setDataLastRefreshed(baseData.refreshedAt);
@@ -878,6 +897,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       const vfFiles = baseData.vfFiles || [];
       const totalFiles = vfFiles.length;
       if (totalFiles === 0) {
+        // Persist even if no vF files (baseline-only snapshot)
+        fetch("/api/snapshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
+        }).catch((e) => console.warn("[snapshot] Save failed:", e));
         setSyncStatus("Done (no vF files found)");
         return;
       }
@@ -913,6 +938,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       }
 
       setDataLastRefreshed(new Date().toISOString());
+
+      // Persist final merged snapshot to Supabase so it survives page refreshes
+      fetch("/api/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
+      }).catch((e) => console.warn("[snapshot] Save failed:", e));
+
       setSyncStatus(`Done: ${totalMatched} stocks updated from ${totalFiles} vF files`);
       console.log(`[sync] Complete: ${totalMatched} matched, ${allFailures.length} failures`);
       if (allFailures.length > 0) console.warn("[sync] Failures:", allFailures);
