@@ -843,34 +843,69 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     return () => clearInterval(t);
   }, [autoRefresh, fetchQuotes]);
 
+  const [syncStatus, setSyncStatus] = useState("");
   const refreshData = useCallback(async () => {
     setDataRefreshing(true);
+    setSyncStatus("Loading baseline...");
     try {
-      // Live sync from OneDrive vF workbooks via Graph API
-      const res = await fetch("/api/sync", {
+      // Step 1: Fetch JVB baseline + vF file list (fast)
+      const baseRes = await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ mode: "baseline" }),
       });
-      const data = await res.json();
-      if (data.error) {
-        console.error("Sync error:", data.error);
-        alert("Sync failed: " + data.error);
+      const baseData = await baseRes.json();
+      if (baseData.error) { alert("Sync failed: " + baseData.error); return; }
+
+      let currentStocks = baseData.stocks;
+      setLiveStocks(currentStocks);
+      setDataLastRefreshed(baseData.refreshedAt);
+
+      const vfFiles = baseData.vfFiles || [];
+      const totalFiles = vfFiles.length;
+      if (totalFiles === 0) {
+        setSyncStatus("Done (no vF files found)");
         return;
       }
-      if (data.stocks) {
-        setLiveStocks(data.stocks);
-        setDataLastRefreshed(data.refreshedAt);
-        const m = data.metadata;
-        if (m) {
-          console.log(`[sync] ${m.vf_stocks_matched}/${m.total_stocks} stocks updated from ${m.vf_files_parsed} vF files (${m.vf_folder_path})`);
-          if (m.vf_parse_failures?.length > 0) console.warn("[sync] Parse failures:", m.vf_parse_failures);
-          if (m.jvb_unmatched?.length > 0) console.warn("[sync] Unmatched JVB stocks:", m.jvb_unmatched);
+
+      // Step 2: Process vF files in batches of 15
+      const BATCH = 15;
+      let totalMatched = 0;
+      const allFailures: string[] = [];
+      for (let offset = 0; offset < totalFiles; offset += BATCH) {
+        const batchNum = Math.floor(offset / BATCH) + 1;
+        const totalBatches = Math.ceil(totalFiles / BATCH);
+        setSyncStatus(`Syncing vF files... (${batchNum}/${totalBatches})`);
+
+        const vfRes = await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "vf",
+            offset,
+            batchSize: BATCH,
+            vfFiles,
+            baselineStocks: currentStocks,
+          }),
+        });
+        const vfData = await vfRes.json();
+        if (vfData.error) { console.error("vF batch error:", vfData.error); allFailures.push(vfData.error); continue; }
+        if (vfData.stocks) {
+          currentStocks = vfData.stocks;
+          setLiveStocks(currentStocks);
         }
+        totalMatched += vfData.matched || 0;
+        if (vfData.failures?.length) allFailures.push(...vfData.failures);
       }
+
+      setDataLastRefreshed(new Date().toISOString());
+      setSyncStatus(`Done: ${totalMatched} stocks updated from ${totalFiles} vF files`);
+      console.log(`[sync] Complete: ${totalMatched} matched, ${allFailures.length} failures`);
+      if (allFailures.length > 0) console.warn("[sync] Failures:", allFailures);
     } catch (err) {
       console.error("Failed to sync data:", err);
       alert("Sync failed — check console for details.");
+      setSyncStatus("Failed");
     }
     finally { setDataRefreshing(false); }
   }, []);
@@ -1788,7 +1823,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         <div className="ml-auto flex items-center gap-2 pr-2 py-2 tab-controls">
           {dataLastRefreshed && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Data: {new Date(dataLastRefreshed).toLocaleTimeString("en-IN")}</span>}
           <button onClick={refreshData} disabled={dataRefreshing} className="btn btn-primary btn-sm" aria-label="Sync data from OneDrive">
-            {dataRefreshing ? "Syncing..." : "⟳ Sync Data"}
+            {dataRefreshing ? (syncStatus || "Syncing...") : "⟳ Sync Data"}
           </button>
           <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
           {lastFetched && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}</span>}
