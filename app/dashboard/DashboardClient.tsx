@@ -2608,10 +2608,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               const hhiLabel = hhi < 1500 ? "Diversified" : hhi < 2500 ? "Moderate" : "Concentrated";
               const hhiColor = hhi < 1500 ? "var(--color-positive)" : hhi < 2500 ? "#D97706" : "var(--color-negative)";
 
+              // Stocks above base case
+              const aboveBase = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc < 0 && s.base_current);
+
               return (
                 <div>
                   {/* Top metrics row */}
-                  <div className="grid grid-cols-5 gap-3 mb-4">
+                  <div className="grid grid-cols-6 gap-3 mb-4">
                     <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
                       <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Portfolio Beta</div>
                       <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: portfolioBeta != null ? (portfolioBeta > 1.2 ? "var(--color-negative)" : portfolioBeta < 0.8 ? "var(--color-positive)" : "var(--color-text-primary)") : "var(--color-text-muted)" }}>
@@ -2638,6 +2641,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Portfolio Value</div>
                       <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtLakhs(totalValue)}</div>
                       <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{held.length} positions</div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: aboveBase.length > 0 ? "rgba(217,119,6,0.1)" : "var(--color-bg-hover)", border: aboveBase.length > 0 ? "1px solid rgba(217,119,6,0.3)" : "none" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Above Base Case</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: aboveBase.length > 0 ? "#D97706" : "var(--color-positive)" }}>{aboveBase.length}<span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-text-muted)" }}>/{enrichedStocks.filter(s => s.base_current).length}</span></div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={aboveBase.map(s => s.displayTikr || s.tikr).join(", ")}>{aboveBase.length > 0 ? aboveBase.map(s => s.displayTikr || s.tikr).join(", ") : "None"}</div>
                     </div>
                   </div>
 
