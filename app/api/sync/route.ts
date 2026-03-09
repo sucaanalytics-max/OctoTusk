@@ -19,9 +19,9 @@ const SHEET_NAME = "JVB Output";
 // Use path-based lookup by default; fall back to hardcoded ID
 const VF_FOLDER_PATH =
   process.env.GRAPH_VF_FOLDER_PATH ||
-  "Portfolio Stock Valuations - Bull Base Bear (Tusk Prop)";
+  "Tusk Equity/Portfolio Stock Valuations - Bull Base Bear (Tusk Prop)";
 const VF_FOLDER_ID_FALLBACK =
-  process.env.GRAPH_VF_FOLDER_ID || "";
+  process.env.GRAPH_VF_FOLDER_ID || "01XUUXNQYRQ7B5PBRKMZGLUVNKA5K5MXY5";
 
 // ── Column index → database.json field mapping (JVB Output baseline) ──
 const COL_MAP: Record<number, string> = {
