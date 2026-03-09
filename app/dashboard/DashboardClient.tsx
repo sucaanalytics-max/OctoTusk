@@ -898,11 +898,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       const totalFiles = vfFiles.length;
       if (totalFiles === 0) {
         // Persist even if no vF files (baseline-only snapshot)
-        fetch("/api/snapshot", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
-        }).catch((e) => console.warn("[snapshot] Save failed:", e));
+        try {
+          const snapRes = await fetch("/api/snapshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
+          });
+          if (!snapRes.ok) console.error("[snapshot] Save failed:", snapRes.status, await snapRes.text().catch(() => ""));
+          else console.log("[snapshot] Baseline snapshot saved to Supabase");
+        } catch (e) { console.error("[snapshot] Save error:", e); }
         setSyncStatus("Done (no vF files found)");
         return;
       }
@@ -940,11 +944,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       setDataLastRefreshed(new Date().toISOString());
 
       // Persist final merged snapshot to Supabase so it survives page refreshes
-      fetch("/api/snapshot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
-      }).catch((e) => console.warn("[snapshot] Save failed:", e));
+      try {
+        const snapRes = await fetch("/api/snapshot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
+        });
+        if (!snapRes.ok) console.error("[snapshot] Save failed:", snapRes.status, await snapRes.text().catch(() => ""));
+        else console.log("[snapshot] Snapshot saved to Supabase");
+      } catch (e) { console.error("[snapshot] Save error:", e); }
 
       setSyncStatus(`Done: ${totalMatched} stocks updated from ${totalFiles} vF files`);
       console.log(`[sync] Complete: ${totalMatched} matched, ${allFailures.length} failures`);
