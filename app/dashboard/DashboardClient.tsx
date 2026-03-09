@@ -649,6 +649,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
   const [quotesLoading, setQuotesLoading] = useState(true);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
+  const [failedTikrs, setFailedTikrs] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortCol, setSortCol] = useState<string>("companyShort");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -829,7 +830,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     try {
       const res = await fetch("/api/quotes");
       const data = await res.json();
-      if (data.quotes) { setQuotes(data.quotes); setLastFetched(data.fetchedAt); }
+      if (data.quotes) {
+        setQuotes(data.quotes);
+        setLastFetched(data.fetchedAt);
+      }
+      if (data.failedTikrs?.length > 0) {
+        setFailedTikrs(data.failedTikrs);
+        console.warn(`[quotes] ${data.failedTikrs.length} tickers failed (using stale CMP): ${data.failedTikrs.join(", ")}`);
+      } else {
+        setFailedTikrs([]);
+      }
     } catch (err) { console.error("Failed to fetch quotes:", err); }
     finally { setQuotesLoading(false); }
   }, []);
@@ -1831,7 +1841,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             {dataRefreshing ? (syncStatus || "Syncing...") : "⟳ Sync Data"}
           </button>
           <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
-          {lastFetched && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}</span>}
+          {lastFetched && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}{failedTikrs.length > 0 && <span style={{ color: "var(--color-warning)", marginLeft: 6 }} title={`Stale CMP: ${failedTikrs.join(", ")}`}>({failedTikrs.length} stale)</span>}</span>}
           {autoRefresh && marketOpen && <span className="font-mono font-bold min-w-[28px] text-center" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>{countdown}s</span>}
           {autoRefresh && !marketOpen && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Mkt closed</span>}
           <button onClick={fetchQuotes} disabled={quotesLoading} className="btn btn-ghost btn-sm" aria-label="Refresh market prices">
