@@ -22,6 +22,11 @@ const VF_FOLDER_PATH =
 const VF_FOLDER_ID_FALLBACK =
   process.env.GRAPH_VF_FOLDER_ID || "01XUUXNQYRQ7B5PBRKMZGLUVNKA5K5MXY5";
 
+// Positions & Leverage folder — contains "YYYYMMDD Tusk EQ.xlsx" holdings exports
+const POSITIONS_FOLDER_ID =
+  process.env.GRAPH_POSITIONS_FOLDER_ID ||
+  "01XUUXNQYRGGGJMZ3F3VAYAO4FAA37IMDZ";
+
 // ── Column index → database.json field mapping (JVB Output baseline) ──
 const COL_MAP: Record<number, string> = {
   41: "tikr", 1: "official_name", 2: "in_fno",
@@ -292,6 +297,123 @@ async function processVFFiles(
   return { results, failures };
 }
 
+// ═══════════════════════════════════════════════════════════════
+// Live holdings reader — reads latest "YYYYMMDD Tusk EQ.xlsx"
+// from the Positions & Leverage folder on OneDrive
+// ═══════════════════════════════════════════════════════════════
+
+interface HoldingRecord {
+  asset_name: string;
+  quantity: number;
+  avg_price: number;
+  amt_invested: number;
+  current_price: number;
+  overall_gain: number;
+  overall_gain_pct: number;
+  current_value: number;
+}
+
+async function readHoldings(token: string): Promise<HoldingRecord[] | null> {
+  try {
+    // List files in Positions & Leverage folder
+    const listUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${POSITIONS_FOLDER_ID}/children?$select=id,name,lastModifiedDateTime,file&$top=50`;
+    const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const listData = await listRes.json();
+    if (listData.error) {
+      console.warn(`[holdings] Folder listing error: ${listData.error.message}`);
+      return null;
+    }
+
+    // Find all "YYYYMMDD Tusk EQ.xlsx" files; sort descending so newest is first
+    const eqFiles: { id: string; name: string }[] = (listData.value || [])
+      .filter((f: { file?: unknown; name: string }) =>
+        f.file && /^\d{6,8}\s+Tusk EQ\.xlsx$/i.test(f.name)
+      )
+      .sort((a: { name: string }, b: { name: string }) => b.name.localeCompare(a.name));
+
+    if (eqFiles.length === 0) {
+      console.warn("[holdings] No 'Tusk EQ.xlsx' file found in Positions folder");
+      return null;
+    }
+
+    const file = eqFiles[0];
+    console.log(`[holdings] Reading: ${file.name}`);
+
+    // Download the file
+    const dlRes = await fetch(
+      `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`,
+      { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }
+    );
+    if (!dlRes.ok) {
+      console.warn(`[holdings] Download failed: ${dlRes.status}`);
+      return null;
+    }
+
+    const buffer = await dlRes.arrayBuffer();
+    const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, {
+      header: 1,
+      defval: "",
+    });
+
+    // Find the header row (contains "Asset Name")
+    let headerRow = -1;
+    for (let i = 0; i < rawRows.length; i++) {
+      if (rawRows[i].some((c) => String(c).includes("Asset Name"))) {
+        headerRow = i;
+        break;
+      }
+    }
+    if (headerRow === -1) {
+      console.warn("[holdings] Header row not found in Tusk EQ file");
+      return null;
+    }
+
+    const headers = rawRows[headerRow].map((h) => String(h).trim());
+    const ci = {
+      name:      headers.findIndex((h) => h.includes("Asset Name")),
+      qty:       headers.findIndex((h) => h === "Quantity"),
+      avgPrice:  headers.findIndex((h) => h.includes("Avg")),
+      invested:  headers.findIndex((h) => h.includes("Invested") || h.includes("Amt")),
+      currPrice: headers.findIndex((h) => h.includes("Curr") && h.includes("Price")),
+      gain:      headers.findIndex((h) => h.includes("Overall Gain") && !h.includes("%")),
+      gainPct:   headers.findIndex((h) => h.includes("Overall Gain") && h.includes("%")),
+      currValue: headers.findIndex((h) => h.includes("Current Value")),
+    };
+
+    const SKIP_ROW = /^(stocks|total|tusk invst|tusk invest|cash|net|grand)/i;
+    const holdings: HoldingRecord[] = [];
+
+    for (let i = headerRow + 1; i < rawRows.length; i++) {
+      const row = rawRows[i];
+      const name = String(row[ci.name] ?? "").trim();
+      if (!name || SKIP_ROW.test(name)) continue;
+
+      const qty = Number(row[ci.qty]) || 0;
+      const avgPrice = Number(row[ci.avgPrice]) || 0;
+      if (qty === 0 && avgPrice === 0) continue;
+
+      holdings.push({
+        asset_name:      name,
+        quantity:        qty,
+        avg_price:       avgPrice,
+        amt_invested:    Number(row[ci.invested])  || qty * avgPrice,
+        current_price:   Number(row[ci.currPrice]) || 0,
+        overall_gain:    Number(row[ci.gain])      || 0,
+        overall_gain_pct: Number(row[ci.gainPct]) || 0,
+        current_value:   Number(row[ci.currValue]) || 0,
+      });
+    }
+
+    console.log(`[holdings] Parsed ${holdings.length} holdings from ${file.name}`);
+    return holdings.length > 0 ? holdings : null;
+  } catch (err) {
+    console.warn("[holdings] Error:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 const TIKR_ALIAS: Record<string, string> = {
   "SMARTWORKS": "Smartworks",
   "INDIANB": "IndianB",
@@ -329,11 +451,17 @@ export async function POST(request: Request) {
       const dedupedFiles = deduplicateVFFiles(allFiles);
       console.log(`[sync] Found ${allFiles.length} files, deduplicated to ${dedupedFiles.length}`);
 
+      // Read live holdings in parallel with baseline (non-blocking)
+      const liveHoldingsBaseline = await readHoldings(token);
+      const holdingsBaseline = liveHoldingsBaseline ?? staticDb.holdings;
+      console.log(`[sync] Holdings (baseline): ${holdingsBaseline.length} records (${liveHoldingsBaseline ? "live" : "static"})`);
+
       return NextResponse.json({
         mode: "baseline",
         stocks: baselineStocks,
-        holdings: staticDb.holdings,
+        holdings: holdingsBaseline,
         ticker_map: staticDb.ticker_map,
+        holdings_source: liveHoldingsBaseline ? "live_onedrive" : "static_fallback",
         vfFiles: dedupedFiles.map((f) => ({ id: f.id, name: f.name, size: f.size })),
         totalVfFiles: dedupedFiles.length,
         refreshedAt: new Date().toISOString(),
@@ -431,11 +559,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No valid stocks found" }, { status: 422 });
     }
 
+    // Read live holdings from OneDrive (fallback to static database.json)
+    console.log("[sync] Reading live holdings...");
+    const liveHoldings = await readHoldings(token);
+    const holdings = liveHoldings ?? staticDb.holdings;
+    const holdingsSource = liveHoldings ? "live_onedrive" : "static_fallback";
+    console.log(`[sync] Holdings: ${holdings.length} records (${holdingsSource})`);
+
     reportSuccess("sync");
     return NextResponse.json({
       mode: "full",
       stocks: mergedStocks,
-      holdings: staticDb.holdings,
+      holdings,
       ticker_map: staticDb.ticker_map,
       metadata: {
         source: "JVB Output + vF overrides",
@@ -444,6 +579,8 @@ export async function POST(request: Request) {
         vf_files_found: allFiles.length,
         vf_files_parsed: vfMap.size,
         vf_stocks_matched: vfMatchCount,
+        holdings_source: holdingsSource,
+        total_holdings: holdings.length,
         vf_parse_failures: vfFailures,
       },
       refreshedAt: new Date().toISOString(),
