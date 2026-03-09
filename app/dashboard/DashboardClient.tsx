@@ -2224,6 +2224,176 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 ); // end IIFE return
               })()} {/* end holdings sort IIFE */}
 
+
+          {/* ── Tier 2A: Portfolio Risk Dashboard ── */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #EC4899" }}>
+            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Portfolio Risk Dashboard</h3>
+            {(() => {
+              // Only stocks with holding weight
+              const held = enrichedStocks.filter(s => s.holding_pct && s.holding_pct > 0);
+              const totalWeight = held.reduce((a, s) => a + (s.holding_pct || 0), 0);
+
+              // HHI: sum of (weight%)^2 — ranges 0-10000. <1500 = diversified, >2500 = concentrated
+              const hhi = held.reduce((a, s) => { const w = ((s.holding_pct || 0) / totalWeight) * 100; return a + w * w; }, 0);
+
+              // Sector concentration: max sector weight
+              const sectorWeights: Record<string, number> = {};
+              held.forEach(s => { const sec = s.sector || "Other"; sectorWeights[sec] = (sectorWeights[sec] || 0) + (s.holding_pct || 0); });
+              const maxSector = Object.entries(sectorWeights).sort((a, b) => b[1] - a[1]);
+              const maxSectorPct = maxSector.length > 0 ? (maxSector[0][1] / totalWeight) * 100 : 0;
+
+              // Top 5 concentration
+              const top5 = [...held].sort((a, b) => (b.holding_pct || 0) - (a.holding_pct || 0)).slice(0, 5);
+              const top5Pct = top5.reduce((a, s) => a + (s.holding_pct || 0), 0) / totalWeight * 100;
+
+              // Portfolio Beta (from enrichment — batch loaded)
+              let portfolioBeta: number | null = null;
+              let betaCoverage = 0;
+              let betaWeightedSum = 0;
+              let betaTotalWeight = 0;
+              held.forEach(s => {
+                const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
+                if (e?.beta != null && s.holding_pct) {
+                  betaWeightedSum += e.beta * (s.holding_pct / totalWeight);
+                  betaTotalWeight += s.holding_pct / totalWeight;
+                  betaCoverage++;
+                }
+              });
+              if (betaTotalWeight > 0.3) portfolioBeta = betaWeightedSum / betaTotalWeight;
+
+              // Scenario P&L: weighted upside across all held stocks per scenario
+              const scenarioPnL = (key: "upsideBearCalc" | "upsideBaseCalc" | "upsideBullCalc") => {
+                let weightedUpside = 0;
+                held.forEach(s => {
+                  const u = s[key] as number | undefined;
+                  if (u != null && s.holding_pct) weightedUpside += u * (s.holding_pct / totalWeight);
+                });
+                return weightedUpside;
+              };
+              const bearPnL = scenarioPnL("upsideBearCalc");
+              const basePnL = scenarioPnL("upsideBaseCalc");
+              const bullPnL = scenarioPnL("upsideBullCalc");
+
+              // Portfolio total value
+              const totalValue = held.reduce((a, s) => a + (s.holding_cash_lakhs || 0), 0);
+
+              const hhiLabel = hhi < 1500 ? "Diversified" : hhi < 2500 ? "Moderate" : "Concentrated";
+              const hhiColor = hhi < 1500 ? "var(--color-positive)" : hhi < 2500 ? "#D97706" : "var(--color-negative)";
+
+              // Stocks above base case
+              const aboveBase = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc < 0 && s.base_current);
+
+              return (
+                <div>
+                  {/* Top metrics row */}
+                  <div className="grid grid-cols-6 gap-3 mb-4">
+                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Portfolio Beta</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: portfolioBeta != null ? (portfolioBeta > 1.2 ? "var(--color-negative)" : portfolioBeta < 0.8 ? "var(--color-positive)" : "var(--color-text-primary)") : "var(--color-text-muted)" }}>
+                        {portfolioBeta != null ? portfolioBeta.toFixed(2) : "—"}
+                      </div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{betaCoverage}/{held.length} stocks</div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>HHI Index</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: hhiColor }}>{Math.round(hhi)}</div>
+                      <div style={{ fontSize: 9, color: hhiColor, fontWeight: 600 }}>{hhiLabel}</div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Top Sector</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: maxSectorPct > 30 ? "#D97706" : "var(--color-text-primary)" }}>{maxSectorPct.toFixed(1)}%</div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{maxSector[0]?.[0] || "—"}</div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Top 5 Conc.</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: top5Pct > 50 ? "#D97706" : "var(--color-text-primary)" }}>{top5Pct.toFixed(1)}%</div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{held.length} stocks</div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Portfolio Value</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtLakhs(totalValue)}</div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{held.length} positions</div>
+                    </div>
+                    <div className="p-3 rounded-lg" style={{ background: aboveBase.length > 0 ? "rgba(217,119,6,0.1)" : "var(--color-bg-hover)", border: aboveBase.length > 0 ? "1px solid rgba(217,119,6,0.3)" : "none" }}>
+                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Above Base Case</div>
+                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: aboveBase.length > 0 ? "#D97706" : "var(--color-positive)" }}>{aboveBase.length}<span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-text-muted)" }}>/{enrichedStocks.filter(s => s.base_current).length}</span></div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={aboveBase.map(s => s.displayTikr || s.tikr).join(", ")}>{aboveBase.length > 0 ? aboveBase.map(s => s.displayTikr || s.tikr).join(", ") : "None"}</div>
+                    </div>
+                  </div>
+
+                  {/* Scenario P&L cards */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {[
+                      { label: "Bear Scenario", pnl: bearPnL, color: "var(--color-negative)", bg: "var(--color-negative-bg)" },
+                      { label: "Base Scenario", pnl: basePnL, color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
+                      { label: "Bull Scenario", pnl: bullPnL, color: "var(--color-positive)", bg: "var(--color-positive-bg)" },
+                    ].map(sc => (
+                      <div key={sc.label} className="p-3 rounded-lg" style={{ background: sc.bg, border: `1px solid ${sc.color}33` }}>
+                        <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{sc.label}</div>
+                        <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: sc.color }}>
+                          {sc.pnl >= 0 ? "+" : ""}{(sc.pnl * 100).toFixed(1)}%
+                        </div>
+                        {totalValue > 0 && <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>P&L: {sc.pnl >= 0 ? "+" : ""}{fmtLakhs(totalValue * sc.pnl)}</div>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Top 5 holdings table */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Top 5 Holdings</span>
+                      <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+                    </div>
+                    <table className="data-table w-full"><thead><tr><th>#</th><th>Stock</th><th>Sector</th><th>Weight</th><th>CDS</th><th>Bear</th><th>Base</th><th>Bull</th><th>Beta</th></tr></thead>
+                      <tbody>{top5.map((s, i) => {
+                        const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
+                        return (
+                          <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
+                            <td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td>
+                            <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
+                            <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600 }}>{s.holding_pct ? `${((s.holding_pct / totalWeight) * 100).toFixed(1)}%` : "—"}</td>
+                            <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: 10, fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
+                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>{s.upsideBearCalc != null ? `${(s.upsideBearCalc * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600, color: s.upsideBaseCalc != null ? (s.upsideBaseCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)") : "var(--color-text-muted)" }}>{s.upsideBaseCalc != null ? `${(s.upsideBaseCalc * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>{s.upsideBullCalc != null ? `${(s.upsideBullCalc * 100).toFixed(1)}%` : "—"}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{e?.beta != null ? e.beta.toFixed(2) : "—"}</td>
+                          </tr>
+                        );
+                      })}</tbody></table>
+                  </div>
+
+                  {/* Sector breakdown bar */}
+                  <div className="mt-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Sector Risk Breakdown</span>
+                      <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
+                    </div>
+                    <div className="flex rounded-lg overflow-hidden" style={{ height: 24 }}>
+                      {maxSector.filter(([, w]) => w > 0).map(([sec, w]) => {
+                        const pct = (w / totalWeight) * 100;
+                        const color = sectorColors[sec] || "#6B7280";
+                        return pct > 1 ? (
+                          <div key={sec} title={`${sec}: ${pct.toFixed(1)}%`} style={{ width: `${pct}%`, background: color, display: "flex", alignItems: "center", justifyContent: "center", minWidth: pct > 5 ? 0 : undefined, transition: "width 0.3s" }}>
+                            {pct > 6 && <span style={{ fontSize: 8, color: "#fff", fontWeight: 700, whiteSpace: "nowrap", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>{sec.length > 8 ? sec.slice(0, 7) + "…" : sec}</span>}
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                      {maxSector.filter(([, w]) => w > 0).slice(0, 8).map(([sec, w]) => (
+                        <span key={sec} style={{ fontSize: 9, color: "var(--color-text-muted)" }}>
+                          <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: sectorColors[sec] || "#6B7280", marginRight: 3 }} />
+                          {sec} {((w / totalWeight) * 100).toFixed(1)}%
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
               {/* VA & SA Analysis (moved from Decision Support) */}
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
@@ -2535,175 +2705,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <div className="overflow-auto max-h-[340px]"><table className="data-table w-full"><thead><tr><th>#</th><th>Company</th><th>Sector</th><th>CMP</th><th>Bear</th><th>Downside</th></tr></thead>
                 <tbody>{decisionData.worstDownside.map((s, i) => (<tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td><td><UpsideBar value={(s.upsideBearCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
             </div>
-          </div>
-
-          {/* ── Tier 2A: Portfolio Risk Dashboard ── */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #EC4899" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Portfolio Risk Dashboard</h3>
-            {(() => {
-              // Only stocks with holding weight
-              const held = enrichedStocks.filter(s => s.holding_pct && s.holding_pct > 0);
-              const totalWeight = held.reduce((a, s) => a + (s.holding_pct || 0), 0);
-
-              // HHI: sum of (weight%)^2 — ranges 0-10000. <1500 = diversified, >2500 = concentrated
-              const hhi = held.reduce((a, s) => { const w = ((s.holding_pct || 0) / totalWeight) * 100; return a + w * w; }, 0);
-
-              // Sector concentration: max sector weight
-              const sectorWeights: Record<string, number> = {};
-              held.forEach(s => { const sec = s.sector || "Other"; sectorWeights[sec] = (sectorWeights[sec] || 0) + (s.holding_pct || 0); });
-              const maxSector = Object.entries(sectorWeights).sort((a, b) => b[1] - a[1]);
-              const maxSectorPct = maxSector.length > 0 ? (maxSector[0][1] / totalWeight) * 100 : 0;
-
-              // Top 5 concentration
-              const top5 = [...held].sort((a, b) => (b.holding_pct || 0) - (a.holding_pct || 0)).slice(0, 5);
-              const top5Pct = top5.reduce((a, s) => a + (s.holding_pct || 0), 0) / totalWeight * 100;
-
-              // Portfolio Beta (from enrichment — batch loaded)
-              let portfolioBeta: number | null = null;
-              let betaCoverage = 0;
-              let betaWeightedSum = 0;
-              let betaTotalWeight = 0;
-              held.forEach(s => {
-                const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
-                if (e?.beta != null && s.holding_pct) {
-                  betaWeightedSum += e.beta * (s.holding_pct / totalWeight);
-                  betaTotalWeight += s.holding_pct / totalWeight;
-                  betaCoverage++;
-                }
-              });
-              if (betaTotalWeight > 0.3) portfolioBeta = betaWeightedSum / betaTotalWeight;
-
-              // Scenario P&L: weighted upside across all held stocks per scenario
-              const scenarioPnL = (key: "upsideBearCalc" | "upsideBaseCalc" | "upsideBullCalc") => {
-                let weightedUpside = 0;
-                held.forEach(s => {
-                  const u = s[key] as number | undefined;
-                  if (u != null && s.holding_pct) weightedUpside += u * (s.holding_pct / totalWeight);
-                });
-                return weightedUpside;
-              };
-              const bearPnL = scenarioPnL("upsideBearCalc");
-              const basePnL = scenarioPnL("upsideBaseCalc");
-              const bullPnL = scenarioPnL("upsideBullCalc");
-
-              // Portfolio total value
-              const totalValue = held.reduce((a, s) => a + (s.holding_cash_lakhs || 0), 0);
-
-              const hhiLabel = hhi < 1500 ? "Diversified" : hhi < 2500 ? "Moderate" : "Concentrated";
-              const hhiColor = hhi < 1500 ? "var(--color-positive)" : hhi < 2500 ? "#D97706" : "var(--color-negative)";
-
-              // Stocks above base case
-              const aboveBase = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBaseCalc < 0 && s.base_current);
-
-              return (
-                <div>
-                  {/* Top metrics row */}
-                  <div className="grid grid-cols-6 gap-3 mb-4">
-                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
-                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Portfolio Beta</div>
-                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: portfolioBeta != null ? (portfolioBeta > 1.2 ? "var(--color-negative)" : portfolioBeta < 0.8 ? "var(--color-positive)" : "var(--color-text-primary)") : "var(--color-text-muted)" }}>
-                        {portfolioBeta != null ? portfolioBeta.toFixed(2) : "—"}
-                      </div>
-                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{betaCoverage}/{held.length} stocks</div>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
-                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>HHI Index</div>
-                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: hhiColor }}>{Math.round(hhi)}</div>
-                      <div style={{ fontSize: 9, color: hhiColor, fontWeight: 600 }}>{hhiLabel}</div>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
-                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Top Sector</div>
-                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: maxSectorPct > 30 ? "#D97706" : "var(--color-text-primary)" }}>{maxSectorPct.toFixed(1)}%</div>
-                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{maxSector[0]?.[0] || "—"}</div>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
-                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Top 5 Conc.</div>
-                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: top5Pct > 50 ? "#D97706" : "var(--color-text-primary)" }}>{top5Pct.toFixed(1)}%</div>
-                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{held.length} stocks</div>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ background: "var(--color-bg-hover)" }}>
-                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Portfolio Value</div>
-                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-lg)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtLakhs(totalValue)}</div>
-                      <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{held.length} positions</div>
-                    </div>
-                    <div className="p-3 rounded-lg" style={{ background: aboveBase.length > 0 ? "rgba(217,119,6,0.1)" : "var(--color-bg-hover)", border: aboveBase.length > 0 ? "1px solid rgba(217,119,6,0.3)" : "none" }}>
-                      <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Above Base Case</div>
-                      <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: aboveBase.length > 0 ? "#D97706" : "var(--color-positive)" }}>{aboveBase.length}<span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-text-muted)" }}>/{enrichedStocks.filter(s => s.base_current).length}</span></div>
-                      <div style={{ fontSize: 9, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={aboveBase.map(s => s.displayTikr || s.tikr).join(", ")}>{aboveBase.length > 0 ? aboveBase.map(s => s.displayTikr || s.tikr).join(", ") : "None"}</div>
-                    </div>
-                  </div>
-
-                  {/* Scenario P&L cards */}
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    {[
-                      { label: "Bear Scenario", pnl: bearPnL, color: "var(--color-negative)", bg: "var(--color-negative-bg)" },
-                      { label: "Base Scenario", pnl: basePnL, color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
-                      { label: "Bull Scenario", pnl: bullPnL, color: "var(--color-positive)", bg: "var(--color-positive-bg)" },
-                    ].map(sc => (
-                      <div key={sc.label} className="p-3 rounded-lg" style={{ background: sc.bg, border: `1px solid ${sc.color}33` }}>
-                        <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{sc.label}</div>
-                        <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: sc.color }}>
-                          {sc.pnl >= 0 ? "+" : ""}{(sc.pnl * 100).toFixed(1)}%
-                        </div>
-                        {totalValue > 0 && <div style={{ fontSize: 9, color: "var(--color-text-muted)" }}>P&L: {sc.pnl >= 0 ? "+" : ""}{fmtLakhs(totalValue * sc.pnl)}</div>}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Top 5 holdings table */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Top 5 Holdings</span>
-                      <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-                    </div>
-                    <table className="data-table w-full"><thead><tr><th>#</th><th>Stock</th><th>Sector</th><th>Weight</th><th>CDS</th><th>Bear</th><th>Base</th><th>Bull</th><th>Beta</th></tr></thead>
-                      <tbody>{top5.map((s, i) => {
-                        const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
-                        return (
-                          <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
-                            <td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td>
-                            <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
-                            <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600 }}>{s.holding_pct ? `${((s.holding_pct / totalWeight) * 100).toFixed(1)}%` : "—"}</td>
-                            <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: 10, fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
-                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>{s.upsideBearCalc != null ? `${(s.upsideBearCalc * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600, color: s.upsideBaseCalc != null ? (s.upsideBaseCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)") : "var(--color-text-muted)" }}>{s.upsideBaseCalc != null ? `${(s.upsideBaseCalc * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>{s.upsideBullCalc != null ? `${(s.upsideBullCalc * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{e?.beta != null ? e.beta.toFixed(2) : "—"}</td>
-                          </tr>
-                        );
-                      })}</tbody></table>
-                  </div>
-
-                  {/* Sector breakdown bar */}
-                  <div className="mt-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Sector Risk Breakdown</span>
-                      <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-                    </div>
-                    <div className="flex rounded-lg overflow-hidden" style={{ height: 24 }}>
-                      {maxSector.filter(([, w]) => w > 0).map(([sec, w]) => {
-                        const pct = (w / totalWeight) * 100;
-                        const color = sectorColors[sec] || "#6B7280";
-                        return pct > 1 ? (
-                          <div key={sec} title={`${sec}: ${pct.toFixed(1)}%`} style={{ width: `${pct}%`, background: color, display: "flex", alignItems: "center", justifyContent: "center", minWidth: pct > 5 ? 0 : undefined, transition: "width 0.3s" }}>
-                            {pct > 6 && <span style={{ fontSize: 8, color: "#fff", fontWeight: 700, whiteSpace: "nowrap", textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>{sec.length > 8 ? sec.slice(0, 7) + "…" : sec}</span>}
-                          </div>
-                        ) : null;
-                      })}
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
-                      {maxSector.filter(([, w]) => w > 0).slice(0, 8).map(([sec, w]) => (
-                        <span key={sec} style={{ fontSize: 9, color: "var(--color-text-muted)" }}>
-                          <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: sectorColors[sec] || "#6B7280", marginRight: 3 }} />
-                          {sec} {((w / totalWeight) * 100).toFixed(1)}%
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
           </div>
 
           {/* Sector Allocation */}
