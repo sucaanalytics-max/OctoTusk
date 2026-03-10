@@ -180,7 +180,16 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
       if (!item.file) continue;
       const name = item.name as string;
       if (!name.match(/\.(xlsx|xlsm)$/i)) continue;
+      // Non-vF utility files
       if (name.match(/Todos|Banking Results Tracker|Investment Dashboard|Sing grm|Octopus|updateMaster/i)) continue;
+      // Excluded stocks (no longer tracked)
+      const excludedStocks = [
+        "REC", "Repco Hf", "Aptus", "Sunteck Realty", "PSU Bank Index Analysis",
+        "Union Bank", "Indianbank", "Monarch Networth", "Rpsg Ventures", "Mallcom",
+        "Disa India", "Dam Capital", "Patels Airtemp", "Emkay", "Tusk Arihant Model V2",
+        "Kpit Tech", "Deepak Fertilizer Financial Model V3", "Elecon Engineering", "Somany Ceramics V1",
+      ];
+      if (excludedStocks.some(ex => name.toLowerCase().includes(ex.toLowerCase()))) continue;
       if ((item.size || 0) > 20 * 1024 * 1024) continue;
       allFiles.push({ id: item.id, name, size: item.size || 0, lastModifiedDateTime: item.lastModifiedDateTime || "" });
     }
