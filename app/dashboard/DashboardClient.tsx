@@ -651,8 +651,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [lastFetched, setLastFetched] = useState<string | null>(null);
   const [failedTikrs, setFailedTikrs] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortCol, setSortCol] = useState<string>("companyShort");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [sortCol, setSortCol] = useState<string>("upside_1y");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [filterSector, setFilterSector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>("all");
