@@ -480,6 +480,18 @@ async function main() {
   }
   if (standaloneCount > 0) console.log(`[sync] Added ${standaloneCount} standalone vF stocks`);
 
+  // Preserve static-db stocks not covered by JVB or vF (e.g., ETFs)
+  const allMergedTikrs = new Set(mergedStocks.map(s => s.tikr as string));
+  const staticStocks = (staticDb as any).stocks || [];
+  let preservedCount = 0;
+  for (const ss of staticStocks) {
+    if (ss.tikr && !allMergedTikrs.has(ss.tikr)) {
+      mergedStocks.push(ss);
+      preservedCount++;
+    }
+  }
+  if (preservedCount > 0) console.log(`[sync] Preserved ${preservedCount} static-db stocks (ETFs, etc.)`);
+
   // 3. Read holdings
   console.log("[sync] Reading holdings...");
   const liveHoldings = await readHoldings(token);

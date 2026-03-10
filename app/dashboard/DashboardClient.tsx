@@ -1180,6 +1180,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       "Virtuoso Optoelectronics": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
       "BSE Ltd": "BSE", "GPT Healthcare": "GPTHEALTH", "Motilal Oswal Financial": "MOTILALOFS",
       "KFin Technologies": "KFINTECH", "360 One Wam": "360ONE",
+      "Nippon India ETF Nifty PSU Bank BeES": "PSUBNKBEES",
     };
     return holdingsData.map(h => {
       const tikr = nameToTikr[h.asset_name];
