@@ -459,6 +459,18 @@ async function main() {
 
   console.log(`[sync] Merged ${vfMatchCount} vF overrides`);
 
+  // Add standalone vF stocks (not in JVB baseline)
+  const matchedTikrs = new Set(mergedStocks.map(s => s.tikr as string));
+  let standaloneCount = 0;
+  for (const [tikr, vfData] of Array.from(vfMap.entries())) {
+    if (!matchedTikrs.has(tikr)) {
+      const name = (vfData._vf_source as string || "").replace(/^\d{6,8}[_ ]?/, "").replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
+      mergedStocks.push({ tikr, official_name: name, ...vfData });
+      standaloneCount++;
+    }
+  }
+  if (standaloneCount > 0) console.log(`[sync] Added ${standaloneCount} standalone vF stocks`);
+
   // 3. Read holdings
   console.log("[sync] Reading holdings...");
   const liveHoldings = await readHoldings(token);
