@@ -1181,6 +1181,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       "BSE Ltd": "BSE", "GPT Healthcare": "GPTHEALTH", "Motilal Oswal Financial": "MOTILALOFS",
       "KFin Technologies": "KFINTECH", "360 One Wam": "360ONE",
       "Nippon India ETF Nifty PSU Bank BeES": "PSUBNKBEES",
+      "National Stock Exchange of India": "National Stock Exchange (NSE)",
     };
     return holdingsData.map(h => {
       const tikr = nameToTikr[h.asset_name];

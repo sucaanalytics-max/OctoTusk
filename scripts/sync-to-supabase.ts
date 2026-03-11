@@ -496,6 +496,26 @@ async function main() {
   console.log("[sync] Reading holdings...");
   const liveHoldings = await readHoldings(token);
   const holdings = liveHoldings ?? staticDb.holdings;
+
+  // Add unlisted holdings not in demat export
+  const manualHoldings = [
+    {
+      asset_name: "National Stock Exchange of India",
+      quantity: 685000,
+      avg_price: 409,
+      amt_invested: 280165000,
+      current_price: 2000,
+      overall_gain: 1089835000,
+      overall_gain_pct: 388.95,
+      current_value: 1370000000,
+    },
+  ];
+  for (const mh of manualHoldings) {
+    if (!(holdings as any[]).some((h: any) => h.asset_name === mh.asset_name)) {
+      (holdings as any[]).push(mh);
+    }
+  }
+
   console.log(`[sync] Holdings: ${(holdings as unknown[]).length} records (${liveHoldings ? "live" : "static"})`);
 
   // 4. Write to Supabase
