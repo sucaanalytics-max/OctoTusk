@@ -2222,7 +2222,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           ) : (
             <div className="animate-fade-in">
-              <div className="grid grid-cols-6 gap-4 mb-4">
+              <div className="grid grid-cols-4 gap-4 mb-4">
                 {(() => {
                   const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
                   const tv = enrichedHoldings.reduce((s, h) => s + h.liveValue, 0);
@@ -2230,6 +2230,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   const bv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
                   const buv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
                   const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.liveChange * h.quantity, 0);
+                  const v1y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
+                  const v2y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
                   return (<>
                     <div className="kpi-card animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Total Invested</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(ti)}</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Current Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(tv)}</p></div>
@@ -2237,6 +2239,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                     <div className={`kpi-card ${dayPnlTotal >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-4`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Day P&L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: dayPnlTotal >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{dayPnlTotal >= 0 ? "+" : ""}{fmtCr(dayPnlTotal)}</p></div>
                     <div className="kpi-card kpi-negative animate-fade-in-up delay-5"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bear Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{fmtCr(bv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Drawdown: {tv ? ((bv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-6"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bull Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{fmtCr(buv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: +{tv ? ((buv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
+                    <div className={`kpi-card ${v1y >= tv ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-7`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>1Y Target Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: v1y >= tv ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(v1y)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: {tv ? (v1y >= tv ? "+" : "") + ((v1y - tv) / tv * 100).toFixed(1) : 0}%</p></div>
+                    <div className={`kpi-card ${v2y >= tv ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-8`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>2Y Target Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: v2y >= tv ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(v2y)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: {tv ? (v2y >= tv ? "+" : "") + ((v2y - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                   </>);
                 })()}
               </div>
