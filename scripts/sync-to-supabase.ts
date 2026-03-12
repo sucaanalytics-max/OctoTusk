@@ -433,6 +433,7 @@ async function main() {
 
   const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 3);
   console.log(`[sync] Parsed ${vfMap.size} vF files, skipped ${vfSkipped.length} (no sheet), ${vfFailed.length} errors`);
+  console.log(`[sync] vF tikrs: ${Array.from(vfMap.keys()).join(", ")}`);
   if (vfFailed.length > 0) console.warn(`[sync] Failed files: ${vfFailed.join(", ")}`);
 
   // Apply aliases
@@ -446,7 +447,9 @@ async function main() {
   for (const [vfTikr, data] of Array.from(vfMap.entries())) {
     for (const jt of jvbTikrs) {
       if (vfMap.has(jt)) continue;
-      if (vfTikr.includes(jt) || jt.includes(vfTikr)) vfMap.set(jt, data);
+      const shorter = Math.min(vfTikr.length, jt.length);
+      const longer = Math.max(vfTikr.length, jt.length);
+      if ((vfTikr.includes(jt) || jt.includes(vfTikr)) && shorter / longer >= 0.8) vfMap.set(jt, data);
     }
   }
 
