@@ -24,11 +24,17 @@ interface Stock {
   upside_bull?: number;
   upside_1y?: number;
   upside_2y?: number;
+  bear_pe?: number;
   base_pe?: number;
+  bull_pe?: number;
   base_pe_2sd?: number;
+  bear_pb?: number;
   base_pb?: number;
+  bull_pb?: number;
   base_pb_2sd?: number;
+  bear_evebitda?: number;
   base_evebitda?: number;
+  bull_evebitda?: number;
   base_evebitda_2sd?: number;
   reviewed_pranay?: number;
   vp?: string;
@@ -1814,13 +1820,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         <div className="metric-card mb-4 animate-fade-in-up delay-5">
           <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Valuation Multiples</h3>
           <table className="data-table w-full" role="table" aria-label="Valuation multiples">
-            <thead><tr><th>Metric</th><th>Base (Tusk)</th><th>+2 SD</th><th>Live (Yahoo)</th></tr></thead>
+            <thead><tr><th>Metric</th><th>Bear</th><th>Base</th><th>Bull</th><th>+2 SD</th><th>Live</th></tr></thead>
             <tbody>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>PE</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"}</td></tr>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>PB</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.priceToBook ? `${q.priceToBook.toFixed(2)}x` : "—"}</td></tr>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>EV/EBITDA</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{enr?.enterpriseToEbitda ? `${enr.enterpriseToEbitda.toFixed(1)}x` : "—"}</td></tr>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>Forward PE</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"}</td></tr>
-              <tr><td style={{ color: "var(--color-text-secondary)" }}>PEG Ratio</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{enr?.pegRatio ? `${enr.pegRatio.toFixed(2)}` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>PE</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-red)" }}>{s.bear_pe ? `${s.bear_pe.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-green)" }}>{s.bull_pe ? `${s.bull_pe.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>PB</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-red)" }}>{s.bear_pb ? `${s.bear_pb.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-green)" }}>{s.bull_pb ? `${s.bull_pb.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.priceToBook ? `${q.priceToBook.toFixed(2)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>EV/EBITDA</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-red)" }}>{s.bear_evebitda ? `${s.bear_evebitda.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-green)" }}>{s.bull_evebitda ? `${s.bull_evebitda.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)" }}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "—"}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{enr?.enterpriseToEbitda ? `${enr.enterpriseToEbitda.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>Forward PE</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"}</td></tr>
+              <tr><td style={{ color: "var(--color-text-secondary)" }}>PEG Ratio</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)" }}>—</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-accent-blue)" }}>{enr?.pegRatio ? `${enr.pegRatio.toFixed(2)}` : "—"}</td></tr>
             </tbody>
           </table>
         </div>
