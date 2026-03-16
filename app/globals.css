@@ -587,13 +587,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
   }
-  /* Freeze first column on mobile */
+  /* Freeze first column on mobile with truncation */
   .data-table td:first-child,
   .data-table th:first-child {
     position: sticky;
     left: 0;
     z-index: 5;
     background: inherit;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .data-table th:first-child {
     z-index: 15;
