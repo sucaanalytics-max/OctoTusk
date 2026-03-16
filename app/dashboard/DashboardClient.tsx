@@ -1544,7 +1544,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     const volRatio = q?.avgVolume3Month && q.volume ? (q.volume / q.avgVolume3Month) : null;
 
     return (
-      <div className="max-w-[1400px] mx-auto px-5 py-5 dash-wrapper animate-fade-in">
+      <div className="max-w-[1400px] mx-auto px-3 md:px-5 py-3 md:py-5 dash-wrapper animate-fade-in">
         <button onClick={() => setDetailStock(null)} className="btn btn-ghost btn-sm mb-4" aria-label="Go back to previous view">
           <span aria-hidden="true">←</span> Back to {activeTab === "octopus" ? "Octopus" : activeTab === "comparison" ? "Comparison" : "Decision Support"}
         </button>
@@ -1554,7 +1554,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           <div className="flex justify-between items-start flex-wrap gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1 flex-wrap">
-                <h2 className="font-bold" style={{ fontSize: "var(--text-2xl)", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>{s.companyShort}</h2>
+                <h2 className="font-bold" style={{ fontSize: "clamp(1rem, 4vw, var(--text-2xl))", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>{s.companyShort}</h2>
                 <span className="pill pill-blue">{s.sector}</span>
                 {s.subsector && s.subsector !== s.sector && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{s.subsector}</span>}
               </div>
@@ -1567,7 +1567,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               </div>
             </div>
             <div className="text-right">
-              <div className="font-bold detail-header-price" style={{ fontSize: "var(--text-3xl)", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
+              <div className="font-bold detail-header-price" style={{ fontSize: "clamp(1.25rem, 5vw, var(--text-3xl))", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
                 {s.liveCmp ? <>₹<CountUp value={s.liveCmp} decimals={2} /></> : "—"}
               </div>
               {s.liveChangePct != null && (
@@ -1599,7 +1599,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         </div>
 
         {/* ── Market Data + Technical Metrics ── */}
-        <div className="grid gap-4 mb-4" style={{ gridTemplateColumns: "1fr 1fr" }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           {/* Left: Ranges & Market Data */}
           <div className="metric-card animate-fade-in-up delay-2">
             <h3 className="font-bold uppercase tracking-wider mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Market Data</h3>
@@ -1909,7 +1909,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   //  MAIN DASHBOARD
   // ══════════════════════════════════════════════════════════
   return (
-    <div className="max-w-[1600px] mx-auto px-5 py-4 dash-wrapper">
+    <div className="max-w-[1600px] mx-auto px-3 md:px-5 py-3 md:py-4 dash-wrapper">
 
       {/* ── TAB NAVIGATION ── */}
       <div className="flex items-center gap-1 mb-4 rounded-xl px-2 tab-bar" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
@@ -1955,7 +1955,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {activeTab === "octopus" && (
         <div id="panel-octopus" role="tabpanel" aria-labelledby="tab-octopus" className="animate-fade-in">
           <div className="flex flex-wrap items-center gap-3 mb-3 filter-bar">
-            <input type="text" placeholder="Search company, sector, VP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 min-w-[250px] max-w-md" aria-label="Search stocks" />
+            <input type="text" placeholder="Search company, sector, VP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 md:min-w-[250px] max-w-md w-full" aria-label="Search stocks" />
             <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector"><option value="all">All Sectors</option>{filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}</select>
             <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst"><option value="all">All VAs</option>{filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}</select>
             <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}</option>)}</select>
@@ -2043,7 +2043,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                           )}
                         </div>
                       </td>
-                      <td className="font-semibold" style={{ whiteSpace: "normal", minWidth: 180, maxWidth: 220, color: "var(--color-text-primary)" }}>{s.companyShort}</td>
+                      <td className="font-semibold" style={{ whiteSpace: "normal", minWidth: 120, maxWidth: 220, color: "var(--color-text-primary)" }}>{s.companyShort}</td>
                       <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
                       <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
                         {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
@@ -2844,7 +2844,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
             <div style={{ position: "relative" }}>
               {(() => {
-                const W = 900, H = 500, PAD = { t: 20, r: 30, b: 50, l: 60 };
+                const W = typeof window !== "undefined" && window.innerWidth < 768 ? window.innerWidth - 32 : 900, H = W < 600 ? 300 : 500, PAD = { t: 20, r: 30, b: 50, l: 60 };
                 const allPts = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBearCalc != null && s.liveCmp);
                 const pts = allPts.filter(s => {
                   if (scatterSectorFilters.size > 0 && !scatterSectorFilters.has(s.sector || "Other")) return false;
@@ -3335,7 +3335,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           {unseenAlertCount > 0 && <span style={{ position: "absolute", top: -4, right: -4, background: "var(--color-negative)", color: "#fff", borderRadius: "50%", width: 20, height: 20, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{unseenAlertCount > 9 ? "9+" : unseenAlertCount}</span>}
         </button>
         {showZoneAlerts && (
-          <div style={{ position: "absolute", bottom: 56, right: 0, width: 360, maxHeight: 420, background: "var(--color-bg-card)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-elevated)", overflow: "hidden", animation: "fadeInUp 0.2s ease" }}>
+          <div style={{ position: "absolute", bottom: 56, right: 0, width: "min(360px, calc(100vw - 32px))", maxHeight: 420, background: "var(--color-bg-card)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-lg)", boxShadow: "var(--shadow-elevated)", overflow: "hidden", animation: "fadeInUp 0.2s ease" }}>
             <div className="flex items-center justify-between" style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border)" }}>
               <h4 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Zone Alerts</h4>
               <div className="flex items-center gap-2">
