@@ -18,7 +18,7 @@
     "@vercel/analytics": "^2.0.1",
     "autoprefixer": "10.4.24",
     "exceljs": "4.4.0",
-    "lightweight-charts": "4.2.3",
+    "lightweight-charts": "5.1.0",
     "next": "14.2.35",
     "next-auth": "5.0.0-beta.25",
     "postcss": "8.5.6",
