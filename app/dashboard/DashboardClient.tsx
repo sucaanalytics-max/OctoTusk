@@ -947,6 +947,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         }
         totalMatched += vfData.matched || 0;
         if (vfData.failures?.length) allFailures.push(...vfData.failures);
+        if (vfData.unmatchedVf?.length) console.warn("[sync] Unmatched vF:", vfData.unmatchedVf);
       }
 
       setDataLastRefreshed(new Date().toISOString());
@@ -2228,7 +2229,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           ) : (
             <div className="animate-fade-in">
-              <div className="grid grid-cols-4 gap-4 mb-4">
+              <div className="kpi-grid mb-4">
                 {(() => {
                   const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
                   const tv = enrichedHoldings.reduce((s, h) => s + h.liveValue, 0);
@@ -2414,7 +2415,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </div>
 
                   {/* Scenario P&L cards */}
-                  <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="pnl-scenario-grid mb-4">
                     {[
                       { label: "Bear Scenario", pnl: bearPnL, color: "var(--color-negative)", bg: "var(--color-negative-bg)" },
                       { label: "Base Scenario", pnl: basePnL, color: "var(--color-warning)", bg: "var(--color-warning-bg)" },
@@ -2568,7 +2569,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                     <h3 className="font-bold mb-4" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation by Holdings Value</h3>
                     <div className="flex items-start gap-8 flex-wrap">
                       {/* Donut chart */}
-                      <svg width={280} height={280} style={{ flexShrink: 0 }}>
+                      <svg viewBox="0 0 280 280" className="sector-donut-svg">
                         {slices.map((sl, i) => (
                           <path key={i} d={sl.d} fill={sl.color} stroke="var(--color-bg-card)" strokeWidth={2} opacity={0.9} />
                         ))}

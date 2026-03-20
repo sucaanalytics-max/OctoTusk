@@ -299,6 +299,36 @@ body {
 .kpi-card.kpi-accent::before { background: var(--color-accent-tusk); }
 .kpi-card.kpi-purple::before { background: #8B5CF6; }
 
+/* KPI value text: fluid font scaling — 13-14px on phones, up to 22px on desktop */
+.kpi-card p.font-bold {
+  font-size: clamp(0.8125rem, 2.5vw + 0.3rem, 1.375rem) !important;
+  overflow-wrap: break-word;
+}
+
+/* ── Fluid layout helpers (no breakpoints needed) ── */
+
+/* Fluid KPI grid: auto-fill with 160px min → 2-col on phones, 4-col on tablet, 8-col on desktop */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-4);
+}
+
+/* Bear/Base/Bull P&L scenario cards: always 3-col, fr units adapt to any width */
+.pnl-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+/* Fluid sector donut SVG: scales with container, max 280px, preserves aspect ratio */
+.sector-donut-svg {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  flex-shrink: 1;
+}
+
 /* ═══════════════════════════════════════════════
    TAB STYLES
    ═══════════════════════════════════════════════ */

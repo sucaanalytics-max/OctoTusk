@@ -248,8 +248,10 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
     );
     if (!summarySheet) return null;
     const ws = wb.Sheets[summarySheet];
-    const tikr = strVal(ws, "B2");
+    const tikr = strVal(ws, "B2")?.trim();
     if (!tikr) { console.warn(`[vF] No TIKR in ${file.name}`); return null; }
+    const _bear = numVal(ws, "B9"), _base = numVal(ws, "C9"), _bull = numVal(ws, "D9");
+    console.log(`[vF] Parsed ${file.name} → TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
     return {
       tikr,
       last_updated: (() => {
@@ -493,7 +495,23 @@ export async function POST(request: Request) {
       // Apply aliases
       for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
         const data = vfMap.get(vfTikr);
-        if (data && !vfMap.has(jvbTikr)) vfMap.set(jvbTikr, data);
+        if (data && !vfMap.has(jvbTikr)) { vfMap.set(jvbTikr, data); vfMap.delete(vfTikr); }
+      }
+
+
+      // Fuzzy match vF tikrs to baseline (case-insensitive)
+      const baselineTikrs = baselineStocks.map((s: Record<string, unknown>) => s.tikr as string);
+      for (const [vfTikr, fData] of Array.from(vfMap.entries())) {
+        for (const jt of baselineTikrs) {
+          if (vfMap.has(jt)) continue;
+          const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
+          if (vfL === jtL || vfL.includes(jtL) || jtL.includes(vfL)) {
+            console.log(`[sync] Fuzzy matched vF "${vfTikr}" -> baseline "${jt}"`);
+            vfMap.set(jt, fData);
+            if (jt !== vfTikr) vfMap.delete(vfTikr);
+            break;
+          }
+        }
       }
 
       // Merge into baseline
@@ -512,6 +530,17 @@ export async function POST(request: Request) {
         return m;
       });
 
+
+      // Log unmatched vF entries for debugging
+      const unmatchedVf: string[] = [];
+      for (const [vfTikr, vfD] of Array.from(vfMap.entries())) {
+        const wasMatched = merged.some((s: Record<string, unknown>) => s._vf_source === (vfD as Record<string, unknown>)._vf_source);
+        if (!wasMatched) {
+          unmatchedVf.push(`${vfTikr} (${(vfD as Record<string, unknown>)._vf_source})`);
+          console.warn(`[sync] vF TIKR="${vfTikr}" (from ${(vfD as Record<string, unknown>)._vf_source}) -- no baseline match`);
+        }
+      }
+
       reportSuccess("sync");
       return NextResponse.json({
         mode: "vf",
@@ -520,6 +549,7 @@ export async function POST(request: Request) {
         processed: filesToProcess.length,
         matched: matchCount,
         failures,
+        unmatchedVf,
         done: isDone,
         totalVfFiles: vfFileList.length,
         refreshedAt: new Date().toISOString(),
@@ -542,7 +572,8 @@ export async function POST(request: Request) {
     for (const [vfTikr, data] of Array.from(vfMap.entries())) {
       for (const jt of jvbTikrs) {
         if (vfMap.has(jt)) continue;
-        if (vfTikr.includes(jt) || jt.includes(vfTikr)) vfMap.set(jt, data);
+        const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
+        if (vfL.includes(jtL) || jtL.includes(vfL)) { vfMap.set(jt, data); if (jt !== vfTikr) vfMap.delete(vfTikr); break; }
       }
     }
 

@@ -267,8 +267,10 @@ async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
     const summarySheet = wb.SheetNames.find(s => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
     if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
     const ws = wb.Sheets[summarySheet];
-    const tikr = strVal(ws, "B2");
+    const tikr = strVal(ws, "B2")?.trim();
     if (!tikr) { return { ok: false, reason: "no_tikr", file: file.name, detail: "no TIKR in B2" }; }
+    const _bear = numVal(ws, "B9"), _base = numVal(ws, "C9"), _bull = numVal(ws, "D9");
+    console.log(`[vF] Parsed ${file.name} -> TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
     return { ok: true, data: {
       tikr,
       last_updated: (() => { const v = cellVal(ws, "A5"); if (v === null || v === undefined) return ""; if (typeof v === "number") return excelDateToISO(v); if (v instanceof Date) return v.toISOString().split("T")[0]; return String(v); })(),
@@ -441,7 +443,7 @@ async function main() {
   // Apply aliases
   for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
     const data = vfMap.get(vfTikr);
-    if (data && !vfMap.has(jvbTikr)) vfMap.set(jvbTikr, data);
+    if (data && !vfMap.has(jvbTikr)) { vfMap.set(jvbTikr, data); vfMap.delete(vfTikr); }
   }
 
   // Fuzzy match
@@ -451,13 +453,14 @@ async function main() {
       if (vfMap.has(jt)) continue;
       const shorter = Math.min(vfTikr.length, jt.length);
       const longer = Math.max(vfTikr.length, jt.length);
-      if ((vfTikr.includes(jt) || jt.includes(vfTikr)) && shorter / longer >= 0.8) vfMap.set(jt, data);
+      const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
+      if ((vfL.includes(jtL) || jtL.includes(vfL)) && shorter / longer >= 0.5) { vfMap.set(jt, data); if (jt !== vfTikr) vfMap.delete(vfTikr); break; }
     }
   }
 
   // Merge vF into baseline
   let vfMatchCount = 0;
-  const mergedStocks = baselineStocks.map(stock => {
+  let mergedStocks = baselineStocks.map(stock => {
     const tikr = stock.tikr as string;
     const vfData = vfMap.get(tikr);
     if (!vfData) return stock;
@@ -496,6 +499,17 @@ async function main() {
     }
   }
   if (preservedCount > 0) console.log(`[sync] Preserved ${preservedCount} static-db stocks (ETFs, etc.)`);
+
+  // Deduplicate by tikr (case-insensitive) - keep first occurrence (baseline+vF merged)
+  const beforeDedup = mergedStocks.length;
+  const seenTikrs = new Set<string>();
+  mergedStocks = mergedStocks.filter((s: Record<string, unknown>) => {
+    const key = (s.tikr as string)?.toLowerCase();
+    if (!key || seenTikrs.has(key)) return false;
+    seenTikrs.add(key);
+    return true;
+  });
+  if (mergedStocks.length < beforeDedup) console.log(`[sync] Deduped: removed ${beforeDedup - mergedStocks.length} duplicate stocks`);
 
   // 3. Read holdings
   console.log("[sync] Reading holdings...");
