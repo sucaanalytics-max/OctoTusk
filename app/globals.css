@@ -55,8 +55,7 @@
   --color-chart-6: #DB2777;
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  /* --font-sans and --font-mono are set by next/font via className on <html> */
   --text-xs: 0.6875rem;   /* 11px */
   --text-sm: 0.8125rem;   /* 13px */
   --text-base: 0.9375rem; /* 15px */
@@ -146,7 +145,7 @@
 * { box-sizing: border-box; }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
@@ -543,6 +542,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline-offset: 2px;
 }
 
+/* Prevent grid items from overflowing their track (min-width:auto default) */
+.grid-cols-2 > *,
+.grid-cols-3 > *,
+.grid-cols-4 > *,
+.grid-cols-5 > *,
+.grid-cols-6 > * {
+  min-width: 0;
+  overflow: hidden;
+}
+
 /* ═══════════════════════════════════════════════
    RESPONSIVE BREAKPOINTS
    ═══════════════════════════════════════════════ */
@@ -699,6 +708,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .grid-cols-6 { grid-template-columns: repeat(2, 1fr) !important; }
 
   .scenario-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .pnl-scenario-grid {
     grid-template-columns: 1fr !important;
   }
   .metrics-grid {

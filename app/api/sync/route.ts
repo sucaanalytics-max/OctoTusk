@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
-import * as XLSX from "xlsx";
+import type * as XLSXTypes from "xlsx";
 import staticDb from "@/data/database.json";
+
+// Lazy-load xlsx (~700KB) only when the route is actually invoked
+let _xlsx: typeof import("xlsx") | null = null;
+async function getXLSX() {
+  if (!_xlsx) _xlsx = await import("xlsx");
+  return _xlsx;
+}
 import { auth } from "@/auth";
 import { reportError, reportSuccess } from "@/lib/health";
 
@@ -218,19 +225,19 @@ function deduplicateVFFiles(files: VFFile[]): VFFile[] {
   return Array.from(stockMap.values());
 }
 
-function cellVal(ws: XLSX.WorkSheet, addr: string): unknown {
+function cellVal(ws: XLSXTypes.WorkSheet, addr: string): unknown {
   const cell = ws[addr];
   return cell ? (cell.v ?? null) : null;
 }
 
-function numVal(ws: XLSX.WorkSheet, addr: string): number | null {
+function numVal(ws: XLSXTypes.WorkSheet, addr: string): number | null {
   const v = cellVal(ws, addr);
   if (v === null || v === undefined || v === "" || v === 0) return null;
   const n = Number(v);
   return isNaN(n) ? null : n;
 }
 
-function strVal(ws: XLSX.WorkSheet, addr: string): string {
+function strVal(ws: XLSXTypes.WorkSheet, addr: string): string {
   const v = cellVal(ws, addr);
   if (v === null || v === undefined || v === 0 || v === "0") return "";
   return String(v).trim();
@@ -242,6 +249,7 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
     if (!res.ok) { console.warn(`[vF] Failed to download ${file.name}: ${res.status}`); return null; }
     const buffer = await res.arrayBuffer();
+    const XLSX = await getXLSX();
     const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
     const summarySheet = wb.SheetNames.find(
       (s) => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary"
@@ -352,6 +360,7 @@ async function readHoldings(token: string): Promise<HoldingRecord[] | null> {
     }
 
     const buffer = await dlRes.arrayBuffer();
+    const XLSX = await getXLSX();
     const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rawRows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, {

@@ -6,9 +6,15 @@ import db from "@/data/database.json";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export default async function DashboardPage() {
+  // Start both auth + Supabase fetch in parallel (independent I/O)
+  const authPromise = auth();
+  const snapshotPromise = isSupabaseConfigured()
+    ? getSupabase().from("sync_snapshot").select("stocks, ticker_map, synced_at").eq("id", 1).single()
+    : Promise.resolve(null);
+
   let session = null;
   try {
-    session = await auth();
+    session = await authPromise;
   } catch {
     redirect("/");
   }
@@ -19,7 +25,7 @@ export default async function DashboardPage() {
 
   const userEmail = String(session.user.email || "");
 
-  // ── Load latest synced snapshot from Supabase (server-side, no client flash) ──
+  // ── Load latest synced snapshot from Supabase (already in-flight) ──
   // Falls back to database.json if Supabase not configured or no snapshot exists.
   type DbStocks = typeof db.stocks;
   type DbTickerMap = typeof db.ticker_map;
@@ -28,28 +34,21 @@ export default async function DashboardPage() {
   let tickerMap: DbTickerMap = db.ticker_map;
   let snapshotSyncedAt: string | null = null;
 
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from("sync_snapshot")
-        .select("stocks, ticker_map, synced_at")
-        .eq("id", 1)
-        .single();
-
-      if (!error && data) {
-        if (Array.isArray(data.stocks) && (data.stocks as unknown[]).length > 0) {
-          stocks = data.stocks as DbStocks;
-        }
-        if (data.ticker_map && typeof data.ticker_map === "object") {
-          tickerMap = data.ticker_map as DbTickerMap;
-        }
-        snapshotSyncedAt = data.synced_at as string ?? null;
+  try {
+    const result = await snapshotPromise;
+    if (result && !("error" in result && result.error) && result.data) {
+      const data = result.data;
+      if (Array.isArray(data.stocks) && (data.stocks as unknown[]).length > 0) {
+        stocks = data.stocks as DbStocks;
       }
-    } catch (err) {
-      // Supabase unavailable — fall back silently to database.json
-      console.warn("[page] Snapshot load failed, using static db:", err instanceof Error ? err.message : err);
+      if (data.ticker_map && typeof data.ticker_map === "object") {
+        tickerMap = data.ticker_map as DbTickerMap;
+      }
+      snapshotSyncedAt = data.synced_at as string ?? null;
     }
+  } catch (err) {
+    // Supabase unavailable — fall back silently to database.json
+    console.warn("[page] Snapshot load failed, using static db:", err instanceof Error ? err.message : err);
   }
 
   return (

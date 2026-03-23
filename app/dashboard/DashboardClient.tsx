@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from "react";
-import { createChart, ColorType, CrosshairMode, type IChartApi, type ISeriesApi } from "lightweight-charts";
+import { useState, useEffect, useMemo, useCallback, useRef, useId, Fragment } from "react";
+import dynamic from "next/dynamic";
+
+const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
 
 // ── Types ──
 interface Stock {
@@ -171,6 +173,30 @@ interface Props {
 }
 
 const CMP_REFRESH_INTERVAL = 60;
+
+// ── Countdown Timer (isolates 1Hz re-renders from parent) ──
+const CountdownTimer = ({ active, onTick }: { active: boolean; onTick: () => void }) => {
+  const [countdown, setCountdown] = useState(CMP_REFRESH_INTERVAL);
+  const [mktOpen, setMktOpen] = useState(isMarketOpen());
+  const onTickRef = useRef(onTick);
+  onTickRef.current = onTick;
+
+  useEffect(() => {
+    if (!active) return;
+    const t = setInterval(() => {
+      setMktOpen(isMarketOpen());
+      setCountdown(p => {
+        if (p <= 1) { if (isMarketOpen()) onTickRef.current(); return CMP_REFRESH_INTERVAL; }
+        return p - 1;
+      });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [active]);
+
+  if (!active) return null;
+  if (!mktOpen) return <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Mkt closed</span>;
+  return <span className="font-mono font-bold min-w-[28px] text-center" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>{countdown}s</span>;
+};
 
 // ── Utilities ──
 const isMarketOpen = (): boolean => {
@@ -393,10 +419,11 @@ const ConvictionDots = ({ level }: { level: number }) => (
 );
 
 // ── Loading Skeleton ──
+const SKELETON_WIDTHS = [75, 60, 85, 70, 80, 65, 90, 55];
 const SkeletonRow = () => (
   <tr>
-    {Array.from({ length: 8 }).map((_, i) => (
-      <td key={i}><div className="skeleton skeleton-text" style={{ width: `${60 + Math.random() * 40}%` }} /></td>
+    {SKELETON_WIDTHS.map((w, i) => (
+      <td key={i}><div className="skeleton skeleton-text" style={{ width: `${w}%` }} /></td>
     ))}
   </tr>
 );
@@ -410,6 +437,7 @@ const KpiSkeleton = () => (
 
 // ── Sparkline Component ──
 const Sparkline = ({ data, width = 320, height = 80 }: { data: ChartPoint[]; width?: number; height?: number }) => {
+  const gradientId = useId();
   if (!data.length) return null;
   const closes = data.map(d => d.close).filter((c): c is number => c != null);
   if (closes.length < 2) return null;
@@ -428,179 +456,19 @@ const Sparkline = ({ data, width = 320, height = 80 }: { data: ChartPoint[]; wid
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} style={{ display: "block" }}>
       <defs>
-        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={stroke} stopOpacity="0.15" />
           <stop offset="100%" stopColor={stroke} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={fillPts} fill="url(#sparkFill)" />
+      <polygon points={fillPts} fill={`url(#${gradientId})`} />
       <polyline points={pts.join(" ")} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={width} cy={Number(pts[pts.length - 1].split(",")[1])} r="3" fill={stroke} />
     </svg>
   );
 };
 
-// ── TradingView-Style Technical Chart ──
-const TechnicalChart = ({ data, height = 280, onRangeChange, activeRange, loading }: {
-  data: ChartPoint[];
-  height?: number;
-  onRangeChange: (range: string) => void;
-  activeRange: string;
-  loading?: boolean;
-}) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const candleRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const volumeRef = useRef<ISeriesApi<"Histogram"> | null>(null);
-  const maRef = useRef<ISeriesApi<"Line"> | null>(null);
-
-  const ranges = [
-    { key: "1mo", label: "1M" },
-    { key: "3mo", label: "3M" },
-    { key: "6mo", label: "6M" },
-    { key: "1y", label: "1Y" },
-    { key: "3y", label: "3Y" },
-    { key: "5y", label: "5Y" },
-  ];
-
-  // Calculate 20-period moving average
-  const calcMA = (points: ChartPoint[], period: number) => {
-    const result: { time: string; value: number }[] = [];
-    const closes = points.map(p => p.close).filter((c): c is number => c != null);
-    for (let i = period - 1; i < points.length; i++) {
-      const slice = closes.slice(i - period + 1, i + 1);
-      if (slice.length === period) {
-        result.push({ time: points[i].date, value: slice.reduce((a, b) => a + b, 0) / period });
-      }
-    }
-    return result;
-  };
-
-  useEffect(() => {
-    if (!containerRef.current || !data.length) return;
-
-    // Detect theme
-    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    const bg = isDark ? "#0F1117" : "#FFFFFF";
-    const textColor = isDark ? "#9CA3AF" : "#6B7280";
-    const gridColor = isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)";
-    const borderColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
-
-    // Create or reuse chart
-    if (chartRef.current) {
-      chartRef.current.remove();
-    }
-
-    const chart = createChart(containerRef.current, {
-      width: containerRef.current.clientWidth,
-      height,
-      layout: { background: { type: ColorType.Solid, color: bg }, textColor, fontFamily: "'JetBrains Mono', 'SF Mono', monospace", fontSize: 11 },
-      grid: { vertLines: { color: gridColor }, horzLines: { color: gridColor } },
-      crosshair: { mode: CrosshairMode.Normal },
-      rightPriceScale: { borderColor, autoScale: true },
-      timeScale: { borderColor, timeVisible: false, rightOffset: 2 },
-    });
-    chartRef.current = chart;
-
-    // Candlestick series
-    const candles = chart.addCandlestickSeries({
-      upColor: "#059669",
-      downColor: "#DC2626",
-      borderDownColor: "#DC2626",
-      borderUpColor: "#059669",
-      wickDownColor: "#DC2626",
-      wickUpColor: "#059669",
-    });
-    candleRef.current = candles;
-
-    const candleData = data.filter(d => d.open != null && d.high != null && d.low != null && d.close != null).map(d => ({
-      time: d.date as string,
-      open: d.open!,
-      high: d.high!,
-      low: d.low!,
-      close: d.close!,
-    }));
-    candles.setData(candleData as any);
-
-    // Volume histogram
-    const volume = chart.addHistogramSeries({
-      priceFormat: { type: "volume" },
-      priceScaleId: "volume",
-    });
-    chart.priceScale("volume").applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
-    });
-    volumeRef.current = volume;
-
-    const volData = data.filter(d => d.volume != null && d.close != null && d.open != null).map(d => ({
-      time: d.date as string,
-      value: d.volume!,
-      color: (d.close! >= d.open!) ? "rgba(5,150,105,0.25)" : "rgba(220,38,38,0.25)",
-    }));
-    volume.setData(volData as any);
-
-    // Moving average line (20-period)
-    const maData = calcMA(data, 20);
-    if (maData.length > 0) {
-      const maSeries = chart.addLineSeries({
-        color: "#2563EB",
-        lineWidth: 1,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-      });
-      maSeries.setData(maData as any);
-      maRef.current = maSeries;
-    }
-
-    chart.timeScale().fitContent();
-
-    // Responsive
-    const ro = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect?.width;
-      if (w && chart) chart.applyOptions({ width: w });
-    });
-    ro.observe(containerRef.current);
-
-    return () => {
-      ro.disconnect();
-      chart.remove();
-      chartRef.current = null;
-    };
-  }, [data, height]);
-
-  return (
-    <div>
-      {/* Range selector */}
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="font-bold uppercase tracking-wider" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Price Chart</h3>
-        <div className="flex gap-1">
-          {ranges.map(r => (
-            <button key={r.key} onClick={() => onRangeChange(r.key)}
-              className="px-3 py-1 rounded-md font-semibold transition-all"
-              style={{
-                fontSize: "var(--text-xs)",
-                fontFamily: "var(--font-mono)",
-                background: activeRange === r.key ? "var(--color-accent-blue)" : "transparent",
-                color: activeRange === r.key ? "#fff" : "var(--color-text-muted)",
-                border: activeRange === r.key ? "none" : "1px solid var(--color-border-subtle)",
-              }}
-            >{r.label}</button>
-          ))}
-        </div>
-      </div>
-      {/* Chart container */}
-      <div style={{ position: "relative", borderRadius: "var(--radius-md)", overflow: "hidden", border: "1px solid var(--color-border-subtle)" }}>
-        {loading && (
-          <div className="flex items-center justify-center" style={{ position: "absolute", inset: 0, zIndex: 10, background: "rgba(0,0,0,0.03)" }}>
-            <div className="skeleton" style={{ width: "80%", height: height - 40 }} />
-          </div>
-        )}
-        <div ref={containerRef} style={{ width: "100%", height }} />
-      </div>
-    </div>
-  );
-};
+// TechnicalChart dynamically imported above (lightweight-charts ~200KB code-split)
 
 // ── Range Bar (52W or Day range) ──
 const RangeBar = ({ low, high, current, label }: { low: number; high: number; current: number; label: string }) => {
@@ -649,6 +517,65 @@ const AnalystBar = ({ strongBuy, buy, hold, sell, strongSell }: { strongBuy: num
   );
 };
 
+// ── Sortable table header (module-scope to avoid remount) ──
+const Th = ({ col, label, sortCol, sortDir, onSort }: { col: string; label: string; sortCol: string; sortDir: "asc" | "desc"; onSort: (col: string) => void }) => (
+  <th className={sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""} onClick={() => onSort(col)} role="columnheader" aria-sort={sortCol === col ? (sortDir === "asc" ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={e => e.key === "Enter" && onSort(col)}>{label}</th>
+);
+
+// ── Sector Allocation Bar (module-scope, manages its own expand state) ──
+const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: number; base_current?: number; upsideBaseCalc?: number; conviction?: number; sector?: string; subsector?: string; }>({ sectors, groupBy, sourceStocks, onSelectStock }: {
+  sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }>;
+  groupBy: "sector" | "subsector";
+  sourceStocks: T[];
+  onSelectStock: (stock: T) => void;
+}) => {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const sorted = Object.entries(sectors).sort((a, b) => b[1].count - a[1].count);
+  const max = sorted.length > 0 ? sorted[0][1].count : 1;
+  return (
+    <div className="space-y-1">
+      {sorted.map(([sec, d]) => {
+        const isOpen = expanded[sec];
+        const sectorStocks = sourceStocks.filter(s => {
+          const val = groupBy === "subsector" ? (s.subsector && s.subsector !== "0" ? s.subsector : s.sector) || "Other" : s.sector || "Other";
+          return val === sec;
+        }).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
+        return (
+          <div key={sec}>
+            <div className="flex items-center gap-3 cursor-pointer py-1 rounded-md transition-all" style={{ background: isOpen ? "var(--color-bg-hover)" : "transparent", paddingLeft: 4, paddingRight: 4 }} onClick={() => setExpanded(prev => ({ ...prev, [sec]: !prev[sec] }))}>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", width: 14, textAlign: "center" }}>{isOpen ? "▾" : "▸"}</span>
+              <span className="min-w-[120px] text-right truncate sector-label" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{sec}</span>
+              <div className="flex-1 relative" style={{ height: 22, background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>
+                <div className="sector-bar" style={{ width: `${(d.count / max) * 100}%` }}>
+                  {d.count}
+                </div>
+              </div>
+              <span className="font-mono min-w-[55px] text-right" style={{ fontSize: "var(--text-xs)", color: d.avgUpsideBase >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
+                {d.avgUpsideBase >= 0 ? "+" : ""}{d.avgUpsideBase.toFixed(1)}%
+              </span>
+            </div>
+            {isOpen && (
+              <div className="ml-8 mb-2 mt-1 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border-subtle)" }}>
+                <table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Base</th><th>↑ Base</th><th>Conv.</th></tr></thead>
+                  <tbody>{sectorStocks.map(st => (
+                    <tr key={st.tikr} className="cursor-pointer" onClick={() => onSelectStock(st)} tabIndex={0} onKeyDown={e => e.key === "Enter" && onSelectStock(st)}>
+                      <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{st.companyShort}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.liveCmp ? `₹${fmt(st.liveCmp, 0)}` : "—"}</td>
+                      <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.base_current ? `₹${fmt(st.base_current, 0)}` : "—"}</td>
+                      <td className={pctColor(st.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.upsideBaseCalc != null ? fmtPct(st.upsideBaseCalc) : "—"}</td>
+                      <td className="text-center" style={{ fontSize: "var(--text-xs)", color: "#A78BFA" }}>{st.conviction ?? "—"}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 // ═══════════════════════════════ MAIN ═══════════════════════════════
 export default function DashboardClient({ stocks, tickerMap, metadata }: Props) {
   const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
@@ -662,9 +589,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [filterSector, setFilterSector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>("all");
-  const [countdown, setCountdown] = useState(CMP_REFRESH_INTERVAL);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [marketOpen, setMarketOpen] = useState(isMarketOpen());
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
   const [dataRefreshing, setDataRefreshing] = useState(false);
   const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(null);
@@ -869,14 +794,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
 
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const t = setInterval(() => {
-      setMarketOpen(isMarketOpen());
-      setCountdown(p => { if (p <= 1) { if (isMarketOpen()) fetchQuotes(); return CMP_REFRESH_INTERVAL; } return p - 1; });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [autoRefresh, fetchQuotes]);
+  // Countdown + auto-fetch delegated to <CountdownTimer /> to avoid 1Hz parent re-renders
 
   const [syncStatus, setSyncStatus] = useState("");
   const refreshData = useCallback(async () => {
@@ -974,8 +892,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     finally { setDataRefreshing(false); }
   }, []);
 
+  const enrichmentCacheRef = useRef(enrichmentCache);
+  enrichmentCacheRef.current = enrichmentCache;
+  const enrichmentLoadingRef = useRef(enrichmentLoading);
+  enrichmentLoadingRef.current = enrichmentLoading;
+
   const fetchEnrichment = useCallback(async (tikr: string) => {
-    if (enrichmentCache[tikr] || enrichmentLoading[tikr]) return;
+    if (enrichmentCacheRef.current[tikr] || enrichmentLoadingRef.current[tikr]) return;
     setEnrichmentLoading(prev => ({ ...prev, [tikr]: true }));
     try {
       const res = await fetch(`/api/enrichment/${encodeURIComponent(tikr)}`);
@@ -983,7 +906,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (!data.error) setEnrichmentCache(prev => ({ ...prev, [tikr]: data }));
     } catch { /* silent */ }
     finally { setEnrichmentLoading(prev => ({ ...prev, [tikr]: false })); }
-  }, [enrichmentCache, enrichmentLoading]);
+  }, []);
 
   // Tier 3B: Batch enrichment — fetch all tickers in batches of 30
   const [batchEnrichmentLoaded, setBatchEnrichmentLoaded] = useState(false);
@@ -1452,10 +1375,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     return map;
   }, [enrichedStocks]);
 
-  // Sortable table header
-  const Th = ({ col, label }: { col: string; label: string }) => (
-    <th className={sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""} onClick={() => handleSort(col)} role="columnheader" aria-sort={sortCol === col ? (sortDir === "asc" ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={e => e.key === "Enter" && handleSort(col)}>{label}</th>
-  );
+  // Th moved to module scope to avoid remount on every render
 
   const activeFilters = [filterSector, filterVP, filterConviction].filter(f => f !== "all").length;
 
@@ -1467,55 +1387,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     fontWeight: (active ? 600 : 400) as number,
   });
 
-  // ── SECTOR ALLOCATION BAR (visual, with expandable dropdown) ──
-  const [expandedSectors, setExpandedSectors] = useState<Record<string, boolean>>({});
-  const SectorBar = ({ sectors, groupBy }: { sectors: Record<string, { count: number; avgUpsideBase: number; avgUpsideBear: number }>; groupBy: "sector" | "subsector" }) => {
-    const sorted = Object.entries(sectors).sort((a, b) => b[1].count - a[1].count);
-    const max = sorted.length > 0 ? sorted[0][1].count : 1;
-    const sourceForSector = dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks;
-    return (
-      <div className="space-y-1">
-        {sorted.map(([sec, d]) => {
-          const isOpen = expandedSectors[sec];
-          const sectorStocks = sourceForSector.filter(s => {
-            const val = groupBy === "subsector" ? (s.subsector && s.subsector !== "0" ? s.subsector : s.sector) || "Other" : s.sector || "Other";
-            return val === sec;
-          }).sort((a, b) => (b.upsideBaseCalc || 0) - (a.upsideBaseCalc || 0));
-          return (
-            <div key={sec}>
-              <div className="flex items-center gap-3 cursor-pointer py-1 rounded-md transition-all" style={{ background: isOpen ? "var(--color-bg-hover)" : "transparent", paddingLeft: 4, paddingRight: 4 }} onClick={() => setExpandedSectors(prev => ({ ...prev, [sec]: !prev[sec] }))}>
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", width: 14, textAlign: "center" }}>{isOpen ? "▾" : "▸"}</span>
-                <span className="min-w-[120px] text-right truncate sector-label" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{sec}</span>
-                <div className="flex-1 relative" style={{ height: 22, background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>
-                  <div className="sector-bar" style={{ width: `${(d.count / max) * 100}%` }}>
-                    {d.count}
-                  </div>
-                </div>
-                <span className="font-mono min-w-[55px] text-right" style={{ fontSize: "var(--text-xs)", color: d.avgUpsideBase >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
-                  {d.avgUpsideBase >= 0 ? "+" : ""}{d.avgUpsideBase.toFixed(1)}%
-                </span>
-              </div>
-              {isOpen && (
-                <div className="ml-8 mb-2 mt-1 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border-subtle)" }}>
-                  <table className="data-table w-full"><thead><tr><th>Company</th><th>CMP</th><th>Base</th><th>↑ Base</th><th>Conv.</th></tr></thead>
-                    <tbody>{sectorStocks.map(st => (
-                      <tr key={st.tikr} className="cursor-pointer" onClick={() => setDetailStock(st)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(st)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{st.companyShort}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.liveCmp ? `₹${fmt(st.liveCmp, 0)}` : "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.base_current ? `₹${fmt(st.base_current, 0)}` : "—"}</td>
-                        <td className={pctColor(st.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.upsideBaseCalc != null ? fmtPct(st.upsideBaseCalc) : "—"}</td>
-                        <td className="text-center" style={{ fontSize: "var(--text-xs)", color: "#A78BFA" }}>{st.conviction ?? "—"}</td>
-                      </tr>
-                    ))}</tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // SectorBar moved to module scope to avoid remount on every render
 
   // ══════════════════════════════════════════════════════════
   //  STOCK DETAIL PANEL
@@ -1590,7 +1462,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
         {/* ── Technical Chart (Full Width) ── */}
         <div className="metric-card animate-fade-in-up delay-1 mb-4">
-          <TechnicalChart
+          <TechnicalChartDynamic
             data={chartData || []}
             height={280}
             onRangeChange={setChartRange}
@@ -1859,7 +1731,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   ))}
                 </div>
               ) : (
-                <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 16, width: `${70 + Math.random() * 30}%` }} />)}</div>
+                <div className="space-y-2">{SKELETON_WIDTHS.map((w, i) => <div key={i} className="skeleton" style={{ height: 16, width: `${w}%` }} />)}</div>
               )}
             </div>
 
@@ -1895,7 +1767,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton" style={{ height: 16, width: `${70 + Math.random() * 30}%` }} />)}</div>
+                <div className="space-y-2">{SKELETON_WIDTHS.map((w, i) => <div key={i} className="skeleton" style={{ height: 16, width: `${w}%` }} />)}</div>
               )}
             </div>
           </div>
@@ -1933,8 +1805,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           </button>
           <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
           {lastFetched && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}{failedTikrs.length > 0 && <span style={{ color: "var(--color-warning)", marginLeft: 6 }} title={`Stale CMP: ${failedTikrs.join(", ")}`}>({failedTikrs.length} stale)</span>}</span>}
-          {autoRefresh && marketOpen && <span className="font-mono font-bold min-w-[28px] text-center" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>{countdown}s</span>}
-          {autoRefresh && !marketOpen && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Mkt closed</span>}
+          <CountdownTimer active={autoRefresh} onTick={fetchQuotes} />
           <button onClick={fetchQuotes} disabled={quotesLoading} className="btn btn-ghost btn-sm" aria-label="Refresh market prices">
             {quotesLoading ? "Fetching..." : "Refresh CMP"}
           </button>
@@ -2003,12 +1874,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <table className="data-table w-full" role="table" aria-label="Stock data table">
               <thead><tr>
                 <th style={{ width: 40, cursor: "default" }}></th>
-                <Th col="companyShort" label="Company" /><Th col="sector" label="Sector" /><Th col="liveCmp" label="CMP" />
-                <Th col="bear_current" label="Bear" /><Th col="base_current" label="Base" /><Th col="bull_current" label="Bull" />
-                <Th col="upsideBearCalc" label="↑ Bear" /><Th col="upsideBaseCalc" label="↑ Base" /><Th col="upsideBullCalc" label="↑ Bull" />
-                <Th col="upside1YCalc" label="1Y Upside" /><Th col="upside2YCalc" label="2Y Upside" />
-                <Th col="base_pe" label="PE" /><Th col="base_pb" label="PB" /><Th col="base_evebitda" label="EV/EBITDA" />
-                <Th col="conviction" label="Conv." /><Th col="vp" label="VA" /><Th col="sa" label="SA" />
+                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="companyShort" label="Company" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sector" label="Sector" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="liveCmp" label="CMP" />
+                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bear_current" label="Bear" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_current" label="Base" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bull_current" label="Bull" />
+                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBearCalc" label="↑ Bear" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBaseCalc" label="↑ Base" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBullCalc" label="↑ Bull" />
+                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside1YCalc" label="1Y Upside" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside2YCalc" label="2Y Upside" />
+                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pe" label="PE" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pb" label="PB" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_evebitda" label="EV/EBITDA" />
+                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="conviction" label="Conv." /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="vp" label="VA" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sa" label="SA" />
               </tr></thead>
               <tbody>
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
@@ -2410,7 +2281,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                     <div className="p-3 rounded-lg" style={{ background: aboveBase.length > 0 ? "rgba(217,119,6,0.1)" : "var(--color-bg-hover)", border: aboveBase.length > 0 ? "1px solid rgba(217,119,6,0.3)" : "none" }}>
                       <div className="uppercase tracking-wider" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>Above Base Case</div>
                       <div className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: aboveBase.length > 0 ? "#D97706" : "var(--color-positive)" }}>{aboveBase.length}<span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-text-muted)" }}>/{enrichedStocks.filter(s => s.base_current).length}</span></div>
-                      <div style={{ fontSize: 9, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={aboveBase.map(s => s.displayTikr || s.tikr).join(", ")}>{aboveBase.length > 0 ? aboveBase.map(s => s.displayTikr || s.tikr).join(", ") : "None"}</div>
+                      <div style={{ fontSize: 9, color: "var(--color-text-muted)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }} title={aboveBase.map(s => s.displayTikr || s.tikr).join(", ")}>{aboveBase.length > 0 ? aboveBase.map(s => s.displayTikr || s.tikr).join(", ") : "None"}</div>
                     </div>
                   </div>
 
@@ -2437,6 +2308,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                       <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>Top 5 Holdings</span>
                       <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
                     </div>
+                    <div className="overflow-auto table-scroll-container">
                     <table className="data-table w-full"><thead><tr><th>#</th><th>Stock</th><th>Sector</th><th>Weight</th><th>CDS</th><th>Bear</th><th>Base</th><th>Bull</th><th>Beta</th></tr></thead>
                       <tbody>{top5.map((s, i) => {
                         const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
@@ -2454,6 +2326,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                           </tr>
                         );
                       })}</tbody></table>
+                    </div>
                   </div>
 
                   {/* Sector breakdown bar */}
@@ -2491,7 +2364,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
                   <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>VA (Analyst) Coverage & Holdings</h3>
-                  <div className="overflow-auto max-h-[400px]"><table className="data-table w-full"><thead><tr><th>VA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
+                  <div className="overflow-auto max-h-[400px] table-scroll-container"><table className="data-table w-full"><thead><tr><th>VA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
                     <tbody>{Object.entries(decisionData.vpStats).sort((a, b) => b[1].holdingsValue - a[1].holdingsValue).map(([vp, d]) => (
                       <Fragment key={vp}>
                       <tr className="cursor-pointer" style={{ background: expandedVP === vp ? "var(--color-bg-hover)" : undefined }} onClick={() => setExpandedVP(p => p === vp ? null : vp)}>
@@ -2511,7 +2384,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 </div>
                 <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #14B8A6" }}>
                   <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>SA (Analyst) Coverage & Holdings</h3>
-                  <div className="overflow-auto max-h-[400px]"><table className="data-table w-full"><thead><tr><th>SA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
+                  <div className="overflow-auto max-h-[400px] table-scroll-container"><table className="data-table w-full"><thead><tr><th>SA</th><th>Stocks</th><th>Holdings</th><th>Count</th><th>Avg Upside</th></tr></thead>
                     <tbody>{Object.entries(decisionData.saStats).sort((a, b) => b[1].holdingsValue - a[1].holdingsValue).map(([sa, d]) => (
                       <Fragment key={sa}>
                       <tr className="cursor-pointer" style={{ background: expandedSA === sa ? "var(--color-bg-hover)" : undefined }} onClick={() => setExpandedSA(p => p === sa ? null : sa)}>
@@ -2822,7 +2695,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 ))}
               </div>
             </div>
-            <SectorBar sectors={sectorDisplayData} groupBy={sectorGroupBy} />
+            <SectorBar sectors={sectorDisplayData} groupBy={sectorGroupBy} sourceStocks={dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks} onSelectStock={setDetailStock} />
           </div>
 
           {/* Risk/Reward Scatter Chart */}
