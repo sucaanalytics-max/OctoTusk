@@ -605,7 +605,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   // Decision Support: configurable thresholds
   const [buyZoneLow, setBuyZoneLow] = useState(-10);
-  const [buyZoneHigh, setBuyZoneHigh] = useState(5);
+  const [buyZoneHigh, setBuyZoneHigh] = useState(200);
   const [sellZoneLow, setSellZoneLow] = useState(-5);
   const [sellZoneHigh, setSellZoneHigh] = useState(10);
   const [baseZoneLow, setBaseZoneLow] = useState(-10);
@@ -2602,7 +2602,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </div>
                   <div className="flex items-center gap-3">
                     <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {buyZoneHigh}%</label>
-                    <input type="range" min={0} max={20} value={buyZoneHigh} onChange={e => setBuyZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-positive)" }} />
+                    <input type="range" min={0} max={200} value={buyZoneHigh} onChange={e => setBuyZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-positive)" }} />
                   </div>
                 </div>
                 <div>
@@ -2613,7 +2613,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </div>
                   <div className="flex items-center gap-3">
                     <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {sellZoneHigh}%</label>
-                    <input type="range" min={0} max={30} value={sellZoneHigh} onChange={e => setSellZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-negative)" }} />
+                    <input type="range" min={0} max={200} value={sellZoneHigh} onChange={e => setSellZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "var(--color-negative)" }} />
                   </div>
                 </div>
                 <div>
@@ -2624,7 +2624,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   </div>
                   <div className="flex items-center gap-3">
                     <label style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", minWidth: 60 }}>High: {baseZoneHigh}%</label>
-                    <input type="range" min={0} max={30} value={baseZoneHigh} onChange={e => setBaseZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "#3B82F6" }} />
+                    <input type="range" min={0} max={200} value={baseZoneHigh} onChange={e => setBaseZoneHigh(Number(e.target.value))} className="flex-1" style={{ accentColor: "#3B82F6" }} />
                   </div>
                 </div>
               </div>
