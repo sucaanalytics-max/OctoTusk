@@ -230,6 +230,15 @@ const fmtLakhs = (n: number | undefined | null): string => {
   return `₹${n.toFixed(1)}L`;
 };
 
+const fmtRupee = (n: number | undefined | null): string => {
+  if (n == null || isNaN(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 10000000) return `${(n / 10000000).toFixed(1)} Cr`;
+  if (abs >= 100000) return `${(n / 100000).toFixed(1)}L`;
+  if (abs >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return `₹${n.toFixed(0)}`;
+};
+
 const pctColor = (n: number | undefined | null): string => {
   if (n == null) return "";
   const v = n * 100;
@@ -1144,7 +1153,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       const liveValue = livePrice * h.quantity;
       const liveGain = liveValue - h.amt_invested;
       const liveGainPct = h.amt_invested > 0 ? (liveGain / h.amt_invested) * 100 : 0;
-      return { ...h, tikr, stockData, livePrice, liveChange, liveChangePct, liveValue, liveGain, liveGainPct,
+      const dayPnl = liveChange * h.quantity;
+      const dayPnlPct = h.amt_invested > 0 ? (dayPnl / h.amt_invested) * 100 : 0;
+      return { ...h, tikr, stockData, livePrice, liveChange, liveChangePct, liveValue, liveGain, liveGainPct, dayPnl, dayPnlPct,
         upsideToBear: stockData?.bear_current && livePrice ? ((stockData.bear_current - livePrice) / livePrice) * 100 : null,
         upsideToBase: stockData?.base_current && livePrice ? ((stockData.base_current - livePrice) / livePrice) * 100 : null,
         upsideToBull: stockData?.bull_current && livePrice ? ((stockData.bull_current - livePrice) / livePrice) * 100 : null,
@@ -2129,7 +2140,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   const tg = tv - ti; const tp = ti > 0 ? (tg / ti) * 100 : 0;
                   const bv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
                   const buv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
-                  const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.liveChange * h.quantity, 0);
+                  const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.dayPnl, 0);
                   const dayPnlPct = tv > 0 ? (dayPnlTotal / tv) * 100 : 0;
                   const v1y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
                   const v2y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
@@ -2137,7 +2148,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                     <div className="kpi-card animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Total Invested</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(ti)}</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Current Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(tv)}</p></div>
                     <div className={`kpi-card ${tg >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-3`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Unrealized P&L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: tg >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{tg >= 0 ? "+" : ""}{fmtCr(tg)} ({tp.toFixed(1)}%)</p></div>
-                    <div className={`kpi-card ${dayPnlTotal >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-4`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Day P&L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: dayPnlTotal >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{dayPnlTotal >= 0 ? "+" : ""}{fmtCr(dayPnlTotal)} ({dayPnlPct >= 0 ? "+" : ""}{dayPnlPct.toFixed(1)}%)</p></div>
+                    <div className={`kpi-card ${dayPnlTotal >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-4`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Day P&L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: dayPnlTotal >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{dayPnlTotal >= 0 ? "+" : ""}{fmtRupee(dayPnlTotal)} ({dayPnlPct >= 0 ? "+" : ""}{dayPnlPct.toFixed(1)}%)</p></div>
                     <div className="kpi-card kpi-negative animate-fade-in-up delay-5"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bear Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{fmtCr(bv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Drawdown: {tv ? ((bv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-6"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bull Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{fmtCr(buv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: +{tv ? ((buv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                     <div className={`kpi-card ${v1y >= tv ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-7`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>1Y Target Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: v1y >= tv ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(v1y)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: {tv ? (v1y >= tv ? "+" : "") + ((v1y - tv) / tv * 100).toFixed(1) : 0}%</p></div>
@@ -2153,7 +2164,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                   avgCost: h => h.avg_price,
                   cmp: h => h.livePrice,
                   dayPct: h => h.liveChangePct,
-                  dayPnl: h => h.liveChange * h.quantity,
+                  dayPnl: h => h.dayPnl,
                   invested: h => h.amt_invested,
                   value: h => h.liveValue,
                   pnl: h => h.liveGain,
@@ -2191,10 +2202,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>₹{fmt(h.livePrice, 1)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveChangePct / 100) }}>{h.liveChangePct >= 0 ? "+" : ""}{h.liveChangePct.toFixed(1)}%</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveChangePct / 100) }}>{h.liveChange >= 0 ? "+" : ""}{fmtCr(h.liveChange * h.quantity)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.dayPnlPct / 100) }}>{h.dayPnl >= 0 ? "+" : ""}{fmtRupee(h.dayPnl)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmtCr(h.amt_invested)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(h.liveValue)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveGainPct / 100) }}>{h.liveGain >= 0 ? "+" : ""}{fmtCr(h.liveGain)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveGainPct / 100) }}>{h.liveGain >= 0 ? "+" : ""}{fmtRupee(h.liveGain)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.liveGainPct / 100) }}>{h.liveGainPct >= 0 ? "+" : ""}{h.liveGainPct.toFixed(1)}%</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
