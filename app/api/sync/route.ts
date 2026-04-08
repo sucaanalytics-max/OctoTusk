@@ -79,6 +79,55 @@ const VF_OVERRIDE_FIELDS: string[] = [
   "sector", "subsector", "last_updated", "comments",
 ];
 
+// ── Static-db enrichment helpers ──
+const isEmpty = (v: unknown) => v === null || v === undefined || v === "";
+
+function enrichFromStaticDb(stocks: Record<string, unknown>[]): { filledCount: number; addedCount: number } {
+  const staticStocks: Record<string, unknown>[] = (staticDb as any).stocks || [];
+  const staticMap = new Map<string, Record<string, unknown>>();
+  for (const ss of staticStocks) {
+    if (ss.tikr && typeof ss.tikr === "string") staticMap.set(ss.tikr as string, ss);
+  }
+
+  // Fill missing fields on existing stocks
+  let filledCount = 0;
+  for (const stock of stocks) {
+    const staticVersion = staticMap.get(stock.tikr as string);
+    if (!staticVersion) continue;
+    let filled = false;
+    for (const [key, staticVal] of Object.entries(staticVersion)) {
+      if (key === "tikr" || key === "_vf_source") continue;
+      if (isEmpty(stock[key]) && !isEmpty(staticVal)) {
+        stock[key] = staticVal;
+        filled = true;
+      }
+    }
+    if (filled) filledCount++;
+  }
+
+  // Add completely absent stocks
+  const existingTikrs = new Set(stocks.map((s) => s.tikr as string));
+  let addedCount = 0;
+  for (const ss of staticStocks) {
+    if (ss.tikr && !existingTikrs.has(ss.tikr as string)) {
+      stocks.push(ss);
+      addedCount++;
+    }
+  }
+
+  return { filledCount, addedCount };
+}
+
+function deduplicateStocks(stocks: Record<string, unknown>[]): Record<string, unknown>[] {
+  const seen = new Set<string>();
+  return stocks.filter((s) => {
+    const key = (s.tikr as string)?.toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function excelDateToISO(serial: number | string): string {
   if (typeof serial === "string") {
     if (/\d{4}-\d{2}-\d{2}/.test(serial)) return serial;
@@ -470,6 +519,11 @@ export async function POST(request: Request) {
       const dedupedFiles = deduplicateVFFiles(allFiles);
       console.log(`[sync] Found ${allFiles.length} files, deduplicated to ${dedupedFiles.length}`);
 
+      // Fill missing fields from static-db (e.g., ETF valuations not in JVB baseline)
+      const { filledCount: bFilled, addedCount: bAdded } = enrichFromStaticDb(baselineStocks);
+      if (bFilled > 0) console.log(`[sync] Baseline: filled static-db fields for ${bFilled} stocks`);
+      if (bAdded > 0) console.log(`[sync] Baseline: added ${bAdded} static-db stocks`);
+
       // Read live holdings in parallel with baseline (non-blocking)
       const liveHoldingsBaseline = await readHoldings(token);
       const holdingsBaseline = liveHoldingsBaseline ?? staticDb.holdings;
@@ -477,7 +531,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         mode: "baseline",
-        stocks: baselineStocks,
+        stocks: deduplicateStocks(baselineStocks),
         holdings: holdingsBaseline,
         ticker_map: staticDb.ticker_map,
         holdings_source: liveHoldingsBaseline ? "live_onedrive" : "static_fallback",
@@ -527,7 +581,7 @@ export async function POST(request: Request) {
 
       // Merge into baseline
       let matchCount = 0;
-      const merged = baselineStocks.map((stock) => {
+      const merged: Record<string, unknown>[] = baselineStocks.map((stock) => {
         const tikr = stock.tikr as string;
         const vfData = vfMap.get(tikr);
         if (!vfData) return stock;
@@ -541,6 +595,24 @@ export async function POST(request: Request) {
         return m;
       });
 
+      // Add standalone vF stocks (not in baseline)
+      const matchedTikrs = new Set(merged.map((s) => s.tikr as string));
+      let standaloneCount = 0;
+      for (const [tikr, vfData] of Array.from(vfMap.entries())) {
+        if (!matchedTikrs.has(tikr)) {
+          const name = ((vfData._vf_source as string) || "")
+            .replace(/^\d{6,8}[_ ]?/, "")
+            .replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
+          merged.push({ tikr, official_name: name, ...vfData });
+          standaloneCount++;
+          console.log(`[sync] Added standalone vF stock: ${tikr}`);
+        }
+      }
+
+      // Fill missing fields from static-db + add absent static-db stocks
+      const { filledCount: vfFilled, addedCount: vfAdded } = enrichFromStaticDb(merged);
+      if (vfFilled > 0) console.log(`[sync] vF batch: filled static-db fields for ${vfFilled} stocks`);
+      if (vfAdded > 0) console.log(`[sync] vF batch: added ${vfAdded} static-db stocks`);
 
       // Log unmatched vF entries for debugging
       const unmatchedVf: string[] = [];
@@ -555,7 +627,7 @@ export async function POST(request: Request) {
       reportSuccess("sync");
       return NextResponse.json({
         mode: "vf",
-        stocks: merged,
+        stocks: deduplicateStocks(merged),
         offset,
         processed: filesToProcess.length,
         matched: matchCount,
@@ -589,7 +661,7 @@ export async function POST(request: Request) {
     }
 
     let vfMatchCount = 0;
-    const mergedStocks = baselineStocks.map((stock) => {
+    const mergedStocks: Record<string, unknown>[] = baselineStocks.map((stock) => {
       const tikr = stock.tikr as string;
       const vfData = vfMap.get(tikr);
       if (!vfData) return stock;
@@ -603,7 +675,26 @@ export async function POST(request: Request) {
       return merged;
     });
 
-    if (mergedStocks.length === 0) {
+    // Add standalone vF stocks (not in JVB baseline)
+    const fullMatchedTikrs = new Set(mergedStocks.map((s) => s.tikr as string));
+    for (const [tikr, vfData] of Array.from(vfMap.entries())) {
+      if (!fullMatchedTikrs.has(tikr)) {
+        const name = ((vfData._vf_source as string) || "")
+          .replace(/^\d{6,8}[_ ]?/, "")
+          .replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
+        mergedStocks.push({ tikr, official_name: name, ...vfData });
+        console.log(`[sync] Full: added standalone vF stock: ${tikr}`);
+      }
+    }
+
+    // Fill missing fields from static-db + add absent static-db stocks
+    const { filledCount: fullFilled, addedCount: fullAdded } = enrichFromStaticDb(mergedStocks);
+    if (fullFilled > 0) console.log(`[sync] Full: filled static-db fields for ${fullFilled} stocks`);
+    if (fullAdded > 0) console.log(`[sync] Full: added ${fullAdded} static-db stocks`);
+
+    const finalStocks = deduplicateStocks(mergedStocks);
+
+    if (finalStocks.length === 0) {
       return NextResponse.json({ error: "No valid stocks found" }, { status: 422 });
     }
 
@@ -617,13 +708,13 @@ export async function POST(request: Request) {
     reportSuccess("sync");
     return NextResponse.json({
       mode: "full",
-      stocks: mergedStocks,
+      stocks: finalStocks,
       holdings,
       ticker_map: staticDb.ticker_map,
       metadata: {
         source: "JVB Output + vF overrides",
         extracted_at: new Date().toISOString(),
-        total_stocks: mergedStocks.length,
+        total_stocks: finalStocks.length,
         vf_files_found: allFiles.length,
         vf_files_parsed: vfMap.size,
         vf_stocks_matched: vfMatchCount,

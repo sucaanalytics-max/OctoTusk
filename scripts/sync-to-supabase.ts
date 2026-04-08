@@ -488,12 +488,36 @@ async function main() {
   }
   if (standaloneCount > 0) console.log(`[sync] Added ${standaloneCount} standalone vF stocks`);
 
-  // Preserve static-db stocks not covered by JVB or vF (e.g., ETFs)
+  // Preserve static-db: fill missing fields on existing stocks + add absent stocks
+  const isEmpty = (v: unknown) => v === null || v === undefined || v === "";
+  const staticStocks: Record<string, unknown>[] = (staticDb as any).stocks || [];
+  const staticMap = new Map<string, Record<string, unknown>>();
+  for (const ss of staticStocks) {
+    if (ss.tikr && typeof ss.tikr === "string") staticMap.set(ss.tikr as string, ss);
+  }
+
+  // Fill missing/null fields from static-db for stocks already in merged
+  let filledCount = 0;
+  for (const stock of mergedStocks) {
+    const staticVersion = staticMap.get(stock.tikr as string);
+    if (!staticVersion) continue;
+    let filled = false;
+    for (const [key, staticVal] of Object.entries(staticVersion)) {
+      if (key === "tikr" || key === "_vf_source") continue;
+      if (isEmpty(stock[key]) && !isEmpty(staticVal)) {
+        stock[key] = staticVal;
+        filled = true;
+      }
+    }
+    if (filled) filledCount++;
+  }
+  if (filledCount > 0) console.log(`[sync] Filled missing fields from static-db for ${filledCount} stocks`);
+
+  // Add static-db stocks not present at all (e.g., ETFs not yet in JVB/vF)
   const allMergedTikrs = new Set(mergedStocks.map(s => s.tikr as string));
-  const staticStocks = (staticDb as any).stocks || [];
   let preservedCount = 0;
   for (const ss of staticStocks) {
-    if (ss.tikr && !allMergedTikrs.has(ss.tikr)) {
+    if (ss.tikr && !allMergedTikrs.has(ss.tikr as string)) {
       mergedStocks.push(ss);
       preservedCount++;
     }
