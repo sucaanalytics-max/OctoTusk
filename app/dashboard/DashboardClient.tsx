@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, useId, Fragment } from "react";
 import dynamic from "next/dynamic";
+import PortfolioManager from "./PortfolioManager";
+import type { Holding as PMHolding } from "./PortfolioManager";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
 
@@ -607,6 +609,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
+  // Multi-portfolio state
+  const [activePortfolioId, setActivePortfolioId] = useState<string>("tusk");
+  const [uploadedHoldings, setUploadedHoldings] = useState<Holding[]>([]);
+  const [unlockedPortfolios, setUnlockedPortfolios] = useState<Set<string>>(new Set());
   const [compareSearch, setCompareSearch] = useState("");
   const [selectedCompare, setSelectedCompare] = useState<string[]>([]);
   const [compareSectorFilter, setCompareSectorFilter] = useState<string>("all");
@@ -799,6 +805,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const handleTabSwitch = (tab: typeof activeTab) => {
     if (activeTab === "holdings" && tab !== "holdings") {
       setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError("");
+      setActivePortfolioId("tusk"); setUploadedHoldings([]); setUnlockedPortfolios(new Set());
     }
     setDetailStock(null);
     setActiveTab(tab);
@@ -1126,26 +1133,47 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     finally { setHoldingsLoading(false); }
   };
 
+  // Tusk-specific name→tikr mapping (hardcoded for exact asset_name matches from Tusk holdings file)
+  const nameToTikr: Record<string, string> = useMemo(() => ({
+    "Kilburn Engineering": "XBOM:522101", "Vedanta Limited": "VEDL", "Nexus Select Trust": "NXST",
+    "Multi Commodity Exchange of India": "MCX", "Tips Music": "TIPSMUSIC", "Apeejay Surrendra Park Hotels": "PARKHOTELS",
+    "Aditya Birla Sun Life AMC": "ABSLAMC", "Bajaj Finserv": "BAJAJFINSV", "SPML Infra": "SPMLINFRA",
+    "JM Financial": "JMFINANCIL", "IIFL Capital Services": "IIFLCAPS", "Godawari Power & Ispat": "GPIL",
+    "Manappuram Finance": "MANAPPURAM", "Canara Robeco Asset Management Company": "CRAMC",
+    "Suraksha Diagnostic": "SURAKSHA", "Annapurna Swadisht": "ANNAPURNA",
+    "Smartworks Coworking Spaces": "Smartworks", "ICICI Prudential Asset Management Company": "ICICIAMC",
+    "E2E Networks": "E2E", "Wework India Management": "Wework", "Duroply Industries": "XBOM:516003",
+    "State Bank Of India": "SBIN", "GPT Infraprojects": "GPTINFRA",
+    "Virtuoso Optoelectronics": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
+    "BSE Ltd": "BSE", "GPT Healthcare": "GPTHEALTH", "Motilal Oswal Financial": "MOTILALOFS",
+    "KFin Technologies": "KFINTECH", "360 One Wam": "360ONE",
+    "Nippon India ETF Nifty PSU Bank BeES": "PSUBNKBEES",
+    "National Stock Exchange of India": "National Stock Exchange (NSE)",
+  }), []);
+
+  // Comprehensive asset name → tikr lookup (includes nameToTikr + enrichedStocks fields for uploaded portfolios)
+  const assetNameLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    // Hardcoded Tusk mappings
+    for (const [name, tikr] of Object.entries(nameToTikr)) map.set(name.toLowerCase(), tikr);
+    // Enrich with stock universe data
+    for (const s of enrichedStocks) {
+      map.set(s.tikr.toLowerCase(), s.tikr);
+      if (s.official_name) map.set(s.official_name.toLowerCase(), s.tikr);
+      if (s.companyShort) map.set(s.companyShort.toLowerCase(), s.tikr);
+    }
+    return map;
+  }, [nameToTikr, enrichedStocks]);
+
+  // Active holdings source: Tusk (API data) or uploaded (localStorage)
+  const activeHoldingsRaw = activePortfolioId === "tusk" ? holdingsData : uploadedHoldings;
+
   const enrichedHoldings = useMemo(() => {
-    if (!holdingsData.length) return [];
-    const nameToTikr: Record<string, string> = {
-      "Kilburn Engineering": "XBOM:522101", "Vedanta Limited": "VEDL", "Nexus Select Trust": "NXST",
-      "Multi Commodity Exchange of India": "MCX", "Tips Music": "TIPSMUSIC", "Apeejay Surrendra Park Hotels": "PARKHOTELS",
-      "Aditya Birla Sun Life AMC": "ABSLAMC", "Bajaj Finserv": "BAJAJFINSV", "SPML Infra": "SPMLINFRA",
-      "JM Financial": "JMFINANCIL", "IIFL Capital Services": "IIFLCAPS", "Godawari Power & Ispat": "GPIL",
-      "Manappuram Finance": "MANAPPURAM", "Canara Robeco Asset Management Company": "CRAMC",
-      "Suraksha Diagnostic": "SURAKSHA", "Annapurna Swadisht": "ANNAPURNA",
-      "Smartworks Coworking Spaces": "Smartworks", "ICICI Prudential Asset Management Company": "ICICIAMC",
-      "E2E Networks": "E2E", "Wework India Management": "Wework", "Duroply Industries": "XBOM:516003",
-      "State Bank Of India": "SBIN", "GPT Infraprojects": "GPTINFRA",
-      "Virtuoso Optoelectronics": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
-      "BSE Ltd": "BSE", "GPT Healthcare": "GPTHEALTH", "Motilal Oswal Financial": "MOTILALOFS",
-      "KFin Technologies": "KFINTECH", "360 One Wam": "360ONE",
-      "Nippon India ETF Nifty PSU Bank BeES": "PSUBNKBEES",
-      "National Stock Exchange of India": "National Stock Exchange (NSE)",
-    };
-    return holdingsData.map(h => {
-      const tikr = nameToTikr[h.asset_name];
+    if (!activeHoldingsRaw.length) return [];
+    const isTusk = activePortfolioId === "tusk";
+    return activeHoldingsRaw.map(h => {
+      // Tusk uses exact nameToTikr; uploaded uses broad assetNameLookup
+      const tikr = isTusk ? nameToTikr[h.asset_name] : (assetNameLookup.get(h.asset_name.toLowerCase()) || undefined);
       const stockData = tikr ? enrichedStocks.find(s => s.tikr === tikr) : null;
       const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : h.current_price;
       const liveChange = tikr && quotes[tikr] ? quotes[tikr].change || 0 : 0;
@@ -1161,7 +1189,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         upsideToBull: stockData?.bull_current && livePrice ? ((stockData.bull_current - livePrice) / livePrice) * 100 : null,
       };
     });
-  }, [holdingsData, quotes, enrichedStocks]);
+  }, [activeHoldingsRaw, activePortfolioId, nameToTikr, assetNameLookup, quotes, enrichedStocks]);
 
   // Comparison
   const comparedStocks = useMemo(() => selectedCompare.map(t => enrichedStocks.find(s => s.tikr === t)).filter(Boolean) as EnrichedStock[], [selectedCompare, enrichedStocks]);
@@ -2118,7 +2146,19 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       {/* ═══════════════════ TAB 2: HOLDINGS ═══════════════════ */}
       {activeTab === "holdings" && (
         <div id="panel-holdings" role="tabpanel" aria-labelledby="tab-holdings" className="animate-fade-in">
-          {!holdingsUnlocked ? (
+          {/* Portfolio Switcher — always visible */}
+          <PortfolioManager
+            activePortfolioId={activePortfolioId}
+            onPortfolioSelect={setActivePortfolioId}
+            onHoldingsChange={setUploadedHoldings}
+            tuskUnlocked={holdingsUnlocked}
+            enrichedStocks={enrichedStocks}
+            onUploadedPinVerified={(id) => setUnlockedPortfolios(prev => new Set(prev).add(id))}
+            unlockedPortfolios={unlockedPortfolios}
+          />
+
+          {/* Tusk PIN gate (only when Tusk is selected and not yet unlocked) */}
+          {activePortfolioId === "tusk" && !holdingsUnlocked ? (
             <div className="flex items-center justify-center" style={{ minHeight: "60vh" }}>
               <div className="metric-card text-center max-w-sm w-full animate-fade-in-up">
                 <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: "var(--color-bg-hover)" }}>
@@ -2131,8 +2171,18 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <button onClick={unlockHoldings} disabled={holdingsLoading || !holdingsPin} className="btn btn-primary w-full" style={{ padding: "var(--space-3)" }}>{holdingsLoading ? "Verifying..." : "Unlock"}</button>
               </div>
             </div>
-          ) : (
+          ) : enrichedHoldings.length > 0 ? (
             <div className="animate-fade-in">
+              {/* Match indicator for uploaded portfolios */}
+              {activePortfolioId !== "tusk" && (() => {
+                const matched = enrichedHoldings.filter(h => h.tikr).length;
+                const total = enrichedHoldings.length;
+                return matched < total ? (
+                  <div style={{ padding: "var(--space-2) var(--space-3)", background: "var(--color-bg-hover)", borderRadius: 8, marginBottom: "var(--space-3)", fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>
+                    {matched} of {total} holdings matched for live pricing & scenario analysis
+                  </div>
+                ) : null;
+              })()}
               <div className="kpi-grid mb-4">
                 {(() => {
                   const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
@@ -2193,10 +2243,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 return (
               <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: 1360 }}>
                 <table className="data-table w-full" role="table" aria-label="Holdings data">
-                  <thead><tr>{hTh("Stock","name")}{hTh("Qty","qty")}{hTh("Avg Cost","avgCost")}{hTh("CMP","cmp")}{hTh("Day %","dayPct")}{hTh("Day P&L","dayPnl")}{hTh("Invested","invested")}{hTh("Value","value")}{hTh("P&L","pnl")}{hTh("P&L %","pnlPct")}{hTh("Bear","bear")}{hTh("Base","base")}{hTh("Bull","bull")}{hTh("↑ Bear","uBear")}{hTh("↑ Base","uBase")}{hTh("↑ Bull","uBull")}</tr></thead>
+                  <thead><tr>{activePortfolioId !== "tusk" && <th style={{ width: 60 }}>Actions</th>}{hTh("Stock","name")}{hTh("Qty","qty")}{hTh("Avg Cost","avgCost")}{hTh("CMP","cmp")}{hTh("Day %","dayPct")}{hTh("Day P&L","dayPnl")}{hTh("Invested","invested")}{hTh("Value","value")}{hTh("P&L","pnl")}{hTh("P&L %","pnlPct")}{hTh("Bear","bear")}{hTh("Base","base")}{hTh("Bull","bull")}{hTh("↑ Bear","uBear")}{hTh("↑ Base","uBase")}{hTh("↑ Bull","uBull")}</tr></thead>
                   <tbody>
-                    {sortedHoldings.map((h, i) => (
+                    {sortedHoldings.map((h, i) => {
+                      const origIdx = enrichedHoldings.indexOf(h);
+                      return (
                       <tr key={i}>
+                        {activePortfolioId !== "tusk" && (
+                          <td style={{ whiteSpace: "nowrap" }}>
+                            <button onClick={() => { if (!confirm(`Delete "${h.asset_name}"?`)) return; const updated = uploadedHoldings.filter((_, idx) => idx !== origIdx); setUploadedHoldings(updated); try { const raw = localStorage.getItem("octotusk_portfolios"); const ps = raw ? JSON.parse(raw) : []; const p = ps.find((p: { id: string }) => p.id === activePortfolioId); if (p) { p.holdings = updated; p.updatedAt = new Date().toISOString(); localStorage.setItem("octotusk_portfolios", JSON.stringify(ps)); } } catch { /* ignore */ } }} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-negative)", fontSize: "var(--text-sm)", padding: "2px 4px" }}>✕</button>
+                          </td>
+                        )}
                         <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
@@ -2214,7 +2271,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                         <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", fontWeight: 600, ...pctBgStyle(h.upsideToBase != null ? h.upsideToBase / 100 : null) }}>{h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.upsideToBull != null ? h.upsideToBull / 100 : null) }}>{h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "—"}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2222,7 +2280,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               })()} {/* end holdings sort IIFE */}
 
 
-          {/* ── Tier 2A: Portfolio Risk Dashboard ── */}
+          {/* ── Tier 2A: Portfolio Risk Dashboard (Tusk only — depends on holding_pct from stock data) ── */}
+          {activePortfolioId === "tusk" && (<>
+          {/* ── Portfolio Risk Dashboard ── */}
           <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #EC4899" }}>
             <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Portfolio Risk Dashboard</h3>
             {(() => {
@@ -2436,6 +2496,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                     ))}</tbody></table></div>
                 </div>
               </div>
+          </>)}
 
               {/* ── Sector Pie Chart by Holdings % ── */}
               {(() => {
@@ -2499,7 +2560,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
               })()}
 
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
