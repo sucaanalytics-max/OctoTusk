@@ -41,7 +41,15 @@ export default async function DashboardPage() {
     if (result && !("error" in result && result.error) && result.data) {
       const data = result.data;
       if (Array.isArray(data.stocks) && (data.stocks as unknown[]).length > 0) {
-        stocks = data.stocks as DbStocks;
+        // Deduplicate by tikr (case-insensitive, keep first) — defensive against buggy syncs
+        const seen = new Set<string>();
+        stocks = (data.stocks as DbStocks).filter((s) => {
+          const key = (s as Record<string, unknown>).tikr as string | undefined;
+          const k = key?.toLowerCase();
+          if (!k || seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
       }
       if (data.ticker_map && typeof data.ticker_map === "object") {
         tickerMap = data.ticker_map as DbTickerMap;

@@ -575,7 +575,9 @@ export async function POST(request: Request) {
         for (const jt of baselineTikrs) {
           if (vfMap.has(jt)) continue;
           const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
-          if (vfL === jtL || vfL.includes(jtL) || jtL.includes(vfL)) {
+          const shorter = Math.min(vfTikr.length, jt.length);
+          const longer = Math.max(vfTikr.length, jt.length);
+          if (vfL === jtL || ((vfL.includes(jtL) || jtL.includes(vfL)) && shorter / longer >= 0.5)) {
             console.log(`[sync] Fuzzy matched vF "${vfTikr}" -> baseline "${jt}"`);
             vfMap.set(jt, fData);
             if (jt !== vfTikr) vfMap.delete(vfTikr);
@@ -654,14 +656,16 @@ export async function POST(request: Request) {
 
     for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
       const data = vfMap.get(vfTikr);
-      if (data && !vfMap.has(jvbTikr)) vfMap.set(jvbTikr, data);
+      if (data && !vfMap.has(jvbTikr)) { vfMap.set(jvbTikr, data); vfMap.delete(vfTikr); }
     }
     const jvbTikrs = baselineStocks.map((s) => s.tikr as string);
     for (const [vfTikr, data] of Array.from(vfMap.entries())) {
       for (const jt of jvbTikrs) {
         if (vfMap.has(jt)) continue;
+        const shorter = Math.min(vfTikr.length, jt.length);
+        const longer = Math.max(vfTikr.length, jt.length);
         const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
-        if (vfL.includes(jtL) || jtL.includes(vfL)) { vfMap.set(jt, data); if (jt !== vfTikr) vfMap.delete(vfTikr); break; }
+        if ((vfL.includes(jtL) || jtL.includes(vfL)) && shorter / longer >= 0.5) { vfMap.set(jt, data); if (jt !== vfTikr) vfMap.delete(vfTikr); break; }
       }
     }
 
