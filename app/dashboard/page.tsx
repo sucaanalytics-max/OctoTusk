@@ -5,6 +5,8 @@ import DashboardClient from "./DashboardClient";
 import db from "@/data/database.json";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   // Start both auth + Supabase fetch in parallel (independent I/O)
   const authPromise = auth();
