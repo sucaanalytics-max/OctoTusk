@@ -598,6 +598,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [filterSector, setFilterSector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>("all");
+  const [filterHoldingsOnly, setFilterHoldingsOnly] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
   const [dataRefreshing, setDataRefreshing] = useState(false);
@@ -1083,6 +1084,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     else { setSortCol(col); setSortDir("asc"); }
   };
 
+  const holdingTikrs = useMemo(() => {
+    const set = new Set<string>();
+    enrichedStocks.forEach(s => {
+      if (s.holding_cash_lakhs && s.holding_cash_lakhs > 0) set.add(s.tikr);
+    });
+    return set;
+  }, [enrichedStocks]);
+
   const sortedStocks = useMemo(() => {
     const filtered = enrichedStocks.filter(s => {
       // Hidden stocks filter
@@ -1102,6 +1111,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (filterSector !== "all" && s.sector !== filterSector) return false;
       if (filterVP !== "all" && s.vp !== filterVP) return false;
       if (filterConviction !== "all" && String(s.conviction) !== filterConviction) return false;
+      if (filterHoldingsOnly && !holdingTikrs.has(s.tikr)) return false;
       return true;
     });
     return [...filtered].sort((a, b) => {
@@ -1112,7 +1122,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, hiddenStocks, showHidden, activeWatchlist, watchlists]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterHoldingsOnly, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
   // Holdings — session + PIN gated
   const unlockHoldings = async () => {
@@ -1179,13 +1189,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   }, [enrichedStocks, selectedCompare, compareSectorFilter, compareSearch]);
 
   // Decision data (uses configurable thresholds)
-  const holdingTikrs = useMemo(() => {
-    const set = new Set<string>();
-    enrichedStocks.forEach(s => {
-      if (s.holding_cash_lakhs && s.holding_cash_lakhs > 0) set.add(s.tikr);
-    });
-    return set;
-  }, [enrichedStocks]);
 
   const decisionData = useMemo(() => {
     const bLow = buyZoneLow / 100, bHigh = buyZoneHigh / 100;
@@ -1410,7 +1413,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   // Th moved to module scope to avoid remount on every render
 
-  const activeFilters = [filterSector, filterVP, filterConviction].filter(f => f !== "all").length;
+  const activeFilters = [filterSector, filterVP, filterConviction].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0);
 
 
   // ── Pill toggle style helper ──
@@ -1864,7 +1867,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector"><option value="all">All Sectors</option>{filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}</select>
             <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst"><option value="all">All VAs</option>{filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}</select>
             <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}</option>)}</select>
-            {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
+            <button onClick={() => setFilterHoldingsOnly(v => !v)} className={`btn btn-sm ${filterHoldingsOnly ? "btn-active" : "btn-ghost"}`} style={filterHoldingsOnly ? { background: "var(--color-accent-blue)", color: "#fff", border: "1px solid var(--color-accent-blue)" } : { color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }} aria-label="Filter by holdings only" title="Show only stocks you hold">Holdings</button>
+            {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterHoldingsOnly(false); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
             <span className="ml-auto filter-stats" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
           </div>
 
