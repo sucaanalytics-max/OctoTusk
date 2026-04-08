@@ -82,8 +82,15 @@ if (process.env.NODE_ENV === "development") {
   ALLOWED_ORIGINS.push("http://localhost:3000");
 }
 
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow Vercel preview deployments for this project
+  if (/^https:\/\/octo-tusk[a-z0-9-]*\.vercel\.app$/.test(origin)) return true;
+  return false;
+}
+
 function applyCors(response: NextResponse, origin: string | null): NextResponse {
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
