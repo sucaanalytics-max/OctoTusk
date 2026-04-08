@@ -40,8 +40,20 @@ export async function GET() {
       });
     }
 
+    // Deduplicate stocks by tikr (case-insensitive, keep first) — defensive against buggy syncs
+    let stocks = data.stocks;
+    if (Array.isArray(stocks)) {
+      const seen = new Set<string>();
+      stocks = stocks.filter((s: Record<string, unknown>) => {
+        const k = (s.tikr as string)?.toLowerCase();
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    }
+
     return NextResponse.json({
-      stocks: data.stocks,
+      stocks,
       holdings: data.holdings,
       ticker_map: data.ticker_map,
       source: "supabase",

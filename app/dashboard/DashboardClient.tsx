@@ -585,6 +585,20 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
   );
 };
 
+// ── Permanently removed stocks (excluded from all tabs) ──
+const REMOVED_STOCKS = [
+  "aptus", "monarch network", "recltd", "rec ltd", "repco",
+  "dam capital", "deepak fert", "disa india", "elecon",
+  "emkay", "kpit", "mallcom", "patels airtemp", "rpsg",
+  "somany", "sunteck", "arihant",
+];
+
+function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
+  const t = s.tikr.toLowerCase();
+  const o = (s.official_name || "").toLowerCase();
+  return REMOVED_STOCKS.some(term => t.includes(term) || o.includes(term));
+}
+
 // ═══════════════════════════════ MAIN ═══════════════════════════════
 export default function DashboardClient({ stocks, tickerMap, metadata }: Props) {
   const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
@@ -1037,7 +1051,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   }, [liveStocks]);
 
   const enrichedStocks: EnrichedStock[] = useMemo(() => {
-    return liveStocks.map(s => {
+    return liveStocks.filter(s => !isRemovedStock(s)).map(s => {
       const q = s.tikr ? quotes[s.tikr] : undefined;
       const liveCmp = simCmpOverrides[s.tikr] || q?.price || s.cmp;
       let uB: number | undefined, uBa: number | undefined, uBu: number | undefined;
