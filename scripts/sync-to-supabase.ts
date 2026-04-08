@@ -304,10 +304,17 @@ async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
       const result = await parseVFFile(token, file);
       if (result.ok) {
         const { data } = result;
-        if (data.tikr && typeof data.tikr === "string") results.set(data.tikr as string, data);
+        if (data.tikr && typeof data.tikr === "string") {
+          const tikr = data.tikr as string;
+          if (results.has(tikr)) {
+            console.warn(`[vF] DUPLICATE TIKR "${tikr}": "${file.name}" overwrites "${(results.get(tikr)?._vf_source as string) || "unknown"}" — check cell B2 in both files`);
+          }
+          results.set(tikr, data);
+        }
       } else {
         const failure = result as ParseFailure;
         if (failure.reason === "no_sheet") {
+          console.warn(`[vF] SKIP ${failure.file}: ${failure.detail}`);
           skipped.push(failure.file);
         } else {
           console.warn(`[vF] FAIL ${failure.file}: ${failure.reason} — ${failure.detail}`);
@@ -438,6 +445,7 @@ async function main() {
   const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 3);
   console.log(`[sync] Parsed ${vfMap.size} vF files, skipped ${vfSkipped.length} (no sheet), ${vfFailed.length} errors`);
   console.log(`[sync] vF tikrs: ${Array.from(vfMap.keys()).join(", ")}`);
+  if (vfSkipped.length > 0) console.warn(`[sync] Skipped files (no Tusk - Summary sheet): ${vfSkipped.join(", ")}`);
   if (vfFailed.length > 0) console.warn(`[sync] Failed files: ${vfFailed.join(", ")}`);
 
   // Apply aliases

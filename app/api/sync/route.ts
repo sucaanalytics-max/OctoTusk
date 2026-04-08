@@ -305,7 +305,7 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
     const summarySheet = wb.SheetNames.find(
       (s) => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary"
     );
-    if (!summarySheet) return null;
+    if (!summarySheet) { console.warn(`[vF] SKIP ${file.name}: no "Tusk - Summary" sheet`); return null; }
     const ws = wb.Sheets[summarySheet];
     const tikr = strVal(ws, "B2")?.trim();
     if (!tikr) { console.warn(`[vF] No TIKR in ${file.name}`); return null; }
@@ -349,8 +349,13 @@ async function processVFFiles(
     while (queue.length > 0) {
       const file = queue.shift()!;
       const data = await parseVFFile(token, file);
-      if (data && data.tikr && typeof data.tikr === "string") results.set(data.tikr as string, data);
-      else if (data === null) failures.push(file.name);
+      if (data && data.tikr && typeof data.tikr === "string") {
+        const tikr = data.tikr as string;
+        if (results.has(tikr)) {
+          console.warn(`[vF] DUPLICATE TIKR "${tikr}": "${file.name}" overwrites "${(results.get(tikr)?._vf_source as string) || "unknown"}" — check cell B2 in both files`);
+        }
+        results.set(tikr, data);
+      } else if (data === null) failures.push(file.name);
     }
   }
   const workers = Array.from({ length: Math.min(concurrency, files.length) }, () => worker());
