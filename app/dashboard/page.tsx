@@ -7,23 +7,25 @@ import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export default async function DashboardPage() {
   // Start both auth + Supabase fetch in parallel (independent I/O)
-  const authPromise = auth();
+  const authPromise = process.env.AUTH_DISABLED === "true" ? Promise.resolve(null) : auth();
   const snapshotPromise = isSupabaseConfigured()
     ? getSupabase().from("sync_snapshot").select("stocks, ticker_map, synced_at").eq("id", 1).single()
     : Promise.resolve(null);
 
+  const authDisabled = process.env.AUTH_DISABLED === "true";
   let session = null;
-  try {
-    session = await authPromise;
-  } catch {
-    redirect("/");
+  if (!authDisabled) {
+    try {
+      session = await authPromise;
+    } catch {
+      redirect("/");
+    }
+    if (!session?.user) {
+      redirect("/");
+    }
   }
 
-  if (!session?.user) {
-    redirect("/");
-  }
-
-  const userEmail = String(session.user.email || "");
+  const userEmail = authDisabled ? "preview" : String(session?.user?.email || "");
 
   // ── Load latest synced snapshot from Supabase (already in-flight) ──
   // Falls back to database.json if Supabase not configured or no snapshot exists.

@@ -2,6 +2,11 @@ import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
+  // Auth disabled (preview deployment) — go straight to dashboard
+  if (process.env.AUTH_DISABLED === "true") {
+    redirect("/dashboard");
+  }
+
   let session = null;
   try {
     session = await auth();

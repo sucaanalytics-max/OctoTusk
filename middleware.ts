@@ -100,8 +100,35 @@ function applyCors(response: NextResponse, origin: string | null): NextResponse 
   return response;
 }
 
+// ── Auth-disabled middleware (no session check) ──
+function noAuthMiddleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  const origin = req.headers.get("origin");
+
+  if (pathname.startsWith("/api/auth") || pathname === "/api/health") return NextResponse.next();
+  if (req.method === "OPTIONS" && pathname.startsWith("/api/")) {
+    return applyCors(new NextResponse(null, { status: 204 }), origin);
+  }
+  if (pathname.startsWith("/api/") && origin && !isAllowedOrigin(origin)) {
+    return NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+  }
+  if (pathname.startsWith("/api/")) {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "unknown";
+    maybeCleanup();
+    const { allowed, remaining, limit } = checkRateLimit(ip, pathname);
+    if (!allowed) {
+      return applyCors(NextResponse.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } }), origin);
+    }
+    const response = NextResponse.next();
+    response.headers.set("X-RateLimit-Limit", String(limit));
+    response.headers.set("X-RateLimit-Remaining", String(remaining));
+    return applyCors(response, origin);
+  }
+  return NextResponse.next();
+}
+
 // ── Middleware ──
-export default auth((req: NextRequest) => {
+const authMiddleware = auth((req: NextRequest) => {
   const { pathname } = req.nextUrl;
   const origin = req.headers.get("origin");
 
@@ -167,6 +194,9 @@ export default auth((req: NextRequest) => {
   // For dashboard routes, NextAuth middleware handles auth automatically
   return NextResponse.next();
 }) as any;
+
+// Pick middleware based on AUTH_DISABLED env var
+export default (process.env.AUTH_DISABLED === "true" ? noAuthMiddleware : authMiddleware) as any;
 
 export const config = {
   matcher: [
