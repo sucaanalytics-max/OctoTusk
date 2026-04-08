@@ -16,6 +16,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const email = String(profile?.email || profile?.preferred_username || "");
       return email.endsWith("@tuskinvest.com");
     },
+    redirect({ url, baseUrl }) {
+      // Keep redirects on the same origin (important for preview deployments)
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    },
     session({ session, token }) {
       if (session.user && token.email) {
         session.user.email = String(token.email);
