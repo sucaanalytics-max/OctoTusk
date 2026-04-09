@@ -106,10 +106,12 @@ function enrichFromStaticDb(stocks: Record<string, unknown>[]): { filledCount: n
   }
 
   // Add completely absent stocks
+  // Skip any stock whose tikr is a TIKR_ALIAS key — it maps to a baseline entry already merged
+  const aliasKeys = new Set(Object.keys(TIKR_ALIAS));
   const existingTikrs = new Set(stocks.map((s) => s.tikr as string));
   let addedCount = 0;
   for (const ss of staticStocks) {
-    if (ss.tikr && !existingTikrs.has(ss.tikr as string)) {
+    if (ss.tikr && !existingTikrs.has(ss.tikr as string) && !aliasKeys.has(ss.tikr as string)) {
       stocks.push(ss);
       addedCount++;
     }

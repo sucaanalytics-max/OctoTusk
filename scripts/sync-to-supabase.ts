@@ -527,10 +527,12 @@ async function main() {
   if (filledCount > 0) console.log(`[sync] Filled missing fields from static-db for ${filledCount} stocks`);
 
   // Add static-db stocks not present at all (e.g., ETFs not yet in JVB/vF)
+  // Skip any stock whose tikr is a TIKR_ALIAS key — it maps to a baseline entry already merged
+  const aliasKeys = new Set(Object.keys(TIKR_ALIAS));
   const allMergedTikrs = new Set(mergedStocks.map(s => s.tikr as string));
   let preservedCount = 0;
   for (const ss of staticStocks) {
-    if (ss.tikr && !allMergedTikrs.has(ss.tikr as string)) {
+    if (ss.tikr && !allMergedTikrs.has(ss.tikr as string) && !aliasKeys.has(ss.tikr as string)) {
       mergedStocks.push(ss);
       preservedCount++;
     }
