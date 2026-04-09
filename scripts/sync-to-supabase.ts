@@ -191,7 +191,7 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
       if (name.match(/Todos|Banking Results Tracker|Investment Dashboard|Sing grm|Octopus|updateMaster/i)) continue;
       // Excluded stocks (no longer tracked)
       const excludedStocks = [
-        "REC", "Repco Hf", "Aptus", "Sunteck Realty", "PSU Bank Index Analysis",
+        "REC", "Repco Hf", "Aptus", "Sunteck Realty",
         "Union Bank", "Indianbank", "Monarch Networth", "Rpsg Ventures", "Mallcom",
         "Disa India", "Dam Capital", "Patels Airtemp", "Emkay", "Tusk Arihant Model V2",
         "Kpit Tech", "Deepak Fertilizer Financial Model V3", "Elecon Engineering", "Somany Ceramics V1",
