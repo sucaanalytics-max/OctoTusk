@@ -485,6 +485,11 @@ const TIKR_ALIAS: Record<string, string> = {
   "SMARTWORKS": "Smartworks",
   "INDIANB": "IndianB",
   "UNIONBANK": "unionbank",
+  "CEINSYS": "538734",
+  "COALINDIA": "533278",
+  "SMLMAH": "505192",
+  "PSUBNKBEES": "XBOM:590108",
+  "SMARTWORKS COWORKING SPACES LIMITED (XNSE:SMARTWORKS)": "Smartworks",
 };
 
 // ═══════════════════════════════════════════════════════════════
