@@ -1124,7 +1124,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       }
       if (filterSector !== "all" && s.sector !== filterSector) return false;
       if (filterVP !== "all" && s.vp !== filterVP) return false;
-      if (filterConviction !== "all" && String(s.conviction) !== filterConviction) return false;
+      if (filterConviction !== "all" && (s.conviction == null || (s.conviction as number) < Number(filterConviction))) return false;
       if (filterHoldingsOnly && !holdingTikrs.has(s.tikr)) return false;
       return true;
     });
@@ -1880,7 +1880,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <input type="text" placeholder="Search company, sector, VP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 md:min-w-[250px] max-w-md w-full" aria-label="Search stocks" />
             <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector"><option value="all">All Sectors</option>{filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}</select>
             <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst"><option value="all">All VAs</option>{filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}</select>
-            <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}</option>)}</select>
+            <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}+</option>)}</select>
             <button onClick={() => setFilterHoldingsOnly(v => !v)} className={`btn btn-sm ${filterHoldingsOnly ? "btn-active" : "btn-ghost"}`} style={filterHoldingsOnly ? { background: "var(--color-accent-blue)", color: "#fff", border: "1px solid var(--color-accent-blue)" } : { color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }} aria-label="Filter by holdings only" title="Show only stocks you hold">Holdings</button>
             {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterHoldingsOnly(false); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
             <span className="ml-auto filter-stats" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
