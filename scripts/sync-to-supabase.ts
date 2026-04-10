@@ -80,6 +80,7 @@ const TIKR_ALIAS: Record<string, string> = {
   "SMLMAH": "505192",
   "PSUBNKBEES": "XBOM:590108",
   "SMARTWORKS COWORKING SPACES LIMITED (XNSE:SMARTWORKS)": "Smartworks",
+  "IIFL Finance": "IIFL",
 };
 
 // ── Helpers ──
@@ -463,7 +464,7 @@ async function main() {
   const jvbTikrs = baselineStocks.map(s => s.tikr as string);
   for (const [vfTikr, data] of Array.from(vfMap.entries())) {
     for (const jt of jvbTikrs) {
-      if (vfMap.has(jt) && jt !== vfTikr) continue;
+      if (vfMap.has(jt)) continue;
       const shorter = Math.min(vfTikr.length, jt.length);
       const longer = Math.max(vfTikr.length, jt.length);
       const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
