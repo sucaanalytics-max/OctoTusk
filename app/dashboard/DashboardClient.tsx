@@ -1165,11 +1165,42 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       "Virtuoso Optoelectronics": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
       "BSE Ltd": "BSE", "GPT Healthcare": "GPTHEALTH", "Motilal Oswal Financial": "MOTILALOFS",
       "KFin Technologies": "KFINTECH", "360 One Wam": "360ONE",
-      "Nippon India ETF Nifty PSU Bank BeES": "PSUBNKBEES",
+      "Nippon India ETF Nifty PSU Bank BeES": "XBOM:590108",
       "National Stock Exchange of India": "National Stock Exchange (NSE)",
+      "Can Fin Homes": "CANFINHOME", "Can Fin Homes Limited": "CANFINHOME",
+      "HDFC Asset Management Company": "HDFCAMC", "HDFC Asset Management": "HDFCAMC", "HDFC AMC": "HDFCAMC",
+      "Bank Of India": "BANKINDIA", "Bank of India": "BANKINDIA",
+      "Bank Of Baroda": "BANKBARODA", "Bank of Baroda": "BANKBARODA",
+      "Punjab National Bank": "PNB",
     };
-    return holdingsData.map(h => {
-      const tikr = nameToTikr[h.asset_name];
+    // Fuzzy fallback: match holdings asset_name against stock official_name (best-ratio wins)
+    const fuzzyMatch = (name: string): { tikr: string; officialName: string; ratio: number } | null => {
+      const nl = name.toLowerCase().replace(/\s+limited$/, "").replace(/\s+ltd$/, "").trim();
+      let best: { tikr: string; officialName: string; ratio: number } | null = null;
+      for (const s of enrichedStocks) {
+        const ol = (s.official_name || "").toLowerCase().replace(/\s+limited$/, "").replace(/\s+ltd$/, "").trim();
+        if (!ol) continue;
+        if (ol === nl) return { tikr: s.tikr, officialName: s.official_name || "", ratio: 1 };
+        if ((ol.includes(nl) || nl.includes(ol)) && Math.min(nl.length, ol.length) / Math.max(nl.length, ol.length) >= 0.5) {
+          const ratio = Math.min(nl.length, ol.length) / Math.max(nl.length, ol.length);
+          if (!best || ratio > best.ratio) best = { tikr: s.tikr, officialName: s.official_name || "", ratio };
+        }
+      }
+      return best;
+    };
+    const fuzzyWarnings: { asset: string; tikr: string; officialName: string; ratio: string }[] = [];
+    const unmatched: string[] = [];
+    const items = holdingsData.map(h => {
+      let tikr = nameToTikr[h.asset_name];
+      if (!tikr) {
+        const fm = fuzzyMatch(h.asset_name);
+        if (fm) {
+          tikr = fm.tikr;
+          fuzzyWarnings.push({ asset: h.asset_name, tikr: fm.tikr, officialName: fm.officialName, ratio: (fm.ratio * 100).toFixed(0) + "%" });
+        } else {
+          unmatched.push(h.asset_name);
+        }
+      }
       const stockData = tikr ? enrichedStocks.find(s => s.tikr === tikr) : null;
       const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : h.current_price;
       const liveChange = tikr && quotes[tikr] ? quotes[tikr].change || 0 : 0;
@@ -1185,6 +1216,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         upsideToBull: stockData?.bull_current && livePrice ? ((stockData.bull_current - livePrice) / livePrice) * 100 : null,
       };
     });
+    if (fuzzyWarnings.length > 0) {
+      console.warn("[Holdings] Fuzzy-matched holdings (verify accuracy):");
+      console.table(fuzzyWarnings);
+    }
+    if (unmatched.length > 0) {
+      console.warn("[Holdings] Unmatched holdings (no stock data):", unmatched);
+    }
+    return items;
   }, [holdingsData, quotes, enrichedStocks]);
 
   // Comparison
