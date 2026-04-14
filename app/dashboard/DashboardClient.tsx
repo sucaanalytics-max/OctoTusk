@@ -590,7 +590,7 @@ const REMOVED_STOCKS = [
   "aptus", "monarch network", "recltd", "rec ltd", "repco",
   "dam capital", "deepak fert", "disa india", "elecon",
   "emkay", "kpit", "mallcom", "patels airtemp", "rpsg",
-  "somany", "sunteck", "arihant",
+  "somany", "sunteck", "arihant", "coal india", "533278",
 ];
 
 function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
