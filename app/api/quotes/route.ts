@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 // yahoo-finance2 v3 requires constructor
-const yf = new (YahooFinance as any)();
+const yf = new (YahooFinance as any)({ suppressNotices: ["yahooSurvey"] });
 
 export async function GET() {
   const session = await auth();
@@ -20,65 +20,51 @@ export async function GET() {
     const tickerMap: Record<string, string> = (db as any).ticker_map || {};
     const symbols = Array.from(new Set(Object.values(tickerMap)));
 
+    // Batch-fetch all symbols in a single API call (avoids rate-limiting)
     const results: Record<string, any> = {};
     const failedSymbols: string[] = [];
-    const batchSize = 20;
 
-    for (let i = 0; i < symbols.length; i += batchSize) {
-      const batch = symbols.slice(i, i + batchSize);
-
-      const promises = batch.map(async (symbol: string) => {
-        try {
-          const quote: any = await yf.quote(symbol);
-          if (!quote || !quote.regularMarketPrice) {
-            // Try .BO suffix as fallback if .NS fails
-            if (symbol.endsWith(".NS")) {
-              const boSymbol = symbol.replace(".NS", ".BO");
-              try {
-                const boQuote: any = await yf.quote(boSymbol);
-                if (boQuote?.regularMarketPrice) {
-                  console.log(`[quotes] ${symbol} failed, using ${boSymbol} instead`);
-                  return { symbol, data: extractQuoteData(boQuote), fallback: boSymbol };
-                }
-              } catch { /* .BO also failed */ }
-            }
-            return { symbol, data: null, error: "No price data returned" };
-          }
-          return { symbol, data: extractQuoteData(quote) };
-        } catch (err) {
-          // Try .BO suffix as fallback if .NS fails
-          if (symbol.endsWith(".NS")) {
-            const boSymbol = symbol.replace(".NS", ".BO");
-            try {
-              const boQuote: any = await yf.quote(boSymbol);
-              if (boQuote?.regularMarketPrice) {
-                console.log(`[quotes] ${symbol} errored, using ${boSymbol} instead`);
-                return { symbol, data: extractQuoteData(boQuote), fallback: boSymbol };
-              }
-            } catch { /* .BO also failed */ }
-          }
-          return { symbol, data: null, error: err instanceof Error ? err.message : "Unknown error" };
-        }
-      });
-
-      const batchResults = await Promise.allSettled(promises);
-      for (const result of batchResults) {
-        if (result.status === "fulfilled") {
-          if (result.value?.data) {
-            results[result.value.symbol] = result.value.data;
-          } else {
-            failedSymbols.push(result.value.symbol);
-          }
+    try {
+      const quotes: any[] = await yf.quote(symbols);
+      for (const q of quotes) {
+        if (q?.symbol && q.regularMarketPrice) {
+          results[q.symbol] = extractQuoteData(q);
         }
       }
+    } catch (err) {
+      console.error("[quotes] Batch fetch failed:", err instanceof Error ? err.message : err);
+    }
+
+    // Identify failed symbols and retry .NS → .BO fallback
+    const succeeded = new Set(Object.keys(results));
+    const nsFailures = symbols.filter(s => !succeeded.has(s) && s.endsWith(".NS"));
+
+    if (nsFailures.length > 0) {
+      const boSymbols = nsFailures.map(s => s.replace(".NS", ".BO"));
+      try {
+        const boQuotes: any[] = await yf.quote(boSymbols);
+        for (const q of boQuotes) {
+          if (q?.symbol && q.regularMarketPrice) {
+            // Map back to original .NS symbol key
+            const nsSymbol = q.symbol.replace(".BO", ".NS");
+            results[nsSymbol] = extractQuoteData(q);
+            console.log(`[quotes] ${nsSymbol} failed, using ${q.symbol} instead`);
+          }
+        }
+      } catch { /* .BO batch also failed */ }
+    }
+
+    // Collect final failures
+    for (const s of symbols) {
+      if (!results[s]) failedSymbols.push(s);
     }
 
     // Map back to TIKR tickers
-    const quotes: Record<string, any> = {};
+    const quotesMap: Record<string, any> = {};
     const failedTikrs: string[] = [];
     for (const [tikr, yahooSymbol] of Object.entries(tickerMap)) {
       if (results[yahooSymbol]) {
-        quotes[tikr] = results[yahooSymbol];
+        quotesMap[tikr] = results[yahooSymbol];
       } else {
         failedTikrs.push(tikr);
       }
@@ -90,9 +76,9 @@ export async function GET() {
 
     reportSuccess("quotes");
     return NextResponse.json({
-      quotes,
+      quotes: quotesMap,
       fetchedAt: new Date().toISOString(),
-      totalFetched: Object.keys(quotes).length,
+      totalFetched: Object.keys(quotesMap).length,
       totalRequested: symbols.length,
       failedSymbols,
       failedTikrs,
