@@ -461,7 +461,9 @@ async function main() {
 
   // Fuzzy match
   const jvbTikrs = baselineStocks.map(s => s.tikr as string);
+  const baselineSet = new Set(jvbTikrs.map(t => t.toLowerCase()));
   for (const [vfTikr, data] of Array.from(vfMap.entries())) {
+    if (baselineSet.has(vfTikr.toLowerCase())) continue; // exact baseline match — skip fuzzy
     for (const jt of jvbTikrs) {
       if (vfMap.has(jt)) continue;
       const shorter = Math.min(vfTikr.length, jt.length);

@@ -578,7 +578,9 @@ export async function POST(request: Request) {
 
       // Fuzzy match vF tikrs to baseline (case-insensitive)
       const baselineTikrs = baselineStocks.map((s: Record<string, unknown>) => s.tikr as string);
+      const baselineSet = new Set(baselineTikrs.map(t => t.toLowerCase()));
       for (const [vfTikr, fData] of Array.from(vfMap.entries())) {
+        if (baselineSet.has(vfTikr.toLowerCase())) continue; // exact baseline match — skip fuzzy
         for (const jt of baselineTikrs) {
           if (vfMap.has(jt)) continue;
           const vfL = vfTikr.toLowerCase(), jtL = jt.toLowerCase();
@@ -666,7 +668,9 @@ export async function POST(request: Request) {
       if (data && !vfMap.has(jvbTikr)) { vfMap.set(jvbTikr, data); vfMap.delete(vfTikr); }
     }
     const jvbTikrs = baselineStocks.map((s) => s.tikr as string);
+    const baselineSetFull = new Set(jvbTikrs.map(t => t.toLowerCase()));
     for (const [vfTikr, data] of Array.from(vfMap.entries())) {
+      if (baselineSetFull.has(vfTikr.toLowerCase())) continue; // exact baseline match — skip fuzzy
       for (const jt of jvbTikrs) {
         if (vfMap.has(jt)) continue;
         const shorter = Math.min(vfTikr.length, jt.length);
