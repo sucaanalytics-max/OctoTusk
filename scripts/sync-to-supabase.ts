@@ -159,18 +159,18 @@ function parseStocks(rows: unknown[][]): Record<string, unknown>[] {
 
 // ── vF files ──
 
-interface VFFile { id: string; name: string; size: number; lastModifiedDateTime: string; }
+interface VFFile { id: string; name: string; size: number; lastModifiedDateTime: string; webUrl: string; }
 
 async function resolveVFFolderUrl(token: string): Promise<string> {
   if (VF_FOLDER_PATH) {
     const encodedPath = encodeURIComponent(VF_FOLDER_PATH);
-    const pathUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+    const pathUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/children?$top=200&$select=id,name,size,lastModifiedDateTime,file,webUrl`;
     const testRes = await fetch(pathUrl, { headers: { Authorization: `Bearer ${token}` } });
     if (testRes.ok) { console.log(`[sync] Resolved vF folder by path`); return pathUrl; }
     console.warn(`[sync] Path lookup failed, trying folder ID fallback`);
   }
   if (VF_FOLDER_ID_FALLBACK) {
-    return `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID_FALLBACK}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+    return `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID_FALLBACK}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file,webUrl`;
   }
   throw new Error("Could not resolve vF folder");
 }
@@ -198,7 +198,7 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
       ];
       if (excludedStocks.some(ex => name.toLowerCase().includes(ex.toLowerCase()))) continue;
       if ((item.size || 0) > 20 * 1024 * 1024) continue;
-      allFiles.push({ id: item.id, name, size: item.size || 0, lastModifiedDateTime: item.lastModifiedDateTime || "" });
+      allFiles.push({ id: item.id, name, size: item.size || 0, lastModifiedDateTime: item.lastModifiedDateTime || "", webUrl: item.webUrl || "" });
     }
     url = data["@odata.nextLink"] || null;
   }
@@ -291,6 +291,7 @@ async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
       bear_evebitda: numVal(ws, "B18"), base_evebitda: numVal(ws, "C18"), bull_evebitda: numVal(ws, "D18"), base_evebitda_2sd: numVal(ws, "F18"),
       comments: strVal(ws, "B21"),
       _vf_source: file.name,
+      vf_web_url: file.webUrl || "",
     } };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -486,6 +487,7 @@ async function main() {
       if (v !== null && v !== undefined && v !== "") merged[field] = v;
     }
     merged._vf_source = vfData._vf_source;
+    merged.vf_web_url = vfData.vf_web_url;
     return merged;
   });
 
@@ -518,7 +520,7 @@ async function main() {
     if (!staticVersion) continue;
     let filled = false;
     for (const [key, staticVal] of Object.entries(staticVersion)) {
-      if (key === "tikr" || key === "_vf_source") continue;
+      if (key === "tikr" || key === "_vf_source" || key === "vf_web_url") continue;
       if (isEmpty(stock[key]) && !isEmpty(staticVal)) {
         stock[key] = staticVal;
         filled = true;

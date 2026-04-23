@@ -96,7 +96,7 @@ function enrichFromStaticDb(stocks: Record<string, unknown>[]): { filledCount: n
     if (!staticVersion) continue;
     let filled = false;
     for (const [key, staticVal] of Object.entries(staticVersion)) {
-      if (key === "tikr" || key === "_vf_source") continue;
+      if (key === "tikr" || key === "_vf_source" || key === "vf_web_url") continue;
       if (isEmpty(stock[key]) && !isEmpty(staticVal)) {
         stock[key] = staticVal;
         filled = true;
@@ -219,12 +219,13 @@ interface VFFile {
   name: string;
   size: number;
   lastModifiedDateTime: string;
+  webUrl: string;
 }
 
 async function resolveVFFolderUrl(token: string): Promise<string> {
   if (VF_FOLDER_PATH) {
     const encodedPath = encodeURIComponent(VF_FOLDER_PATH);
-    const pathUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+    const pathUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/children?$top=200&$select=id,name,size,lastModifiedDateTime,file,webUrl`;
     const testRes = await fetch(pathUrl, { headers: { Authorization: `Bearer ${token}` } });
     if (testRes.ok) {
       console.log(`[sync] Resolved vF folder by path: "${VF_FOLDER_PATH}"`);
@@ -235,7 +236,7 @@ async function resolveVFFolderUrl(token: string): Promise<string> {
   }
   if (VF_FOLDER_ID_FALLBACK) {
     console.log(`[sync] Using fallback folder ID: ${VF_FOLDER_ID_FALLBACK}`);
-    return `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID_FALLBACK}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file`;
+    return `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${VF_FOLDER_ID_FALLBACK}/children?$top=200&$select=id,name,size,lastModifiedDateTime,file,webUrl`;
   }
   throw new Error(`Could not resolve vF folder. Path "${VF_FOLDER_PATH}" not found and no fallback ID configured.`);
 }
@@ -253,7 +254,7 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
       if (!name.match(/\.(xlsx|xlsm)$/i)) continue;
       if (name.match(/Todos|Banking Results Tracker|Investment Dashboard|Sing grm|Octopus|updateMaster/i)) continue;
       if ((item.size || 0) > 20 * 1024 * 1024) continue;
-      allFiles.push({ id: item.id, name, size: item.size || 0, lastModifiedDateTime: item.lastModifiedDateTime || "" });
+      allFiles.push({ id: item.id, name, size: item.size || 0, lastModifiedDateTime: item.lastModifiedDateTime || "", webUrl: item.webUrl || "" });
     }
     url = data["@odata.nextLink"] || null;
   }
@@ -334,6 +335,7 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
       bear_evebitda: numVal(ws, "B18"), base_evebitda: numVal(ws, "C18"), bull_evebitda: numVal(ws, "D18"), base_evebitda_2sd: numVal(ws, "F18"),
       comments: strVal(ws, "B21"),
       _vf_source: file.name,
+      vf_web_url: file.webUrl || "",
     };
   } catch (err) {
     console.warn(`[vF] Error parsing ${file.name}:`, err instanceof Error ? err.message : err);
@@ -547,7 +549,7 @@ export async function POST(request: Request) {
         holdings: holdingsBaseline,
         ticker_map: staticDb.ticker_map,
         holdings_source: liveHoldingsBaseline ? "live_onedrive" : "static_fallback",
-        vfFiles: dedupedFiles.map((f) => ({ id: f.id, name: f.name, size: f.size })),
+        vfFiles: dedupedFiles.map((f) => ({ id: f.id, name: f.name, size: f.size, webUrl: f.webUrl })),
         totalVfFiles: dedupedFiles.length,
         refreshedAt: new Date().toISOString(),
       });
@@ -557,12 +559,12 @@ export async function POST(request: Request) {
     if (mode === "vf") {
       const offset = Number(body.offset) || 0;
       const batchSize = Number(body.batchSize) || 20;
-      const vfFileList = body.vfFiles as { id: string; name: string; size: number }[] || [];
+      const vfFileList = body.vfFiles as { id: string; name: string; size: number; webUrl?: string }[] || [];
       const baselineStocks = body.baselineStocks as Record<string, unknown>[] || [];
 
       const filesToProcess: VFFile[] = vfFileList
         .slice(offset, offset + batchSize)
-        .map((f) => ({ ...f, lastModifiedDateTime: "" }));
+        .map((f) => ({ ...f, lastModifiedDateTime: "", webUrl: f.webUrl || "" }));
       const isDone = offset + batchSize >= vfFileList.length;
 
       console.log(`[sync] Mode: vf batch offset=${offset} size=${filesToProcess.length} total=${vfFileList.length}`);
@@ -608,6 +610,7 @@ export async function POST(request: Request) {
           if (v !== null && v !== undefined && v !== "") m[field] = v;
         }
         m._vf_source = vfData._vf_source;
+        m.vf_web_url = vfData.vf_web_url;
         return m;
       });
 
@@ -692,6 +695,7 @@ export async function POST(request: Request) {
         if (v !== null && v !== undefined && v !== "") merged[field] = v;
       }
       merged._vf_source = vfData._vf_source;
+      merged.vf_web_url = vfData.vf_web_url;
       return merged;
     });
 

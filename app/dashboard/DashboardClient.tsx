@@ -52,6 +52,7 @@ interface Stock {
   remarks?: string;
   exp_profit_fy27?: number;
   exp_profit_fy28?: number;
+  vf_web_url?: string;
   [key: string]: unknown;
 }
 
@@ -1526,6 +1527,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                 <span>SA: <strong style={{ color: "var(--color-text-secondary)" }}>{s.sa || "—"}</strong></span>
                 <span>F&O: <strong style={{ color: "var(--color-text-secondary)" }}>{s.in_fno || "—"}</strong></span>
                 <span>Updated: <strong style={{ color: "var(--color-text-secondary)" }}>{s.last_updated || "—"}</strong></span>
+                {s.vf_web_url && (
+                  <button onClick={() => window.open(s.vf_web_url as string, "_blank", "noopener")} className="btn btn-ghost btn-sm" style={{ fontSize: "var(--text-xs)", padding: "2px 8px", gap: 4, display: "inline-flex", alignItems: "center" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    Open vF Model
+                  </button>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -1988,6 +1995,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 01-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                             )}
                           </button>
+                          {s.vf_web_url && (
+                            <button onClick={() => window.open(s.vf_web_url as string, "_blank", "noopener")} className="stock-action-btn" title="Open vF in Excel Online" aria-label="Open valuation file in Excel Online">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </button>
+                          )}
                           {Object.keys(watchlists).length > 0 && (
                             <div className="watchlist-dropdown-wrap">
                               <button className="stock-action-btn" title="Add to watchlist" aria-label="Add to watchlist">
