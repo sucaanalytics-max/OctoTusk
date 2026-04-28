@@ -25,7 +25,7 @@ OneDrive (Microsoft Graph)
   └── Portfolio Stock Valuations/
       └── *_vf.xlsx files        → per-stock bear/base/bull valuations
           │
-          ├── scripts/sync-to-supabase.ts  (GitHub Action, runs 8:10 AM IST Mon–Sat)
+          ├── scripts/sync-to-supabase.ts  (GitHub Action, runs 6:00 AM IST Mon–Sat)
           └── /api/sync route              (frontend "Sync Data" button)
                     │
                     └── Supabase sync_snapshot table  ← fallback: data/database.json

@@ -223,22 +223,6 @@ function deduplicateVFFiles(files: VFFile[]): VFFile[] {
   return Array.from(stockMap.values());
 }
 
-function cellVal(ws: XLSX.WorkSheet, addr: string): unknown {
-  const cell = ws[addr];
-  return cell ? (cell.v ?? null) : null;
-}
-function numVal(ws: XLSX.WorkSheet, addr: string): number | null {
-  const v = cellVal(ws, addr);
-  if (v === null || v === undefined || v === "" || v === 0) return null;
-  const n = Number(v);
-  return isNaN(n) ? null : n;
-}
-function strVal(ws: XLSX.WorkSheet, addr: string): string {
-  const v = cellVal(ws, addr);
-  if (v === null || v === undefined || v === 0 || v === "0") return "";
-  return String(v).trim();
-}
-
 type ParseFailure = { ok: false; reason: "no_sheet" | "no_tikr" | "http_error" | "parse_error"; file: string; detail: string };
 type ParseSuccess = { ok: true; data: Record<string, unknown> };
 type ParseResult = ParseSuccess | ParseFailure;
@@ -264,32 +248,71 @@ async function fetchWithRetry(url: string, opts: RequestInit, fileName: string, 
 
 async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
   try {
-    const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
-    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }, file.name);
-    if (!res.ok) { return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${res.status}` }; }
-    const buffer = await res.arrayBuffer();
-    const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
-    const summarySheet = wb.SheetNames.find(s => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
+    // Use Microsoft Graph Workbook API for LIVE evaluated formula values.
+    // The previous XLSX-binary path returned stale CACHED values when a file was
+    // edited in Excel Online but not yet opened/saved in desktop Excel — causing
+    // bear/base/bull on the dashboard to drift from what users see in the sheet.
+    const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
+
+    const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: { Authorization: `Bearer ${token}` } }, file.name);
+    if (!sheetsRes.ok) return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${sheetsRes.status} listing sheets` };
+    const sheetsData = await sheetsRes.json();
+    if (sheetsData.error) return { ok: false, reason: "parse_error", file: file.name, detail: sheetsData.error.message };
+    const summarySheet = ((sheetsData.value || []) as { name: string }[])
+      .map(s => s.name)
+      .find(name => name.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
     if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
-    const ws = wb.Sheets[summarySheet];
-    const tikr = strVal(ws, "B2")?.trim();
-    if (!tikr) { return { ok: false, reason: "no_tikr", file: file.name, detail: "no TIKR in B2" }; }
-    const _bear = numVal(ws, "B9"), _base = numVal(ws, "C9"), _bull = numVal(ws, "D9");
+
+    const rangeUrl = `${baseUrl}/worksheets('${encodeURIComponent(summarySheet)}')/range(address='A1:G22')?$select=values`;
+    const rangeRes = await fetchWithRetry(rangeUrl, { headers: { Authorization: `Bearer ${token}` } }, file.name);
+    if (!rangeRes.ok) {
+      const txt = await rangeRes.text().catch(() => "");
+      return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${rangeRes.status} reading range: ${txt.slice(0, 200)}` };
+    }
+    const rangeData = await rangeRes.json();
+    if (rangeData.error) return { ok: false, reason: "parse_error", file: file.name, detail: rangeData.error.message };
+    const values = (rangeData.values || []) as unknown[][];
+
+    const cell = (addr: string): unknown => {
+      const m = addr.match(/^([A-Z])(\d+)$/);
+      if (!m) return null;
+      const col = m[1].charCodeAt(0) - 65;
+      const row = Number(m[2]) - 1;
+      const r = values[row];
+      if (!r) return null;
+      const v = r[col];
+      return (v === "" || v === null || v === undefined) ? null : v;
+    };
+    const numCell = (addr: string): number | null => {
+      const v = cell(addr);
+      if (v === null || v === 0) return null;
+      const n = Number(v);
+      return isNaN(n) ? null : n;
+    };
+    const strCell = (addr: string): string => {
+      const v = cell(addr);
+      if (v === null || v === 0 || v === "0") return "";
+      return String(v).trim();
+    };
+
+    const tikr = strCell("B2");
+    if (!tikr) return { ok: false, reason: "no_tikr", file: file.name, detail: "no TIKR in B2" };
+    const _bear = numCell("B9"), _base = numCell("C9"), _bull = numCell("D9");
     console.log(`[vF] Parsed ${file.name} -> TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
     return { ok: true, data: {
       tikr,
-      last_updated: (() => { const v = cellVal(ws, "A5"); if (v === null || v === undefined) return ""; if (typeof v === "number") return excelDateToISO(v); if (v instanceof Date) return v.toISOString().split("T")[0]; return String(v); })(),
-      vp: strVal(ws, "B5"), sa: strVal(ws, "C5"),
-      conviction: numVal(ws, "D5"), understanding: numVal(ws, "E5"),
-      sector: strVal(ws, "F5"), subsector: strVal(ws, "G5"),
-      bear_current: numVal(ws, "B9"), base_current: numVal(ws, "C9"), bull_current: numVal(ws, "D9"),
-      upside_bear: numVal(ws, "B10"), upside_base: numVal(ws, "C10"), upside_bull: numVal(ws, "D10"),
-      target_1y: numVal(ws, "C11"), upside_1y: numVal(ws, "E11"),
-      target_2y: numVal(ws, "C12"), upside_2y: numVal(ws, "E12"),
-      bear_pe: numVal(ws, "B16"), base_pe: numVal(ws, "C16"), bull_pe: numVal(ws, "D16"), base_pe_2sd: numVal(ws, "F16"),
-      bear_pb: numVal(ws, "B17"), base_pb: numVal(ws, "C17"), bull_pb: numVal(ws, "D17"), base_pb_2sd: numVal(ws, "F17"),
-      bear_evebitda: numVal(ws, "B18"), base_evebitda: numVal(ws, "C18"), bull_evebitda: numVal(ws, "D18"), base_evebitda_2sd: numVal(ws, "F18"),
-      comments: strVal(ws, "B21"),
+      last_updated: (() => { const v = cell("A5"); if (v === null) return ""; if (typeof v === "number") return excelDateToISO(v); if (v instanceof Date) return v.toISOString().split("T")[0]; return String(v); })(),
+      vp: strCell("B5"), sa: strCell("C5"),
+      conviction: numCell("D5"), understanding: numCell("E5"),
+      sector: strCell("F5"), subsector: strCell("G5"),
+      bear_current: numCell("B9"), base_current: numCell("C9"), bull_current: numCell("D9"),
+      upside_bear: numCell("B10"), upside_base: numCell("C10"), upside_bull: numCell("D10"),
+      target_1y: numCell("C11"), upside_1y: numCell("E11"),
+      target_2y: numCell("C12"), upside_2y: numCell("E12"),
+      bear_pe: numCell("B16"), base_pe: numCell("C16"), bull_pe: numCell("D16"), base_pe_2sd: numCell("F16"),
+      bear_pb: numCell("B17"), base_pb: numCell("C17"), bull_pb: numCell("D17"), base_pb_2sd: numCell("F17"),
+      bear_evebitda: numCell("B18"), base_evebitda: numCell("C18"), bull_evebitda: numCell("D18"), base_evebitda_2sd: numCell("F18"),
+      comments: strCell("B21"),
       _vf_source: file.name,
       vf_web_url: file.webUrl || "",
     } };
@@ -474,6 +497,10 @@ async function main() {
     }
   }
 
+  // Capture which tikrs got a live vF this run (after alias + fuzzy resolution).
+  // Distinguishes "fresh override this run" from "_vf_source carried over via static-db".
+  const liveVfTikrs = new Set(Array.from(vfMap.keys()));
+
   // Merge vF into baseline
   let vfMatchCount = 0;
   let mergedStocks = baselineStocks.map(stock => {
@@ -495,15 +522,15 @@ async function main() {
 
   // Add standalone vF stocks (not in JVB baseline)
   const matchedTikrs = new Set(mergedStocks.map(s => s.tikr as string));
-  let standaloneCount = 0;
+  const standaloneTikrs = new Set<string>();
   for (const [tikr, vfData] of Array.from(vfMap.entries())) {
     if (!matchedTikrs.has(tikr)) {
       const name = (vfData._vf_source as string || "").replace(/^\d{6,8}[_ ]?/, "").replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
       mergedStocks.push({ tikr, official_name: name, ...vfData });
-      standaloneCount++;
+      standaloneTikrs.add(tikr);
     }
   }
-  if (standaloneCount > 0) console.log(`[sync] Added ${standaloneCount} standalone vF stocks`);
+  if (standaloneTikrs.size > 0) console.log(`[sync] Added ${standaloneTikrs.size} standalone vF stocks`);
 
   // Preserve static-db: fill missing fields on existing stocks + add absent stocks
   const isEmpty = (v: unknown) => v === null || v === undefined || v === "";
@@ -579,6 +606,34 @@ async function main() {
   }
 
   console.log(`[sync] Holdings: ${(holdings as unknown[]).length} records (${liveHoldings ? "live" : "static"})`);
+
+  // ── Per-stock validation report ──
+  // Lets us spot-check that what lands on the dashboard matches the source vF cells,
+  // and surfaces stocks running on stale baseline data (no live vF this run).
+  const STALE_DAYS = 30;
+  const todayMs = Date.now();
+  const stale: string[] = [];
+  console.log(`[validate] === Final values per stock (post-merge, post-dedup) ===`);
+  for (const stock of mergedStocks) {
+    const tikr = stock.tikr as string;
+    const live = liveVfTikrs.has(tikr);
+    const file = live ? ((stock._vf_source as string) || "?") : "NONE";
+    const bear = stock.bear_current ?? "null";
+    const base = stock.base_current ?? "null";
+    const bull = stock.bull_current ?? "null";
+    const lu = (stock.last_updated as string) ?? "";
+    console.log(`[validate] tikr=${tikr} file=${file} bear=${bear} base=${base} bull=${bull} last_updated=${lu}`);
+
+    if (!live && lu) {
+      const luMs = new Date(lu).getTime();
+      if (!isNaN(luMs)) {
+        const daysOld = Math.floor((todayMs - luMs) / 86400000);
+        if (daysOld > STALE_DAYS) stale.push(`${tikr}(${daysOld}d)`);
+      }
+    }
+  }
+  console.log(`[unmatched] ${standaloneTikrs.size} vF stocks added as standalone (potential silent stale clones if a baseline row also exists for the same company): ${Array.from(standaloneTikrs).join(", ") || "none"}`);
+  console.log(`[stale] ${stale.length} baseline stocks with no live vF override this run and last_updated > ${STALE_DAYS}d: ${stale.join(", ") || "none"}`);
 
   // 4. Write to Supabase
   console.log("[sync] Writing to Supabase...");

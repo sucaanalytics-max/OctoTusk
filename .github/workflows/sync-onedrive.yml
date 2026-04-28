@@ -1,7 +1,7 @@
 name: Sync OneDrive to Supabase
 on:
   schedule:
-    - cron: '40 2 * * 1-6'   # 8:10 AM IST (2:40 AM UTC), Mon-Sat
+    - cron: '30 0 * * 1-6'   # 6:00 AM IST (00:30 AM UTC), Mon-Sat
   workflow_dispatch: {}        # Manual trigger via GitHub UI
 
 jobs:
