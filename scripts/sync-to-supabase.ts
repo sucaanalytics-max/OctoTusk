@@ -246,14 +246,66 @@ async function fetchWithRetry(url: string, opts: RequestInit, fileName: string, 
   throw new Error("unreachable");
 }
 
-async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
-  try {
-    // Use Microsoft Graph Workbook API for LIVE evaluated formula values.
-    // The previous XLSX-binary path returned stale CACHED values when a file was
-    // edited in Excel Online but not yet opened/saved in desktop Excel — causing
-    // bear/base/bull on the dashboard to drift from what users see in the sheet.
-    const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
+type CellReader = { raw(addr: string): unknown; num(addr: string): number | null; str(addr: string): string };
 
+function buildVfData(file: VFFile, r: CellReader, method: "graph" | "xlsx"): ParseResult {
+  const tikr = r.str("B2");
+  if (!tikr) return { ok: false, reason: "no_tikr", file: file.name, detail: "no TIKR in B2" };
+  const _bear = r.num("B9"), _base = r.num("C9"), _bull = r.num("D9");
+  console.log(`[vF] Parsed (${method}) ${file.name} -> TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
+  return { ok: true, data: {
+    tikr,
+    last_updated: (() => { const v = r.raw("A5"); if (v === null) return ""; if (typeof v === "number") return excelDateToISO(v); if (v instanceof Date) return v.toISOString().split("T")[0]; return String(v); })(),
+    vp: r.str("B5"), sa: r.str("C5"),
+    conviction: r.num("D5"), understanding: r.num("E5"),
+    sector: r.str("F5"), subsector: r.str("G5"),
+    bear_current: _bear, base_current: _base, bull_current: _bull,
+    upside_bear: r.num("B10"), upside_base: r.num("C10"), upside_bull: r.num("D10"),
+    target_1y: r.num("C11"), upside_1y: r.num("E11"),
+    target_2y: r.num("C12"), upside_2y: r.num("E12"),
+    bear_pe: r.num("B16"), base_pe: r.num("C16"), bull_pe: r.num("D16"), base_pe_2sd: r.num("F16"),
+    bear_pb: r.num("B17"), base_pb: r.num("C17"), bull_pb: r.num("D17"), base_pb_2sd: r.num("F17"),
+    bear_evebitda: r.num("B18"), base_evebitda: r.num("C18"), bull_evebitda: r.num("D18"), base_evebitda_2sd: r.num("F18"),
+    comments: r.str("B21"),
+    _vf_source: file.name,
+    _vf_method: method,
+    vf_web_url: file.webUrl || "",
+  } };
+}
+
+function readerFromGraphValues(values: unknown[][]): CellReader {
+  const cell = (addr: string): unknown => {
+    const m = addr.match(/^([A-Z])(\d+)$/);
+    if (!m) return null;
+    const col = m[1].charCodeAt(0) - 65;
+    const row = Number(m[2]) - 1;
+    const rRow = values[row];
+    if (!rRow) return null;
+    const v = rRow[col];
+    return (v === "" || v === null || v === undefined) ? null : v;
+  };
+  return {
+    raw: cell,
+    num: (addr) => { const v = cell(addr); if (v === null || v === 0) return null; const n = Number(v); return isNaN(n) ? null : n; },
+    str: (addr) => { const v = cell(addr); if (v === null || v === 0 || v === "0") return ""; return String(v).trim(); },
+  };
+}
+
+function readerFromXlsxSheet(ws: XLSX.WorkSheet): CellReader {
+  const cell = (addr: string): unknown => {
+    const c = ws[addr];
+    return c ? (c.v ?? null) : null;
+  };
+  return {
+    raw: cell,
+    num: (addr) => { const v = cell(addr); if (v === null || v === undefined || v === "" || v === 0) return null; const n = Number(v); return isNaN(n) ? null : n; },
+    str: (addr) => { const v = cell(addr); if (v === null || v === undefined || v === 0 || v === "0") return ""; return String(v).trim(); },
+  };
+}
+
+async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResult> {
+  try {
+    const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
     const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: { Authorization: `Bearer ${token}` } }, file.name);
     if (!sheetsRes.ok) return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${sheetsRes.status} listing sheets` };
     const sheetsData = await sheetsRes.json();
@@ -271,55 +323,36 @@ async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
     }
     const rangeData = await rangeRes.json();
     if (rangeData.error) return { ok: false, reason: "parse_error", file: file.name, detail: rangeData.error.message };
-    const values = (rangeData.values || []) as unknown[][];
-
-    const cell = (addr: string): unknown => {
-      const m = addr.match(/^([A-Z])(\d+)$/);
-      if (!m) return null;
-      const col = m[1].charCodeAt(0) - 65;
-      const row = Number(m[2]) - 1;
-      const r = values[row];
-      if (!r) return null;
-      const v = r[col];
-      return (v === "" || v === null || v === undefined) ? null : v;
-    };
-    const numCell = (addr: string): number | null => {
-      const v = cell(addr);
-      if (v === null || v === 0) return null;
-      const n = Number(v);
-      return isNaN(n) ? null : n;
-    };
-    const strCell = (addr: string): string => {
-      const v = cell(addr);
-      if (v === null || v === 0 || v === "0") return "";
-      return String(v).trim();
-    };
-
-    const tikr = strCell("B2");
-    if (!tikr) return { ok: false, reason: "no_tikr", file: file.name, detail: "no TIKR in B2" };
-    const _bear = numCell("B9"), _base = numCell("C9"), _bull = numCell("D9");
-    console.log(`[vF] Parsed ${file.name} -> TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
-    return { ok: true, data: {
-      tikr,
-      last_updated: (() => { const v = cell("A5"); if (v === null) return ""; if (typeof v === "number") return excelDateToISO(v); if (v instanceof Date) return v.toISOString().split("T")[0]; return String(v); })(),
-      vp: strCell("B5"), sa: strCell("C5"),
-      conviction: numCell("D5"), understanding: numCell("E5"),
-      sector: strCell("F5"), subsector: strCell("G5"),
-      bear_current: numCell("B9"), base_current: numCell("C9"), bull_current: numCell("D9"),
-      upside_bear: numCell("B10"), upside_base: numCell("C10"), upside_bull: numCell("D10"),
-      target_1y: numCell("C11"), upside_1y: numCell("E11"),
-      target_2y: numCell("C12"), upside_2y: numCell("E12"),
-      bear_pe: numCell("B16"), base_pe: numCell("C16"), bull_pe: numCell("D16"), base_pe_2sd: numCell("F16"),
-      bear_pb: numCell("B17"), base_pb: numCell("C17"), bull_pb: numCell("D17"), base_pb_2sd: numCell("F17"),
-      bear_evebitda: numCell("B18"), base_evebitda: numCell("C18"), bull_evebitda: numCell("D18"), base_evebitda_2sd: numCell("F18"),
-      comments: strCell("B21"),
-      _vf_source: file.name,
-      vf_web_url: file.webUrl || "",
-    } };
+    return buildVfData(file, readerFromGraphValues((rangeData.values || []) as unknown[][]), "graph");
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    return { ok: false, reason: "parse_error", file: file.name, detail: msg };
+    return { ok: false, reason: "parse_error", file: file.name, detail: err instanceof Error ? err.message : String(err) };
   }
+}
+
+async function parseVFFileXlsx(token: string, file: VFFile): Promise<ParseResult> {
+  try {
+    const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
+    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }, file.name);
+    if (!res.ok) return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${res.status} downloading binary` };
+    const wb = XLSX.read(new Uint8Array(await res.arrayBuffer()), { type: "array" });
+    const summarySheet = wb.SheetNames.find(s => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
+    if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
+    return buildVfData(file, readerFromXlsxSheet(wb.Sheets[summarySheet]), "xlsx");
+  } catch (err) {
+    return { ok: false, reason: "parse_error", file: file.name, detail: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
+  // Graph Workbook API gives LIVE evaluated formula values (the .xlsx binary
+  // contains stale cached values). When Graph times out on heavy workbooks
+  // (HTTP 504 MaxRequestDurationExceeded), fall back to the XLSX path so we
+  // at least get cached values rather than dropping the override entirely.
+  const graph = await parseVFFileGraph(token, file);
+  if (graph.ok) return graph;
+  if (graph.reason !== "http_error") return graph;
+  console.warn(`[vF] Graph failed for ${file.name} (${graph.detail.slice(0, 100)}), falling back to XLSX cached values`);
+  return parseVFFileXlsx(token, file);
 }
 
 async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
@@ -618,11 +651,12 @@ async function main() {
     const tikr = stock.tikr as string;
     const live = liveVfTikrs.has(tikr);
     const file = live ? ((stock._vf_source as string) || "?") : "NONE";
+    const method = live ? ((stock._vf_method as string) || "?") : "-";
     const bear = stock.bear_current ?? "null";
     const base = stock.base_current ?? "null";
     const bull = stock.bull_current ?? "null";
     const lu = (stock.last_updated as string) ?? "";
-    console.log(`[validate] tikr=${tikr} file=${file} bear=${bear} base=${base} bull=${bull} last_updated=${lu}`);
+    console.log(`[validate] tikr=${tikr} method=${method} file=${file} bear=${bear} base=${base} bull=${bull} last_updated=${lu}`);
 
     if (!live && lu) {
       const luMs = new Date(lu).getTime();
