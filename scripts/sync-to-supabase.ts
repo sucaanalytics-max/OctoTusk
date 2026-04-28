@@ -197,7 +197,7 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
         "Kpit Tech", "Deepak Fertilizer Financial Model V3", "Elecon Engineering", "Somany Ceramics V1",
       ];
       if (excludedStocks.some(ex => name.toLowerCase().includes(ex.toLowerCase()))) continue;
-      if ((item.size || 0) > 20 * 1024 * 1024) continue;
+      if ((item.size || 0) > 20 * 1024 * 1024) { console.warn(`[vF] SKIP ${name}: oversized (${Math.round((item.size || 0) / 1024 / 1024)}MB > 20MB limit)`); continue; }
       allFiles.push({ id: item.id, name, size: item.size || 0, lastModifiedDateTime: item.lastModifiedDateTime || "", webUrl: item.webUrl || "" });
     }
     url = data["@odata.nextLink"] || null;
