@@ -547,6 +547,7 @@ async function main() {
       if (v !== null && v !== undefined && v !== "") merged[field] = v;
     }
     merged._vf_source = vfData._vf_source;
+    merged._vf_method = vfData._vf_method;
     merged.vf_web_url = vfData.vf_web_url;
     return merged;
   });
@@ -580,7 +581,7 @@ async function main() {
     if (!staticVersion) continue;
     let filled = false;
     for (const [key, staticVal] of Object.entries(staticVersion)) {
-      if (key === "tikr" || key === "_vf_source" || key === "vf_web_url") continue;
+      if (key === "tikr" || key === "_vf_source" || key === "_vf_method" || key === "vf_web_url") continue;
       if (isEmpty(stock[key]) && !isEmpty(staticVal)) {
         stock[key] = staticVal;
         filled = true;
