@@ -98,6 +98,7 @@ export default async function DashboardPage() {
         stocks={stocks as unknown as Parameters<typeof DashboardClient>[0]["stocks"]}
         tickerMap={tickerMap as Record<string, string>}
         metadata={{ ...(db.metadata as Record<string, unknown>), snapshot_synced_at: snapshotSyncedAt }}
+        initialHoldings={db.holdings as unknown as Parameters<typeof DashboardClient>[0]["initialHoldings"]}
       />
     </div>
   );

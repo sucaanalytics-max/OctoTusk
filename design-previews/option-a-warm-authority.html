@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OctoTusk — Option A: Warm Authority</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-page:     #F5F3EE;
+  --bg-card:     #FFFFFF;
+  --bg-hover:    #F9F8F4;
+  --bg-stripe:   #FDFCFA;
+  --brand:       #0A6B5D;
+  --brand-light: #EAF5F2;
+  --brand-muted: #C4E8E2;
+  --border:      #E4E2DA;
+  --border-strong: #CCC9BF;
+  --text-1:      #1C1B20;
+  --text-2:      #6B6870;
+  --text-3:      #A9A6B0;
+  --positive:    #16A34A;
+  --positive-bg: #F0FDF4;
+  --negative:    #DC2626;
+  --negative-bg: #FFF5F5;
+  --amber:       #D97706;
+  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:   0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 14px;
+  color: var(--text-1);
+}
+body{background:var(--bg-page);min-height:100vh}
+
+/* ── LABEL BADGE ── */
+.badge-design{position:fixed;top:12px;right:12px;background:var(--brand);color:#fff;font-size:11px;font-weight:600;padding:5px 12px;border-radius:20px;letter-spacing:0.03em;z-index:999}
+
+/* ── GLOBAL HEADER ── */
+.g-header{
+  background:var(--bg-card);
+  border-bottom:1px solid var(--border);
+  height:60px;
+  display:flex;
+  align-items:center;
+  padding:0 24px;
+  gap:0;
+  position:sticky;top:0;z-index:100;
+  box-shadow: var(--shadow-sm);
+}
+.g-header__brand{display:flex;align-items:center;gap:10px;min-width:200px}
+.g-header__logo{width:36px;height:36px;background:var(--brand);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.g-header__logo svg{width:20px;height:20px;fill:white}
+.g-header__title{font-weight:700;font-size:15px;letter-spacing:-0.01em}
+.g-header__sub{font-size:11px;color:var(--text-3);font-weight:400;margin-top:1px}
+.g-divider{width:1px;height:28px;background:var(--border);margin:0 20px}
+
+.g-header__portfolio{display:flex;align-items:center;gap:24px;flex:1;justify-content:center}
+.portfolio-metric{text-align:center}
+.portfolio-metric__label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-bottom:2px}
+.portfolio-metric__value{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-0.01em}
+.portfolio-metric__value.hero{font-size:24px;font-weight:600;color:var(--text-1)}
+.portfolio-metric__value.positive{color:var(--positive)}
+.portfolio-metric__value.negative{color:var(--negative)}
+.portfolio-metric__sub{font-size:10px;color:var(--text-3);margin-top:1px;font-family:'JetBrains Mono',monospace}
+
+.g-header__controls{display:flex;align-items:center;gap:8px;min-width:220px;justify-content:flex-end}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg-hover);border-color:var(--border-strong)}
+.btn-brand{background:var(--brand);color:#fff}
+.btn-brand:hover{background:#0A5E52}
+.cmp-indicator{font-size:11px;color:var(--text-3);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.dot{display:inline-block;width:6px;height:6px;background:#16A34A;border-radius:50%;margin-right:4px;box-shadow:0 0 0 2px rgba(22,163,74,0.2)}
+
+/* ── TABS ── */
+.tab-bar{background:var(--bg-card);border-bottom:1px solid var(--border);padding:0 24px}
+.tab-list{display:flex;gap:2px;padding:8px 0 0}
+.tab-btn{padding:8px 16px;font-size:13px;font-weight:500;color:var(--text-2);border:none;background:none;cursor:pointer;border-radius:var(--radius-sm) var(--radius-sm) 0 0;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;display:flex;align-items:center;gap:6px}
+.tab-btn:hover{color:var(--text-1);background:var(--bg-hover)}
+.tab-btn.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600;background:var(--brand-light)}
+.tab-icon{font-size:14px;opacity:0.8}
+
+/* ── CONTENT ── */
+.content{max-width:1440px;margin:0 auto;padding:24px;display:flex;flex-direction:column;gap:20px}
+
+/* ── KPI HERO ── */
+.kpi-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:12px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;box-shadow:var(--shadow-sm)}
+.kpi-card.hero{background:var(--brand-light);border-color:var(--brand-muted)}
+.kpi-card.positive-hero{background:var(--positive-bg);border-color:#BBF7D0}
+.kpi-card.negative-hero{background:var(--negative-bg);border-color:#FECACA}
+.kpi-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-bottom:6px}
+.kpi-value{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+.kpi-value.hero{font-size:26px;color:var(--brand)}
+.kpi-value.pos{color:var(--positive)}
+.kpi-value.neg{color:var(--negative)}
+.kpi-sub{font-size:11px;color:var(--text-3);margin-top:4px;font-family:'JetBrains Mono',monospace}
+
+/* ── TABLE SECTION ── */
+.section{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);overflow:hidden}
+.section-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.section-title{font-size:13px;font-weight:600;color:var(--text-1);display:flex;align-items:center;gap:8px}
+.section-meta{font-size:12px;color:var(--text-3)}
+.filter-row{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:8px;background:var(--bg-stripe)}
+.filter-pill{padding:4px 12px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--border);background:var(--bg-card);color:var(--text-2);cursor:pointer}
+.filter-pill.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead tr{background:var(--bg-stripe)}
+thead th{padding:10px 14px;text-align:right;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-3);white-space:nowrap;border-bottom:1px solid var(--border)}
+thead th:first-child{text-align:left}
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.1s}
+tbody tr:hover{background:var(--bg-hover)}
+tbody tr:last-child{border-bottom:none}
+tbody tr:nth-child(even){background:var(--bg-stripe)}
+tbody tr:nth-child(even):hover{background:var(--bg-hover)}
+td{padding:10px 14px;vertical-align:middle}
+td:not(:first-child){text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:12px}
+.stock-name{font-weight:600;font-size:13px;color:var(--text-1)}
+.stock-sub{font-size:11px;color:var(--text-3);margin-top:1px}
+.cap-badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;margin-top:3px}
+.cap-large{background:#EFF6FF;color:#1D4ED8}
+.cap-mid{background:#F0FDF4;color:#15803D}
+.cap-small{background:#FFFBEB;color:#B45309}
+.cap-micro{background:#FFF1F2;color:#BE123C}
+.pos{color:var(--positive)}
+.neg{color:var(--negative)}
+.neutral{color:var(--text-2)}
+.upside-bar{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.bar-track{width:48px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:var(--positive)}
+.bar-fill.neg-fill{background:var(--negative)}
+
+/* ── SEGMENT SUMMARY ── */
+.seg-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.seg-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px 18px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:4px}
+.seg-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.seg-label{font-size:11px;font-weight:600;color:var(--text-1)}
+.seg-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.seg-weight{font-size:11px;color:var(--text-3)}
+.seg-bar-outer{height:3px;background:var(--border);border-radius:2px;margin-top:6px}
+.seg-bar-inner{height:100%;border-radius:2px}
+
+/* ── COLOR SWATCH ── */
+.palette-row{display:flex;gap:8px;align-items:center;padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-md);box-shadow:var(--shadow-sm)}
+.swatch{width:36px;height:36px;border-radius:6px;border:1px solid rgba(0,0,0,0.08)}
+.swatch-info{text-align:center;font-size:10px;color:var(--text-3);margin-top:4px}
+.swatch-wrap{display:flex;flex-direction:column}
+.palette-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-right:12px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<span class="badge-design">Option A — Warm Authority</span>
+
+<!-- GLOBAL HEADER -->
+<header class="g-header">
+  <div class="g-header__brand">
+    <div class="g-header__logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8 2 4 5 4 9c0 2 .8 3.8 2 5l1 6h10l1-6c1.2-1.2 2-3 2-5 0-4-4-7-8-7z" fill-opacity="0.9"/></svg>
+    </div>
+    <div>
+      <div class="g-header__title">OctoTusk</div>
+      <div class="g-header__sub">95 Equities · 32 Holdings</div>
+    </div>
+  </div>
+
+  <div class="g-divider"></div>
+
+  <div class="g-header__portfolio">
+    <div class="portfolio-metric">
+      <div class="portfolio-metric__label">Portfolio Value</div>
+      <div class="portfolio-metric__value hero">₹14.73 Cr</div>
+      <div class="portfolio-metric__sub">32 positions</div>
+    </div>
+    <div class="g-divider"></div>
+    <div class="portfolio-metric">
+      <div class="portfolio-metric__label">Day P&amp;L</div>
+      <div class="portfolio-metric__value positive">+₹18.3L</div>
+      <div class="portfolio-metric__sub">+1.26% today</div>
+    </div>
+    <div class="g-divider"></div>
+    <div class="portfolio-metric">
+      <div class="portfolio-metric__label">Unrealised P&amp;L</div>
+      <div class="portfolio-metric__value positive">+₹3.51 Cr</div>
+      <div class="portfolio-metric__sub">+31.3% overall</div>
+    </div>
+    <div class="g-divider"></div>
+    <div class="portfolio-metric">
+      <div class="portfolio-metric__label">Model Upside</div>
+      <div class="portfolio-metric__value" style="color:var(--amber)">+34.8%</div>
+      <div class="portfolio-metric__sub">wtd avg to base</div>
+    </div>
+  </div>
+
+  <div class="g-divider"></div>
+
+  <div class="g-header__controls">
+    <span class="cmp-indicator"><span class="dot"></span>CMP 10:04 AM · 34s</span>
+    <button class="btn btn-ghost">Refresh</button>
+    <button class="btn btn-brand">⟳ Sync</button>
+  </div>
+</header>
+
+<!-- TAB BAR -->
+<nav class="tab-bar">
+  <div class="tab-list">
+    <button class="tab-btn active"><span class="tab-icon">◎</span> Octopus</button>
+    <button class="tab-btn"><span class="tab-icon">◈</span> Holdings</button>
+    <button class="tab-btn"><span class="tab-icon">⊕</span> Comparison</button>
+    <button class="tab-btn"><span class="tab-icon">◧</span> Decisions</button>
+    <button class="tab-btn"><span class="tab-icon">◫</span> Segments</button>
+  </div>
+</nav>
+
+<!-- CONTENT -->
+<main class="content">
+
+  <!-- KPI ROW -->
+  <div class="kpi-row">
+    <div class="kpi-card hero">
+      <div class="kpi-label">Total Invested</div>
+      <div class="kpi-value hero">₹11.22 Cr</div>
+      <div class="kpi-sub">across 32 holdings</div>
+    </div>
+    <div class="kpi-card positive-hero">
+      <div class="kpi-label">Day P&amp;L</div>
+      <div class="kpi-value pos">+₹18.3L</div>
+      <div class="kpi-sub">+1.26% · Live</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Bear Scenario</div>
+      <div class="kpi-value neg">₹9.84 Cr</div>
+      <div class="kpi-sub">-14.2% drawdown</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Bull Scenario</div>
+      <div class="kpi-value pos">₹22.1 Cr</div>
+      <div class="kpi-sub">+50.2% upside</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">1Y Target Value</div>
+      <div class="kpi-value pos">₹19.8 Cr</div>
+      <div class="kpi-sub">+34.6% from here</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">2Y Target Value</div>
+      <div class="kpi-value pos">₹26.4 Cr</div>
+      <div class="kpi-sub">+79.3% from here</div>
+    </div>
+  </div>
+
+  <!-- STOCK TABLE -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        ◎ Octopus Model
+        <span style="background:var(--brand-light);color:var(--brand);font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600">95 stocks</span>
+      </div>
+      <div class="section-meta">Data: 06:12 AM · Synced from OneDrive</div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-pill active">All Sectors</span>
+      <span class="filter-pill">BFSI</span>
+      <span class="filter-pill">Industrials</span>
+      <span class="filter-pill">Healthcare</span>
+      <span class="filter-pill">Technology</span>
+      <span class="filter-pill">Consumer</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align:left;width:220px">Company</th>
+          <th>CMP</th>
+          <th>Bear ▸</th>
+          <th>Base ▸</th>
+          <th>Bull ▸</th>
+          <th>↑ Base</th>
+          <th>VA</th>
+          <th>Conviction</th>
+          <th>Holding ₹</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="stock-name">HDFC Bank</div><div class="stock-sub">HDFCBANK · BFSI <span class="cap-badge cap-large">Large</span></div></td>
+          <td>1,847</td>
+          <td class="neutral">1,520</td>
+          <td style="color:var(--brand);font-weight:600">2,400</td>
+          <td>3,100</td>
+          <td><div class="upside-bar"><span class="pos">+30.0%</span><div class="bar-track"><div class="bar-fill" style="width:60%"></div></div></div></td>
+          <td style="color:var(--text-2)">VP</td>
+          <td style="font-family:monospace">★★★★☆</td>
+          <td class="pos">₹2.1 Cr</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">Bajaj Finance</div><div class="stock-sub">BAJFINANCE · BFSI <span class="cap-badge cap-large">Large</span></div></td>
+          <td>6,920</td>
+          <td class="neutral">5,400</td>
+          <td style="color:var(--brand);font-weight:600">9,000</td>
+          <td>12,000</td>
+          <td><div class="upside-bar"><span class="pos">+30.1%</span><div class="bar-track"><div class="bar-fill" style="width:60%"></div></div></div></td>
+          <td style="color:var(--text-2)">SA</td>
+          <td style="font-family:monospace">★★★★★</td>
+          <td class="pos">₹1.8 Cr</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">MCX</div><div class="stock-sub">MCX · Financials <span class="cap-badge cap-mid">Mid</span></div></td>
+          <td>4,210</td>
+          <td class="neutral">3,200</td>
+          <td style="color:var(--brand);font-weight:600">5,800</td>
+          <td>7,500</td>
+          <td><div class="upside-bar"><span class="pos">+37.8%</span><div class="bar-track"><div class="bar-fill" style="width:76%"></div></div></div></td>
+          <td style="color:var(--text-2)">VP</td>
+          <td style="font-family:monospace">★★★★★</td>
+          <td class="pos">₹84L</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">Tips Music</div><div class="stock-sub">TIPSMUSIC · Media <span class="cap-badge cap-mid">Mid</span></div></td>
+          <td>620</td>
+          <td class="neutral">480</td>
+          <td style="color:var(--brand);font-weight:600">950</td>
+          <td>1,400</td>
+          <td><div class="upside-bar"><span class="pos">+53.2%</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+          <td style="color:var(--text-2)">VP</td>
+          <td style="font-family:monospace">★★★★☆</td>
+          <td class="pos">₹47L</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">Suraksha Diagnostic</div><div class="stock-sub">SURAKSHA · Healthcare <span class="cap-badge cap-small">Small</span></div></td>
+          <td>1,240</td>
+          <td class="neutral">1,050</td>
+          <td style="color:var(--brand);font-weight:600">1,800</td>
+          <td>2,300</td>
+          <td><div class="upside-bar"><span class="pos">+45.2%</span><div class="bar-track"><div class="bar-fill" style="width:90%"></div></div></div></td>
+          <td style="color:var(--text-2)">SA</td>
+          <td style="font-family:monospace">★★★☆☆</td>
+          <td class="pos">₹18L</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">Vedanta</div><div class="stock-sub">VEDL · Metals <span class="cap-badge cap-large">Large</span></div></td>
+          <td>445</td>
+          <td class="neutral">380</td>
+          <td style="color:var(--negative);font-weight:600">380</td>
+          <td>620</td>
+          <td><div class="upside-bar"><span class="neg">-14.6%</span><div class="bar-track"><div class="bar-fill neg-fill" style="width:30%"></div></div></div></td>
+          <td style="color:var(--text-2)">VP</td>
+          <td style="font-family:monospace">★★☆☆☆</td>
+          <td class="neg">₹1.4 Cr</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">Smartworks</div><div class="stock-sub">Smartworks · Real Estate <span class="cap-badge cap-small">Small</span></div></td>
+          <td>68</td>
+          <td class="neutral">55</td>
+          <td style="color:var(--brand);font-weight:600">120</td>
+          <td>180</td>
+          <td><div class="upside-bar"><span class="pos">+76.5%</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div></div></td>
+          <td style="color:var(--text-2)">SA</td>
+          <td style="font-family:monospace">★★★★☆</td>
+          <td class="pos">₹9.8L</td>
+        </tr>
+        <tr>
+          <td><div class="stock-name">Canara Robeco AMC</div><div class="stock-sub">CRAMC · Asset Mgmt <span class="cap-badge cap-mid">Mid</span></div></td>
+          <td>892</td>
+          <td class="neutral">720</td>
+          <td style="color:var(--brand);font-weight:600">1,200</td>
+          <td>1,600</td>
+          <td><div class="upside-bar"><span class="pos">+34.5%</span><div class="bar-track"><div class="bar-fill" style="width:69%"></div></div></div></td>
+          <td style="color:var(--text-2)">VP</td>
+          <td style="font-family:monospace">★★★☆☆</td>
+          <td class="pos">₹22L</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SEGMENT ALLOCATION -->
+  <div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--text-3);margin-bottom:10px">Segment Allocation</div>
+    <div class="seg-row">
+      <div class="seg-card">
+        <div><span class="seg-dot" style="background:#1D4ED8"></span><span class="seg-label">Large Cap</span></div>
+        <div class="seg-value" style="color:#1D4ED8">₹8.2 Cr</div>
+        <div class="seg-weight">55.7% · 14 holdings</div>
+        <div class="seg-bar-outer"><div class="seg-bar-inner" style="width:55.7%;background:#1D4ED8"></div></div>
+      </div>
+      <div class="seg-card">
+        <div><span class="seg-dot" style="background:#15803D"></span><span class="seg-label">Mid Cap</span></div>
+        <div class="seg-value" style="color:#15803D">₹3.8 Cr</div>
+        <div class="seg-weight">25.8% · 11 holdings</div>
+        <div class="seg-bar-outer"><div class="seg-bar-inner" style="width:25.8%;background:#15803D"></div></div>
+      </div>
+      <div class="seg-card">
+        <div><span class="seg-dot" style="background:#B45309"></span><span class="seg-label">Small Cap</span></div>
+        <div class="seg-value" style="color:#B45309">₹1.9 Cr</div>
+        <div class="seg-weight">12.9% · 5 holdings</div>
+        <div class="seg-bar-outer"><div class="seg-bar-inner" style="width:12.9%;background:#B45309"></div></div>
+      </div>
+      <div class="seg-card">
+        <div><span class="seg-dot" style="background:#BE123C"></span><span class="seg-label">Micro Cap</span></div>
+        <div class="seg-value" style="color:#BE123C">₹28L</div>
+        <div class="seg-weight">1.9% · 2 holdings</div>
+        <div class="seg-bar-outer"><div class="seg-bar-inner" style="width:1.9%;background:#BE123C"></div></div>
+      </div>
+      <div class="seg-card">
+        <div><span class="seg-dot" style="background:#9B9AA1"></span><span class="seg-label">Unclassified</span></div>
+        <div class="seg-value" style="color:#9B9AA1">₹64L</div>
+        <div class="seg-weight">4.3% · no mkt cap</div>
+        <div class="seg-bar-outer"><div class="seg-bar-inner" style="width:4.3%;background:#9B9AA1"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PALETTE SWATCH -->
+  <div class="palette-row">
+    <span class="palette-title">Palette</span>
+    <div class="swatch-wrap"><div class="swatch" style="background:#F5F3EE"></div><div class="swatch-info">Page</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#FFFFFF;border:1px solid #E4E2DA"></div><div class="swatch-info">Card</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#E4E2DA"></div><div class="swatch-info">Border</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#1C1B20"></div><div class="swatch-info">Text</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#0A6B5D"></div><div class="swatch-info">Brand</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#EAF5F2"></div><div class="swatch-info">Teal-wash</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#16A34A"></div><div class="swatch-info">Positive</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#DC2626"></div><div class="swatch-info">Negative</div></div>
+    <div class="swatch-wrap"><div class="swatch" style="background:#D97706"></div><div class="swatch-info">Amber</div></div>
+    <div style="margin-left:16px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:2px">Warm Authority</div>
+      <div style="font-size:12px;color:var(--text-2);max-width:340px">Parchment background, deep teal brand. McKinsey report precision meets fintech modernity. Confident, warm, uncluttered.</div>
+    </div>
+  </div>
+
+</main>
+</body>
+</html>

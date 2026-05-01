@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, useId, Fragment } from "react";
 import dynamic from "next/dynamic";
+import { getSebiSegment, SEBI_LABELS, SEGMENT_ORDER, type SebiSegment } from "@/lib/sebi";
+import { SegmentsTab } from "./SegmentsTab";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
 
@@ -144,7 +146,7 @@ interface ChartPoint {
   volume: number | null;
 }
 
-interface EnrichedStock extends Stock {
+export interface EnrichedStock extends Stock {
   liveCmp?: number;
   liveChange?: number;
   liveChangePct?: number;
@@ -165,12 +167,39 @@ interface EnrichedStock extends Stock {
   qualityScore?: number; // (conviction + understanding) / 2
   // Tier 1C: Analyst divergence (lazy — only when enrichment loaded)
   streetDivergence?: number;
+  // SEBI market cap segment (derived from live quote.marketCap)
+  sebiSegment?: SebiSegment | null;
+}
+
+export interface EnrichedHolding {
+  asset_name: string;
+  quantity: number;
+  avg_price: number;
+  amt_invested: number;
+  current_price: number;
+  overall_gain: number;
+  overall_gain_pct: number;
+  current_value: number;
+  tikr: string | null | undefined;
+  stockData: EnrichedStock | null | undefined;
+  livePrice: number;
+  liveChange: number;
+  liveChangePct: number;
+  liveValue: number;
+  liveGain: number;
+  liveGainPct: number;
+  dayPnl: number;
+  dayPnlPct: number;
+  upsideToBear: number | null;
+  upsideToBase: number | null;
+  upsideToBull: number | null;
 }
 
 interface Props {
   stocks: Stock[];
   tickerMap: Record<string, string>;
   metadata: Record<string, unknown>;
+  initialHoldings?: Holding[];
 }
 
 const CMP_REFRESH_INTERVAL = 60;
@@ -601,8 +630,8 @@ function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
 }
 
 // ═══════════════════════════════ MAIN ═══════════════════════════════
-export default function DashboardClient({ stocks, tickerMap, metadata }: Props) {
-  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
+export default function DashboardClient({ stocks, tickerMap, metadata, initialHoldings = [] }: Props) {
+  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions" | "segments">("octopus");
   const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
   const [quotesLoading, setQuotesLoading] = useState(true);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
@@ -613,6 +642,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   const [filterSector, setFilterSector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>("all");
+  const [filterSegment, setFilterSegment] = useState<string>("all");
   const [filterHoldingsOnly, setFilterHoldingsOnly] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
@@ -1090,7 +1120,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       const qualityScore = (s.conviction != null && s.understanding != null)
         ? (s.conviction + s.understanding) / 2 : undefined;
 
-      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, upside1YCalc: u1Y, upside2YCalc: u2Y, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore };
+      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, upside1YCalc: u1Y, upside2YCalc: u2Y, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore, sebiSegment: getSebiSegment(q?.marketCap ?? null) };
     });
   }, [liveStocks, quotes, simCmpOverrides]);
 
@@ -1127,6 +1157,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (filterVP !== "all" && s.vp !== filterVP) return false;
       if (filterConviction !== "all" && (s.conviction == null || (s.conviction as number) < Number(filterConviction))) return false;
       if (filterHoldingsOnly && !holdingTikrs.has(s.tikr)) return false;
+      if (filterSegment !== "all") {
+        if (filterSegment === "__null") { if (s.sebiSegment != null) return false; }
+        else { if (s.sebiSegment !== filterSegment) return false; }
+      }
       return true;
     });
     return [...filtered].sort((a, b) => {
@@ -1137,7 +1171,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterHoldingsOnly, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterSegment, filterHoldingsOnly, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
   // Holdings — session + PIN gated
   const unlockHoldings = async () => {
@@ -1152,7 +1186,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   };
 
   const enrichedHoldings = useMemo(() => {
-    if (!holdingsData.length) return [];
+    const sourceHoldings = holdingsData.length > 0 ? holdingsData : initialHoldings;
+    if (!sourceHoldings.length) return [];
     const nameToTikr: Record<string, string> = {
       "Kilburn Engineering": "XBOM:522101", "Vedanta Limited": "VEDL", "Nexus Select Trust": "NXST",
       "Multi Commodity Exchange of India": "MCX", "Tips Music": "TIPSMUSIC", "Apeejay Surrendra Park Hotels": "PARKHOTELS",
@@ -1191,7 +1226,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     };
     const fuzzyWarnings: { asset: string; tikr: string; officialName: string; ratio: string }[] = [];
     const unmatched: string[] = [];
-    const items = holdingsData.map(h => {
+    const items = sourceHoldings.map(h => {
       let tikr = nameToTikr[h.asset_name];
       if (!tikr) {
         const fm = fuzzyMatch(h.asset_name);
@@ -1225,7 +1260,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       console.warn("[Holdings] Unmatched holdings (no stock data):", unmatched);
     }
     return items;
-  }, [holdingsData, quotes, enrichedStocks]);
+  }, [holdingsData, initialHoldings, quotes, enrichedStocks]);
 
   // Comparison
   const comparedStocks = useMemo(() => selectedCompare.map(t => enrichedStocks.find(s => s.tikr === t)).filter(Boolean) as EnrichedStock[], [selectedCompare, enrichedStocks]);
@@ -1467,7 +1502,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
 
   // Th moved to module scope to avoid remount on every render
 
-  const activeFilters = [filterSector, filterVP, filterConviction].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0);
+  const activeFilters = [filterSector, filterVP, filterConviction, filterSegment].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0);
 
 
   // ── Pill toggle style helper ──
@@ -1888,6 +1923,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             { key: "holdings" as const, label: "Holdings" },
             { key: "comparison" as const, label: "Comparison" },
             { key: "decisions" as const, label: "Decision Support" },
+            { key: "segments" as const, label: "Segments" },
           ]).map(tab => (
             <button key={tab.key} onClick={() => handleTabSwitch(tab.key)} role="tab" aria-selected={activeTab === tab.key} aria-controls={`panel-${tab.key}`} tabIndex={activeTab === tab.key ? 0 : -1} className={`tab-btn ${activeTab === tab.key ? "tab-active" : ""}`}>
               {tab.label}
@@ -1927,6 +1963,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector"><option value="all">All Sectors</option>{filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}</select>
             <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst"><option value="all">All VAs</option>{filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}</select>
             <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}+</option>)}</select>
+            <select value={filterSegment} onChange={e => setFilterSegment(e.target.value)} className="select-dark" aria-label="Filter by market cap segment">
+              <option value="all">All Segments</option>
+              {SEGMENT_ORDER.map(seg => <option key={seg} value={seg}>{SEBI_LABELS[seg]}</option>)}
+              <option value="__null">Unclassified</option>
+            </select>
             <button onClick={() => setFilterHoldingsOnly(v => !v)} className={`btn btn-sm ${filterHoldingsOnly ? "btn-active" : "btn-ghost"}`} style={filterHoldingsOnly ? { background: "var(--color-accent-blue)", color: "#fff", border: "1px solid var(--color-accent-blue)" } : { color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }} aria-label="Filter by holdings only" title="Show only stocks you hold">Holdings</button>
             {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterHoldingsOnly(false); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
             <span className="ml-auto filter-stats" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
@@ -3363,6 +3404,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           </div>
         )}
       </div>
+
+      {/* ═══════════════════ TAB 5: SEGMENTS ═══════════════════ */}
+      {activeTab === "segments" && (
+        <SegmentsTab
+          enrichedStocks={enrichedStocks}
+          enrichedHoldings={enrichedHoldings}
+          quotes={quotes}
+        />
+      )}
+
     </div>
   );
 }
