@@ -199,6 +199,7 @@ interface Props {
   stocks: Stock[];
   tickerMap: Record<string, string>;
   metadata: Record<string, unknown>;
+  initialHoldings?: Holding[];
 }
 
 const CMP_REFRESH_INTERVAL = 60;
@@ -629,7 +630,7 @@ function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
 }
 
 // ═══════════════════════════════ MAIN ═══════════════════════════════
-export default function DashboardClient({ stocks, tickerMap, metadata }: Props) {
+export default function DashboardClient({ stocks, tickerMap, metadata, initialHoldings = [] }: Props) {
   const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions" | "segments">("octopus");
   const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
   const [quotesLoading, setQuotesLoading] = useState(true);
@@ -1185,7 +1186,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
   };
 
   const enrichedHoldings = useMemo(() => {
-    if (!holdingsData.length) return [];
+    const sourceHoldings = holdingsData.length > 0 ? holdingsData : initialHoldings;
+    if (!sourceHoldings.length) return [];
     const nameToTikr: Record<string, string> = {
       "Kilburn Engineering": "XBOM:522101", "Vedanta Limited": "VEDL", "Nexus Select Trust": "NXST",
       "Multi Commodity Exchange of India": "MCX", "Tips Music": "TIPSMUSIC", "Apeejay Surrendra Park Hotels": "PARKHOTELS",
@@ -1224,7 +1226,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
     };
     const fuzzyWarnings: { asset: string; tikr: string; officialName: string; ratio: string }[] = [];
     const unmatched: string[] = [];
-    const items = holdingsData.map(h => {
+    const items = sourceHoldings.map(h => {
       let tikr = nameToTikr[h.asset_name];
       if (!tikr) {
         const fm = fuzzyMatch(h.asset_name);
@@ -1258,7 +1260,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
       console.warn("[Holdings] Unmatched holdings (no stock data):", unmatched);
     }
     return items;
-  }, [holdingsData, quotes, enrichedStocks]);
+  }, [holdingsData, initialHoldings, quotes, enrichedStocks]);
 
   // Comparison
   const comparedStocks = useMemo(() => selectedCompare.map(t => enrichedStocks.find(s => s.tikr === t)).filter(Boolean) as EnrichedStock[], [selectedCompare, enrichedStocks]);
