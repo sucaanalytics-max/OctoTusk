@@ -46,3 +46,6 @@ coverage/
 *.key
 *.cert
 .vercel
+
+# Git worktrees
+.worktrees/
