@@ -71,7 +71,6 @@ export default async function DashboardPage() {
             <div style={{ width: 1, height: 24, background: "var(--color-border)", margin: "0 4px" }} />
             <div>
               <p className="font-semibold leading-tight" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>OctoTusk</p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{db.metadata.unique_stocks} Equities &middot; {db.holdings.length} Holdings</p>
             </div>
           </div>
           <div className="flex items-center gap-4 app-header-actions">

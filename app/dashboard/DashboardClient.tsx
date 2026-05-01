@@ -292,6 +292,14 @@ const pctBgStyle = (n: number | undefined | null): Record<string, string | numbe
   return { color: "var(--color-negative)", background: `rgba(220, 38, 38, ${alpha.toFixed(2)})`, fontWeight: 600 };
 };
 
+/** Scenario upside pill badge — 4-tier coloring for bear/base/bull/1Y/2Y upside cells */
+function upsidePill(val: number | null | undefined): React.ReactNode {
+  if (val == null || isNaN(val as number)) return <span className="up-pill up-neu">—</span>;
+  const pct = val * 100;
+  const cls = pct > 25 ? "up-strong" : pct > 3 ? "up-pos" : pct > -3 ? "up-neu" : "up-neg";
+  return <span className={`up-pill ${cls}`}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
+}
+
 const cleanTikr = (tikr: string | null | undefined): string => {
   if (!tikr || typeof tikr !== "string") return "";
   if (tikr.includes("(XNSE:")) { const m = tikr.match(/\(XNSE:(\w+)\)/); return m ? m[1] : tikr; }
@@ -557,8 +565,8 @@ const AnalystBar = ({ strongBuy, buy, hold, sell, strongSell }: { strongBuy: num
 };
 
 // ── Sortable table header (module-scope to avoid remount) ──
-const Th = ({ col, label, sortCol, sortDir, onSort }: { col: string; label: string; sortCol: string; sortDir: "asc" | "desc"; onSort: (col: string) => void }) => (
-  <th className={sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""} onClick={() => onSort(col)} role="columnheader" aria-sort={sortCol === col ? (sortDir === "asc" ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={e => e.key === "Enter" && onSort(col)}>{label}</th>
+const Th = ({ col, label, sortCol, sortDir, onSort, className }: { col: string; label: string; sortCol: string; sortDir: "asc" | "desc"; onSort: (col: string) => void; className?: string }) => (
+  <th className={[className, sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""].filter(Boolean).join(" ")} onClick={() => onSort(col)} role="columnheader" aria-sort={sortCol === col ? (sortDir === "asc" ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={e => e.key === "Enter" && onSort(col)}>{label}</th>
 );
 
 // ── Sector Allocation Bar (module-scope, manages its own expand state) ──
@@ -601,7 +609,7 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
                       <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{st.companyShort}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.liveCmp ? `₹${fmt(st.liveCmp, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.base_current ? `₹${fmt(st.base_current, 0)}` : "—"}</td>
-                      <td className={pctColor(st.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{st.upsideBaseCalc != null ? fmtPct(st.upsideBaseCalc) : "—"}</td>
+                      <td className="text-center">{upsidePill(st.upsideBaseCalc)}</td>
                       <td className="text-center" style={{ fontSize: "var(--text-xs)", color: "#A78BFA" }}>{st.conviction ?? "—"}</td>
                     </tr>
                   ))}</tbody>
@@ -622,6 +630,16 @@ const REMOVED_STOCKS = [
   "emkay", "kpit", "mallcom", "patels airtemp", "rpsg",
   "somany", "sunteck", "arihant", "coal india", "533278",
 ];
+
+const SECTOR_MAP: Record<string, string[]> = {
+  "BFSI":         ["bfsi", "financials", "asset mgmt", "wealth mgmt", "fintech", "insurance", "banking"],
+  "Technology":   ["technology", "electronics", "it services", "software", "tech"],
+  "Consumption":  ["consumption", "consumer", "fmcg", "retail", "lifestyle", "apparel", "food"],
+  "Healthcare":   ["healthcare", "pharma", "hospitals", "diagnostics", "health"],
+  "Industrials":  ["industrials", "capital goods", "auto", "engineering", "defence"],
+  "Infra":        ["infra", "infrastructure", "utilities", "power", "cement", "construction"],
+  "Real Estate":  ["real estate", "realty"],
+};
 
 function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
   const t = s.tikr.toLowerCase();
@@ -644,6 +662,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [filterConviction, setFilterConviction] = useState<string>("all");
   const [filterSegment, setFilterSegment] = useState<string>("all");
   const [filterHoldingsOnly, setFilterHoldingsOnly] = useState(false);
+  const [filterUpside1Y, setFilterUpside1Y] = useState<number | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
   const [dataRefreshing, setDataRefreshing] = useState(false);
@@ -1153,7 +1172,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         const t = searchTerm.toLowerCase();
         if (!(s.tikr?.toLowerCase().includes(t) || s.displayTikr?.toLowerCase().includes(t) || s.companyShort?.toLowerCase().includes(t) || s.sector?.toLowerCase().includes(t) || s.official_name?.toLowerCase().includes(t) || s.vp?.toLowerCase().includes(t) || s.sa?.toLowerCase().includes(t))) return false;
       }
-      if (filterSector !== "all" && s.sector !== filterSector) return false;
+      if (filterSector !== "all") {
+        const broad = SECTOR_MAP[filterSector];
+        const sec = s.sector?.toLowerCase() ?? "";
+        const match = broad
+          ? broad.some(m => sec.includes(m))
+          : s.sector === filterSector;
+        if (!match) return false;
+      }
       if (filterVP !== "all" && s.vp !== filterVP) return false;
       if (filterConviction !== "all" && (s.conviction == null || (s.conviction as number) < Number(filterConviction))) return false;
       if (filterHoldingsOnly && !holdingTikrs.has(s.tikr)) return false;
@@ -1161,6 +1187,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         if (filterSegment === "__null") { if (s.sebiSegment != null) return false; }
         else { if (s.sebiSegment !== filterSegment) return false; }
       }
+      if (filterUpside1Y != null && (s.upside1YCalc == null || s.upside1YCalc * 100 < filterUpside1Y)) return false;
       return true;
     });
     return [...filtered].sort((a, b) => {
@@ -1171,7 +1198,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterSegment, filterHoldingsOnly, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterSegment, filterHoldingsOnly, filterUpside1Y, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
   // Holdings — session + PIN gated
   const unlockHoldings = async () => {
@@ -1502,7 +1529,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   // Th moved to module scope to avoid remount on every render
 
-  const activeFilters = [filterSector, filterVP, filterConviction, filterSegment].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0);
+  const activeFilters = [filterSector, filterVP, filterConviction, filterSegment].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
 
 
   // ── Pill toggle style helper ──
@@ -1958,19 +1985,58 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       {/* ═══════════════════ TAB 1: OCTOPUS ═══════════════════ */}
       {activeTab === "octopus" && (
         <div id="panel-octopus" role="tabpanel" aria-labelledby="tab-octopus" className="animate-fade-in">
-          <div className="flex flex-wrap items-center gap-3 mb-3 filter-bar">
-            <input type="text" placeholder="Search company, sector, VP..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 md:min-w-[250px] max-w-md w-full" aria-label="Search stocks" />
-            <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector"><option value="all">All Sectors</option>{filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}</select>
-            <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst"><option value="all">All VAs</option>{filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}</select>
-            <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction level"><option value="all">All Conviction</option>{filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}+</option>)}</select>
-            <select value={filterSegment} onChange={e => setFilterSegment(e.target.value)} className="select-dark" aria-label="Filter by market cap segment">
-              <option value="all">All Segments</option>
-              {SEGMENT_ORDER.map(seg => <option key={seg} value={seg}>{SEBI_LABELS[seg]}</option>)}
-              <option value="__null">Unclassified</option>
-            </select>
-            <button onClick={() => setFilterHoldingsOnly(v => !v)} className={`btn btn-sm ${filterHoldingsOnly ? "btn-active" : "btn-ghost"}`} style={filterHoldingsOnly ? { background: "var(--color-accent-blue)", color: "#fff", border: "1px solid var(--color-accent-blue)" } : { color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }} aria-label="Filter by holdings only" title="Show only stocks you hold">Holdings</button>
-            {activeFilters > 0 && <button onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterHoldingsOnly(false); }} className="btn btn-ghost btn-sm" style={{ color: "var(--color-accent-blue)" }}>Clear filters ({activeFilters})</button>}
-            <span className="ml-auto filter-stats" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
+          <div className="filter-bar mb-3" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* Row 1: Search + count + clear */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <input type="text" placeholder="Search company, sector, VA..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 md:min-w-[220px] max-w-sm" aria-label="Search stocks" style={{ minWidth: 160 }} />
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
+              {activeFilters > 0 && (
+                <button
+                  onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: "var(--color-warning)", whiteSpace: "nowrap" }}
+                  aria-label="Clear all filters"
+                >
+                  × Clear all ({activeFilters})
+                </button>
+              )}
+            </div>
+            {/* Row 2: Sector + Cap pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(["all", "BFSI", "Technology", "Consumption", "Healthcare", "Industrials", "Infra", "Real Estate"] as const).map(s => (
+                <button key={s} className={`filter-pill${filterSector === s ? " active" : ""}`} onClick={() => setFilterSector(s)} aria-pressed={filterSector === s}>
+                  {s === "all" ? "All Sectors" : s}
+                </button>
+              ))}
+              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
+              {([["all", "All Cap"], ["large", "Large"], ["mid", "Mid"], ["small", "Small"], ["micro", "Micro"]] as [string, string][]).map(([val, label]) => (
+                <button key={val} className={`filter-pill${filterSegment === val ? " active" : ""}`} onClick={() => setFilterSegment(val)} aria-pressed={filterSegment === val}>
+                  {label}
+                </button>
+              ))}
+              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
+              <button onClick={() => setFilterHoldingsOnly(v => !v)} className={`filter-pill${filterHoldingsOnly ? " active" : ""}`} aria-pressed={filterHoldingsOnly} title="Show only held stocks">Portfolio</button>
+            </div>
+            {/* Row 3: VA + Conv + Upside threshold pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(["all", ...filterOptions.vps]).map(v => (
+                <button key={v} className={`filter-pill${filterVP === v ? " active" : ""}`} onClick={() => setFilterVP(v)} aria-pressed={filterVP === v}>
+                  {v === "all" ? "All VAs" : v}
+                </button>
+              ))}
+              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
+              {([["all", "All Conv"], ...filterOptions.convictions.map(c => [String(c), `${c}+`])] as [string, string][]).map(([val, label]) => (
+                <button key={val} className={`filter-pill${filterConviction === val ? " active" : ""}`} onClick={() => setFilterConviction(val)} aria-pressed={filterConviction === val}>
+                  {label}
+                </button>
+              ))}
+              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
+              {([[null, "Any Up"], [10, "≥10%"], [20, "≥20%"], [30, "≥30%"]] as [number | null, string][]).map(([val, label]) => (
+                <button key={String(val)} className={`filter-pill${filterUpside1Y === val ? " active" : ""}`} onClick={() => setFilterUpside1Y(val)} aria-pressed={filterUpside1Y === val}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Watchlist bar */}
@@ -2010,15 +2076,38 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
           <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)" }}>
             <table className="data-table w-full" role="table" aria-label="Stock data table">
-              <thead><tr>
-                <th style={{ width: 40, cursor: "default" }}></th>
-                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="companyShort" label="Company" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sector" label="Sector" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="liveCmp" label="CMP" />
-                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bear_current" label="Bear" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_current" label="Base" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bull_current" label="Bull" />
-                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBearCalc" label="↑ Bear" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBaseCalc" label="↑ Base" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBullCalc" label="↑ Bull" />
-                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside1YCalc" label="1Y Upside" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside2YCalc" label="2Y Upside" />
-                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pe" label="PE" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pb" label="PB" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_evebitda" label="EV/EBITDA" />
-                <Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="conviction" label="Conv." /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="vp" label="VA" /><Th sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sa" label="SA" />
-              </tr></thead>
+              <thead>
+                <tr>
+                  <th className="thead-group" colSpan={1} style={{ cursor: "default" }} />
+                  <th className="thead-group" colSpan={2}>Company</th>
+                  <th className="thead-group" colSpan={1}>Price</th>
+                  <th className="thead-group" colSpan={3}>Targets</th>
+                  <th className="thead-group tint-green" colSpan={3}>Scenario Upsides</th>
+                  <th className="thead-group tint-green" colSpan={2}>Forward</th>
+                  <th className="thead-group tint-amber" colSpan={3}>Multiples</th>
+                  <th className="thead-group" colSpan={3}>Analysts</th>
+                </tr>
+                <tr>
+                  <th className="thead-col" style={{ width: 40, cursor: "default" }} />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="companyShort" label="Company" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sector" label="Sector" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="liveCmp" label="CMP" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bear_current" label="Bear" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_current" label="Base" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bull_current" label="Bull" />
+                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBearCalc" label="↑ Bear" />
+                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBaseCalc" label="↑ Base" />
+                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBullCalc" label="↑ Bull" />
+                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside1YCalc" label="1Y Up" />
+                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside2YCalc" label="2Y Up" />
+                  <Th className="thead-col tint-amber" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pe" label="PE" />
+                  <Th className="thead-col tint-amber" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pb" label="PB" />
+                  <Th className="thead-col tint-amber" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_evebitda" label="EV/EBITDA" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="conviction" label="Conv." />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="vp" label="VA" />
+                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sa" label="SA" />
+                </tr>
+              </thead>
               <tbody>
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
                   Array.from({ length: 15 }).map((_, i) => <SkeletonRow key={i} />)
@@ -2071,17 +2160,17 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upsideBearCalc) }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", fontWeight: 600, ...pctBgStyle(s.upsideBaseCalc) }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upsideBullCalc) }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside1YCalc) }}>{s.upside1YCalc != null ? fmtPct(s.upside1YCalc) : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(s.upside2YCalc) }}>{s.upside2YCalc != null ? fmtPct(s.upside2YCalc) : "—"}</td>
+                      <td className="text-center">{upsidePill(s.upsideBearCalc)}</td>
+                      <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                      <td className="text-center">{upsidePill(s.upsideBullCalc)}</td>
+                      <td className="text-center">{upsidePill(s.upside1YCalc)}</td>
+                      <td className="text-center">{upsidePill(s.upside2YCalc)}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
                       <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
-                      <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"}</td>
-                      <td className="text-center" style={{ color: "var(--color-text-secondary)" }}>{s.sa || "—"}</td>
+                      <td className="text-center">{s.vp ? <span className="pill pill-blue">{s.vp}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>
+                      <td className="text-center">{s.sa ? <span className="pill pill-amber">{s.sa}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>
                     </tr>
                   );
                 })}
@@ -2518,8 +2607,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                             <td style={{ paddingLeft: 24, color: "var(--color-text-muted)" }}>{s.companyShort}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 0)}` : "—"}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{fmtLakhs(s.holding_cash_lakhs)}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upsideBaseCalc ?? null) }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside1YCalc ?? null) }}>{s.upside1YCalc != null ? `${((s.upside1YCalc) * 100).toFixed(1)}%` : "—"}</td>
+                            <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                            <td className="text-center">{upsidePill(s.upside1YCalc)}</td>
                           </tr>
                       ))}
                       </Fragment>
@@ -2538,8 +2627,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                             <td style={{ paddingLeft: 24, color: "var(--color-text-muted)" }}>{s.companyShort}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 0)}` : "—"}</td>
                             <td style={{ fontFamily: "var(--font-mono)", textAlign: "center" }}>{fmtLakhs(s.holding_cash_lakhs)}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upsideBaseCalc ?? null) }}>{s.upsideBaseCalc != null ? `${((s.upsideBaseCalc) * 100).toFixed(1)}%` : "—"}</td>
-                            <td style={{ fontFamily: "var(--font-mono)", ...pctBgStyle(s.upside1YCalc ?? null) }}>{s.upside1YCalc != null ? `${((s.upside1YCalc) * 100).toFixed(1)}%` : "—"}</td>
+                            <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                            <td className="text-center">{upsidePill(s.upside1YCalc)}</td>
                           </tr>
                       ))}
                       </Fragment>
@@ -2657,11 +2746,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   { label: "2Y Target", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—"}</span> },
                 ]},
                 { title: "Upside Analysis", rows: [
-                  { label: "↑ Bear", render: (s: EnrichedStock) => <span className={pctColor(s.upsideBearCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBearCalc != null ? fmtPct(s.upsideBearCalc) : "—"}</span> },
-                  { label: "↑ Base", render: (s: EnrichedStock) => <span className={pctColor(s.upsideBaseCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBaseCalc != null ? fmtPct(s.upsideBaseCalc) : "—"}</span> },
-                  { label: "↑ Bull", render: (s: EnrichedStock) => <span className={pctColor(s.upsideBullCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upsideBullCalc != null ? fmtPct(s.upsideBullCalc) : "—"}</span> },
-                  { label: "1Y Upside", render: (s: EnrichedStock) => <span className={pctColor(s.upside1YCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside1YCalc != null ? fmtPct(s.upside1YCalc) : "—"}</span> },
-                  { label: "2Y Upside", render: (s: EnrichedStock) => <span className={pctColor(s.upside2YCalc)} style={{ fontFamily: "var(--font-mono)" }}>{s.upside2YCalc != null ? fmtPct(s.upside2YCalc) : "—"}</span> },
+                  { label: "↑ Bear",    render: (s: EnrichedStock) => upsidePill(s.upsideBearCalc) },
+                  { label: "↑ Base",    render: (s: EnrichedStock) => upsidePill(s.upsideBaseCalc) },
+                  { label: "↑ Bull",    render: (s: EnrichedStock) => upsidePill(s.upsideBullCalc) },
+                  { label: "1Y Upside", render: (s: EnrichedStock) => upsidePill(s.upside1YCalc) },
+                  { label: "2Y Upside", render: (s: EnrichedStock) => upsidePill(s.upside2YCalc) },
                 ]},
                 { title: "Valuation Multiples", rows: [
                   { label: "PE (Bear)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_pe ? `${s.bear_pe.toFixed(1)}x` : "—"}</span> },

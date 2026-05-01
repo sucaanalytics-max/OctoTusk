@@ -176,10 +176,15 @@ body {
   width: 100%;
 }
 
-.data-table th {
+.data-table thead {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 11;
+}
+
+.data-table th {
+  position: static;
+  z-index: auto;
   background: var(--color-bg-elevated);
   color: var(--color-text-secondary);
   font-family: var(--font-sans);
@@ -200,6 +205,41 @@ body {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
 }
+
+/* Group label row — dark slate */
+.data-table th.thead-group {
+  background: #1E293B;
+  color: #94A3B8;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  text-align: center;
+  border-bottom: 1px solid #334155;
+  white-space: nowrap;
+  cursor: default;
+}
+.data-table th.thead-group:hover {
+  background: #1E293B;
+  color: #94A3B8;
+}
+
+/* Column name row — slightly lighter slate */
+.data-table th.thead-col {
+  background: #293548;
+  color: #CBD5E1;
+}
+.data-table th.thead-col:hover {
+  background: #334155;
+  color: #F1F5F9;
+}
+
+/* Column group tints */
+.data-table th.thead-col.tint-green { background: #243B2E; color: #86EFAC; }
+.data-table th.thead-col.tint-green:hover { background: #2D4A38; color: #BBF7D0; }
+.data-table th.thead-col.tint-amber { background: #3B2E1A; color: #FCD34D; }
+.data-table th.thead-col.tint-amber:hover { background: #4A3A22; color: #FDE68A; }
 
 .data-table td {
   padding: var(--space-2) var(--space-3);
@@ -230,6 +270,42 @@ body {
 .cell-green { color: var(--color-positive); font-weight: 600; }
 .cell-red { color: var(--color-negative); font-weight: 600; }
 .cell-amber { color: var(--color-warning); font-weight: 600; }
+
+/* Scenario upside pills — 4-tier coloring */
+.up-pill {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.up-pill.up-strong { background: #DCFCE7; color: #15803D; }
+.up-pill.up-pos    { background: #F0FDF4; color: #16A34A; }
+.up-pill.up-neu    { background: #FEF3C7; color: #D97706; }
+.up-pill.up-neg    { background: #FEF2F2; color: #DC2626; }
+
+/* Filter pill buttons */
+.filter-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-text-secondary);
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.filter-pill:hover {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+.filter-pill.active {
+  background: var(--color-warning);
+  color: #fff;
+  border-color: var(--color-warning);
+}
 
 /* Zone row highlights */
 .row-buy-zone td { background: var(--color-positive-bg) !important; }
@@ -358,8 +434,8 @@ body {
 }
 
 .tab-active {
-  color: var(--color-accent-blue) !important;
-  border-bottom: 2px solid var(--color-accent-blue) !important;
+  color: var(--color-warning) !important;
+  border-bottom: 2px solid var(--color-warning) !important;
   font-weight: 700;
 }
 
