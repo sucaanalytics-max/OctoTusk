@@ -465,6 +465,60 @@ const ConvictionDots = ({ level }: { level: number }) => (
   </div>
 );
 
+// ── Column metadata for the Octopus table ──
+type ColId =
+  | "company" | "cmp"
+  | "bear" | "base" | "bull"
+  | "uBear" | "uBase" | "uBull" | "up1y" | "up2y"
+  | "pe" | "pb" | "evebitda"
+  | "conviction" | "va" | "sa"
+  | "mcap" | "sebi" | "lastDecision";
+
+interface ColMeta {
+  id: ColId;
+  label: string;
+  group: string;
+  groupTintClass: "tint-green" | "tint-amber" | "";
+  sortKey: string;
+  defaultVisible: boolean;
+  fixed?: boolean;
+  minWidth?: number;
+  align: "left" | "right" | "center";
+}
+
+const COL_META: ColMeta[] = [
+  { id: "company",      label: "Company",    group: "Company",          groupTintClass: "",           sortKey: "companyShort",   fixed: true,  defaultVisible: true,  align: "left",   minWidth: 140 },
+  { id: "cmp",          label: "CMP",        group: "Price",            groupTintClass: "",           sortKey: "liveCmp",        fixed: true,  defaultVisible: true,  align: "right",  minWidth: 80 },
+  { id: "bear",         label: "Bear",       group: "Targets",          groupTintClass: "",           sortKey: "bear_current",   defaultVisible: true,  align: "right" },
+  { id: "base",         label: "Base",       group: "Targets",          groupTintClass: "",           sortKey: "base_current",   defaultVisible: true,  align: "right" },
+  { id: "bull",         label: "Bull",       group: "Targets",          groupTintClass: "",           sortKey: "bull_current",   defaultVisible: true,  align: "right" },
+  { id: "uBear",        label: "↑ Bear",     group: "Scenario Upsides", groupTintClass: "tint-green", sortKey: "upsideBearCalc", defaultVisible: true,  align: "center" },
+  { id: "uBase",        label: "↑ Base",     group: "Scenario Upsides", groupTintClass: "tint-green", sortKey: "upsideBaseCalc", defaultVisible: true,  align: "center" },
+  { id: "uBull",        label: "↑ Bull",     group: "Scenario Upsides", groupTintClass: "tint-green", sortKey: "upsideBullCalc", defaultVisible: true,  align: "center" },
+  { id: "up1y",         label: "1Y Up",      group: "Forward",          groupTintClass: "tint-green", sortKey: "upside1YCalc",   defaultVisible: true,  align: "center" },
+  { id: "up2y",         label: "2Y Up",      group: "Forward",          groupTintClass: "tint-green", sortKey: "upside2YCalc",   defaultVisible: true,  align: "center" },
+  { id: "pe",           label: "PE",         group: "Multiples",        groupTintClass: "tint-amber", sortKey: "base_pe",        defaultVisible: true,  align: "right" },
+  { id: "pb",           label: "PB",         group: "Multiples",        groupTintClass: "tint-amber", sortKey: "base_pb",        defaultVisible: true,  align: "right" },
+  { id: "evebitda",     label: "EV/EBITDA",  group: "Multiples",        groupTintClass: "tint-amber", sortKey: "base_evebitda",  defaultVisible: true,  align: "right",  minWidth: 80 },
+  { id: "conviction",   label: "Conv.",      group: "Analysts",         groupTintClass: "",           sortKey: "conviction",     defaultVisible: true,  align: "center" },
+  { id: "va",           label: "VA",         group: "Analysts",         groupTintClass: "",           sortKey: "vp",             defaultVisible: true,  align: "center" },
+  { id: "sa",           label: "SA",         group: "Analysts",         groupTintClass: "",           sortKey: "sa",             defaultVisible: true,  align: "center" },
+  { id: "mcap",         label: "Mkt Cap",    group: "Fundamentals",     groupTintClass: "",           sortKey: "liveCmp",        defaultVisible: false, align: "right" },
+  { id: "sebi",         label: "Segment",    group: "Fundamentals",     groupTintClass: "",           sortKey: "sebiSegment",    defaultVisible: false, align: "center" },
+  { id: "lastDecision", label: "Decision",   group: "Research",         groupTintClass: "",           sortKey: "companyShort",   defaultVisible: false, align: "center" },
+];
+
+const COL_META_MAP = new Map(COL_META.map(c => [c.id, c]));
+const DEFAULT_COL_CONFIG: { id: ColId; visible: boolean }[] = COL_META.map(c => ({ id: c.id, visible: c.defaultVisible }));
+
+function stockZoneClass(s: EnrichedStock): string {
+  if (s.upsideBearCalc != null && s.upsideBearCalc > 0) return "row-zone-buy";
+  if (s.upsideBaseCalc != null && s.upsideBaseCalc > 0) return "row-zone-hold";
+  if (s.upsideBullCalc != null && s.upsideBullCalc > 0) return "row-zone-profit";
+  if (s.upsideBullCalc != null && s.upsideBullCalc <= 0 && s.bull_current != null) return "row-zone-over";
+  return "";
+}
+
 // ── Loading Skeleton ──
 const SKELETON_WIDTHS = [75, 60, 85, 70, 80, 65, 90, 55];
 const SkeletonRow = () => (
@@ -565,8 +619,8 @@ const AnalystBar = ({ strongBuy, buy, hold, sell, strongSell }: { strongBuy: num
 };
 
 // ── Sortable table header (module-scope to avoid remount) ──
-const Th = ({ col, label, sortCol, sortDir, onSort, className }: { col: string; label: string; sortCol: string; sortDir: "asc" | "desc"; onSort: (col: string) => void; className?: string }) => (
-  <th className={[className, sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""].filter(Boolean).join(" ")} onClick={() => onSort(col)} role="columnheader" aria-sort={sortCol === col ? (sortDir === "asc" ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={e => e.key === "Enter" && onSort(col)}>{label}</th>
+const Th = ({ col, label, sortCol, sortDir, onSort, className, style }: { col: string; label: string; sortCol: string; sortDir: "asc" | "desc"; onSort: (col: string) => void; className?: string; style?: React.CSSProperties }) => (
+  <th style={style} className={[className, sortCol === col ? (sortDir === "asc" ? "sort-asc" : "sort-desc") : ""].filter(Boolean).join(" ")} onClick={() => onSort(col)} role="columnheader" aria-sort={sortCol === col ? (sortDir === "asc" ? "ascending" : "descending") : "none"} tabIndex={0} onKeyDown={e => e.key === "Enter" && onSort(col)}>{label}</th>
 );
 
 // ── Sector Allocation Bar (module-scope, manages its own expand state) ──
@@ -708,6 +762,53 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     });
   }, [zoneSorts]);
 
+  // ── Column customization ──
+  const [colConfig, setColConfig] = useState<{ id: ColId; visible: boolean }[]>(() => {
+    try {
+      const saved = localStorage.getItem("octotusk_col_config");
+      if (saved) {
+        const parsed: { id: ColId; visible: boolean }[] = JSON.parse(saved);
+        const savedIds = new Set(parsed.map(c => c.id));
+        return [...parsed, ...DEFAULT_COL_CONFIG.filter(c => !savedIds.has(c.id))];
+      }
+    } catch { /* ignore */ }
+    return DEFAULT_COL_CONFIG;
+  });
+  const [showColSettings, setShowColSettings] = useState(false);
+  const [dragColId, setDragColId] = useState<ColId | null>(null);
+
+  const saveColConfig = useCallback((cfg: { id: ColId; visible: boolean }[]) => {
+    setColConfig(cfg);
+    try { localStorage.setItem("octotusk_col_config", JSON.stringify(cfg)); } catch { /* ignore */ }
+  }, []);
+
+  const toggleCol = useCallback((id: ColId, visible: boolean) => {
+    const meta = COL_META_MAP.get(id);
+    if (meta?.fixed) return;
+    setColConfig(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, visible } : c);
+      try { localStorage.setItem("octotusk_col_config", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
+
+  const visibleCols = useMemo(() => {
+    const metaMap = COL_META_MAP;
+    return colConfig
+      .map(c => metaMap.get(c.id))
+      .filter((m): m is ColMeta => !!m && (m.fixed || colConfig.find(c => c.id === m.id)?.visible === true));
+  }, [colConfig]);
+
+  const groupHeaders = useMemo(() => {
+    const groups: { label: string; tintClass: string; span: number }[] = [];
+    for (const col of visibleCols) {
+      const last = groups[groups.length - 1];
+      if (last && last.label === col.group) { last.span++; }
+      else { groups.push({ label: col.group, tintClass: col.groupTintClass, span: 1 }); }
+    }
+    return groups;
+  }, [visibleCols]);
+
   // Zone alerts (stored, not auto-popup)
   const [zoneAlerts, setZoneAlerts] = useState<{ id: number; msg: string; type: "buy" | "sell" | "overvalued" | "exit"; ts: number }[]>([]);
   const [showZoneAlerts, setShowZoneAlerts] = useState(false);
@@ -758,6 +859,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [journalAnnotation, setJournalAnnotation] = useState("");
   const [journalTikr, setJournalTikr] = useState("");
   const journalFetched = useRef(false);
+
+  const latestDecisionByTikr = useMemo(() => {
+    const m = new Map<string, { date: string; label: string }>();
+    journalEntries.forEach(e => {
+      if (!m.has(e.tikr) || e.created_at > m.get(e.tikr)!.date) {
+        m.set(e.tikr, { date: e.created_at, label: e.zone_name || e.event_type });
+      }
+    });
+    return m;
+  }, [journalEntries]);
 
   // Theme
   const [theme, setTheme] = useState<"light" | "dark">("light");
@@ -2091,46 +2202,45 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </div>
           )}
 
-          <div className="rounded-xl table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)", overflowY: "auto", overflowX: "hidden" }}>
+          <div className="rounded-xl table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)", overflowY: "auto", overflowX: "auto" }}>
             <table className="data-table w-full" role="table" aria-label="Stock data table">
               <thead>
+                {/* Group header row — colSpan computed dynamically */}
                 <tr>
-                  <th className="thead-group" colSpan={1} style={{ cursor: "default" }} />
-                  <th className="thead-group" colSpan={1}>Company</th>
-                  <th className="thead-group" colSpan={1}>Price</th>
-                  <th className="thead-group" colSpan={3}>Targets</th>
-                  <th className="thead-group tint-green" colSpan={3}>Scenario Upsides</th>
-                  <th className="thead-group tint-green" colSpan={2}>Forward</th>
-                  <th className="thead-group tint-amber" colSpan={3}>Multiples</th>
-                  <th className="thead-group" colSpan={3}>Analysts</th>
+                  <th className="thead-group" style={{ cursor: "default" }} />
+                  {groupHeaders.map((g, i) => (
+                    <th key={i} className={`thead-group ${g.tintClass}`} colSpan={g.span}>{g.label}</th>
+                  ))}
+                  <th className="thead-group" style={{ cursor: "default", width: 32 }}>
+                    <button className="col-settings-gear-btn" onClick={() => setShowColSettings(true)} title="Configure columns">⚙</button>
+                  </th>
                 </tr>
+                {/* Column header row */}
                 <tr>
                   <th className="thead-col" style={{ width: 40, cursor: "default" }} />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="companyShort" label="Company" />
-
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="liveCmp" label="CMP" />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bear_current" label="Bear" />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_current" label="Base" />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bull_current" label="Bull" />
-                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBearCalc" label="↑ Bear" />
-                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBaseCalc" label="↑ Base" />
-                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upsideBullCalc" label="↑ Bull" />
-                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside1YCalc" label="1Y Up" />
-                  <Th className="thead-col tint-green" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="upside2YCalc" label="2Y Up" />
-                  <Th className="thead-col tint-amber" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pe" label="PE" />
-                  <Th className="thead-col tint-amber" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_pb" label="PB" />
-                  <Th className="thead-col tint-amber" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_evebitda" label="EV/EBITDA" />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="conviction" label="Conv." />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="vp" label="VA" />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sa" label="SA" />
+                  {visibleCols.map(col => (
+                    <Th
+                      key={col.id}
+                      className={`thead-col ${col.groupTintClass}`}
+                      sortCol={sortCol}
+                      sortDir={sortDir}
+                      onSort={handleSort}
+                      col={col.sortKey}
+                      label={col.label}
+                      style={{ minWidth: col.minWidth, textAlign: col.align === "center" ? "center" : col.align === "right" ? "right" : "left" }}
+                    />
+                  ))}
+                  <th className="thead-col" style={{ width: 32, cursor: "default" }} />
                 </tr>
               </thead>
               <tbody>
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
                   Array.from({ length: 15 }).map((_, i) => <SkeletonRow key={i} />)
                 ) : sortedStocks.map((s, i) => {
+                  const dec = latestDecisionByTikr.get(s.tikr);
                   return (
-                    <tr key={`${s.tikr}-${i}`} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)} role="row" aria-label={`${s.companyShort} - click for details`}>
+                    <tr key={`${s.tikr}-${i}`} className={`cursor-pointer ${stockZoneClass(s)}`} onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)} role="row" aria-label={`${s.companyShort} - click for details`}>
+                      {/* Action buttons — always first cell (zone border inset applied here) */}
                       <td onClick={e => e.stopPropagation()} style={{ padding: "var(--space-1)", position: "relative" }}>
                         <div className="flex items-center gap-0.5">
                           <button onClick={() => toggleHideStock(s.tikr)} className="stock-action-btn" title={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"} aria-label={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"}>
@@ -2162,38 +2272,131 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                           )}
                         </div>
                       </td>
-                      <td style={{ whiteSpace: "normal", minWidth: 100, maxWidth: 200 }}>
-                        <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{s.companyShort}</div>
-                        {s.sector && <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.2 }}>{s.sector}</div>}
-                      </td>
-                      <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
-                        {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
-                        {s.liveChangePct != null && (
-                          <div style={{ fontSize: "0.625rem", color: s.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)", lineHeight: 1, marginTop: 1 }}>
-                            {s.liveChangePct >= 0 ? "▲" : "▼"} {Math.abs(s.liveChangePct).toFixed(1)}%
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
-                      <td className="text-center cell-bear">{upsidePill(s.upsideBearCalc)}</td>
-                      <td className="text-center cell-upside">{upsidePill(s.upsideBaseCalc)}</td>
-                      <td className="text-center cell-upside">{upsidePill(s.upsideBullCalc)}</td>
-                      <td className="text-center cell-upside">{upsidePill(s.upside1YCalc)}</td>
-                      <td className="text-center cell-upside">{upsidePill(s.upside2YCalc)}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
-                      <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
-                      <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
-                      <td className="text-center">{s.vp ? <span className="pill pill-blue">{s.vp}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>
-                      <td className="text-center">{s.sa ? <span className="pill pill-amber">{s.sa}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>
+                      {/* Dynamic columns */}
+                      {visibleCols.map(col => {
+                        const monoStyle: React.CSSProperties = { fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" };
+                        const mutedMono: React.CSSProperties = { ...monoStyle, color: "var(--color-text-secondary)" };
+                        const tdAlign = col.align === "center" ? "text-center" : col.align === "right" ? "text-right" : "";
+                        switch (col.id) {
+                          case "company": return (
+                            <td key={col.id} style={{ whiteSpace: "normal", minWidth: 100, maxWidth: 200 }}>
+                              <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{s.companyShort}</div>
+                              {s.sector && <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.2 }}>{s.sector}</div>}
+                            </td>
+                          );
+                          case "cmp": return (
+                            <td key={col.id} className="font-semibold" style={monoStyle}>
+                              {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
+                              {s.liveChangePct != null && (
+                                <div style={{ fontSize: "0.625rem", color: s.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)", lineHeight: 1, marginTop: 1 }}>
+                                  {s.liveChangePct >= 0 ? "▲" : "▼"} {Math.abs(s.liveChangePct).toFixed(1)}%
+                                </div>
+                              )}
+                            </td>
+                          );
+                          case "bear":    return <td key={col.id} style={monoStyle}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>;
+                          case "base":    return <td key={col.id} style={monoStyle}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>;
+                          case "bull":    return <td key={col.id} style={monoStyle}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>;
+                          case "uBear":   return <td key={col.id} className="text-center">{upsidePill(s.upsideBearCalc)}</td>;
+                          case "uBase":   return <td key={col.id} className="text-center" style={{ fontWeight: 600 }}>{upsidePill(s.upsideBaseCalc)}</td>;
+                          case "uBull":   return <td key={col.id} className="text-center">{upsidePill(s.upsideBullCalc)}</td>;
+                          case "up1y":    return <td key={col.id} className="text-center">{upsidePill(s.upside1YCalc)}</td>;
+                          case "up2y":    return <td key={col.id} className="text-center">{upsidePill(s.upside2YCalc)}</td>;
+                          case "pe":      return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>;
+                          case "pb":      return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>;
+                          case "evebitda":return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>;
+                          case "conviction": return <td key={col.id} className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>;
+                          case "va":      return <td key={col.id} className="text-center">{s.vp ? <span className="pill pill-blue">{s.vp}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>;
+                          case "sa":      return <td key={col.id} className="text-center">{s.sa ? <span className="pill pill-amber">{s.sa}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>;
+                          case "mcap": {
+                            const mc = quotes[s.tikr]?.marketCap ?? quotes[s.displayTikr]?.marketCap;
+                            return <td key={col.id} className={tdAlign} style={mutedMono}>{mc ? `₹${fmt(mc / 10_000_000, 0)}Cr` : "—"}</td>;
+                          }
+                          case "sebi":    return <td key={col.id} className="text-center">{s.sebiSegment ? <span className={`pill pill-segment-${s.sebiSegment}`}>{SEBI_LABELS[s.sebiSegment]}</span> : <span style={{ color: "var(--color-text-muted)" }}>—</span>}</td>;
+                          case "lastDecision": return (
+                            <td key={col.id} className="text-center">
+                              {dec ? (
+                                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>
+                                  {dec.label}<br /><span style={{ color: "var(--color-text-muted)" }}>{dec.date.slice(0, 10)}</span>
+                                </span>
+                              ) : <span style={{ color: "var(--color-text-muted)" }}>—</span>}
+                            </td>
+                          );
+                          default: return <td key={col.id}>—</td>;
+                        }
+                      })}
+                      <td style={{ width: 32 }} />
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
+
+          {/* Column settings panel */}
+          {showColSettings && (
+            <div className="col-settings-overlay" onClick={() => setShowColSettings(false)}>
+              <div className="col-settings-panel" onClick={e => e.stopPropagation()}>
+                <div className="col-settings-header">
+                  <h3>Configure Columns</h3>
+                  <button onClick={() => setShowColSettings(false)} className="btn btn-ghost btn-sm" aria-label="Close">✕</button>
+                </div>
+                <div className="col-settings-body">
+                  {(() => {
+                    const groups: { name: string; cols: (ColMeta & { visible: boolean })[] }[] = [];
+                    colConfig.forEach(cc => {
+                      const meta = COL_META_MAP.get(cc.id);
+                      if (!meta) return;
+                      let g = groups.find(g => g.name === meta.group);
+                      if (!g) { g = { name: meta.group, cols: [] }; groups.push(g); }
+                      g.cols.push({ ...meta, visible: cc.visible || !!meta.fixed });
+                    });
+                    return groups.map(group => (
+                      <div key={group.name} className="col-settings-group">
+                        <p className="col-settings-group-label">{group.name}</p>
+                        {group.cols.map(col => (
+                          <div
+                            key={col.id}
+                            className={`col-settings-row${dragColId === col.id ? " dragging" : ""}`}
+                            draggable={!col.fixed}
+                            onDragStart={() => setDragColId(col.id)}
+                            onDragEnd={() => setDragColId(null)}
+                            onDragOver={e => { e.preventDefault(); }}
+                            onDrop={() => {
+                              if (!dragColId || dragColId === col.id) return;
+                              const cfg = [...colConfig];
+                              const fromIdx = cfg.findIndex(c => c.id === dragColId);
+                              const toIdx = cfg.findIndex(c => c.id === col.id);
+                              if (fromIdx < 0 || toIdx < 0) return;
+                              const [moved] = cfg.splice(fromIdx, 1);
+                              cfg.splice(toIdx, 0, moved);
+                              saveColConfig(cfg);
+                              setDragColId(null);
+                            }}
+                          >
+                            <span className="drag-handle" style={{ opacity: col.fixed ? 0.2 : 1 }}>⠿</span>
+                            <label className="col-settings-label">
+                              <input
+                                type="checkbox"
+                                checked={col.visible}
+                                disabled={!!col.fixed}
+                                onChange={e => toggleCol(col.id, e.target.checked)}
+                              />
+                              {col.label}
+                            </label>
+                            {col.fixed && <span className="col-settings-locked">always on</span>}
+                          </div>
+                        ))}
+                      </div>
+                    ));
+                  })()}
+                </div>
+                <div className="col-settings-footer">
+                  <button onClick={() => saveColConfig(DEFAULT_COL_CONFIG)} className="btn btn-ghost btn-sm">Reset to defaults</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Portfolio Heatmap Treemap ── */}
           <div className="metric-card animate-fade-in-up mt-4" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
