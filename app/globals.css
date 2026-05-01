@@ -241,6 +241,17 @@ body {
 .data-table th.thead-col.tint-amber { background: #3B2E1A; color: #FCD34D; }
 .data-table th.thead-col.tint-amber:hover { background: #4A3A22; color: #FDE68A; }
 
+/* Group header row tint variants */
+.data-table th.thead-group.tint-green       { background: #152318; color: #86EFAC; }
+.data-table th.thead-group.tint-green:hover { background: #152318; color: #86EFAC; }
+.data-table th.thead-group.tint-amber       { background: #261A0C; color: #FCD34D; }
+.data-table th.thead-group.tint-amber:hover { background: #261A0C; color: #FCD34D; }
+
+/* Upside cell heat-map fills */
+.data-table tbody tr td.cell-neg    { background: rgba(220, 38,  38, 0.10); }
+.data-table tbody tr td.cell-pos    { background: rgba(  5, 150, 105, 0.10); }
+.data-table tbody tr td.cell-strong { background: rgba(  5, 150, 105, 0.20); }
+
 .data-table td {
   padding: var(--space-2) var(--space-2);
   font-size: var(--text-sm);

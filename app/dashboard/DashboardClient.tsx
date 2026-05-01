@@ -300,6 +300,15 @@ function upsidePill(val: number | null | undefined): React.ReactNode {
   return <span className={`up-pill ${cls}`}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
+function upsideCellClass(val: number | null | undefined): string {
+  if (val == null || isNaN(val as number)) return "";
+  const pct = val * 100;
+  if (pct > 25) return "cell-strong";
+  if (pct > 3)  return "cell-pos";
+  if (pct > -3) return "";
+  return "cell-neg";
+}
+
 const cleanTikr = (tikr: string | null | undefined): string => {
   if (!tikr || typeof tikr !== "string") return "";
   if (tikr.includes("(XNSE:")) { const m = tikr.match(/\(XNSE:(\w+)\)/); return m ? m[1] : tikr; }
@@ -2177,11 +2186,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
-                      <td className="text-center">{upsidePill(s.upsideBearCalc)}</td>
-                      <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
-                      <td className="text-center">{upsidePill(s.upsideBullCalc)}</td>
-                      <td className="text-center">{upsidePill(s.upside1YCalc)}</td>
-                      <td className="text-center">{upsidePill(s.upside2YCalc)}</td>
+                      <td className={`text-center ${upsideCellClass(s.upsideBearCalc)}`}>{upsidePill(s.upsideBearCalc)}</td>
+                      <td className={`text-center ${upsideCellClass(s.upsideBaseCalc)}`}>{upsidePill(s.upsideBaseCalc)}</td>
+                      <td className={`text-center ${upsideCellClass(s.upsideBullCalc)}`}>{upsidePill(s.upsideBullCalc)}</td>
+                      <td className={`text-center ${upsideCellClass(s.upside1YCalc)}`}>{upsidePill(s.upside1YCalc)}</td>
+                      <td className={`text-center ${upsideCellClass(s.upside2YCalc)}`}>{upsidePill(s.upside2YCalc)}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>
@@ -2943,27 +2952,35 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       {activeTab === "decisions" && (
         <div id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions" className="space-y-4 animate-fade-in">
 
-          {/* Universe Filter */}
-          <div className="flex items-center gap-2">
-            {(["all", "holdings"] as const).map(v => (
-              <button key={v} className="scatter-pill" style={pillStyle(dsScope === v)} onClick={() => setDsScope(v)}>
-                {v === "holdings" ? "Holdings Only" : "Full Universe"}
+          {/* 1. Control Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              {(["all", "holdings"] as const).map(v => (
+                <button key={v} className="scatter-pill" style={pillStyle(dsScope === v)} onClick={() => setDsScope(v)}>
+                  {v === "holdings" ? "Holdings Only" : "Full Universe"}
+                </button>
+              ))}
+              {dsScope === "holdings" && (
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
+                  {holdingTikrs.size} holdings
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
+                Buy: {buyZoneLow}%–{buyZoneHigh}% · Base: {baseZoneLow}%–{baseZoneHigh}% · Sell: {sellZoneLow}%–{sellZoneHigh}%
+              </span>
+              <button className="scatter-pill" style={pillStyle(showThresholdSettings)} onClick={() => setShowThresholdSettings(p => !p)}>
+                ⚙ Thresholds
               </button>
-            ))}
-            {dsScope === "holdings" && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Showing {holdingTikrs.size} holdings</span>}
+            </div>
           </div>
 
-          {/* Threshold Settings */}
-          <div className="metric-card animate-fade-in-up" style={{ padding: showThresholdSettings ? undefined : "8px 16px" }}>
-            <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowThresholdSettings(p => !p)}>
-              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
-                <span style={{ marginRight: 6, fontSize: "var(--text-xs)" }}>{showThresholdSettings ? "▾" : "▸"}</span>
-                Zone Thresholds
-              </h3>
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Buy: {buyZoneLow}% to {buyZoneHigh}% | Base: {baseZoneLow}% to {baseZoneHigh}% | Sell: {sellZoneLow}% to {sellZoneHigh}%</span>
-            </div>
-            {showThresholdSettings && (
-              <div className="grid grid-cols-3 gap-6 mt-4">
+          {/* 2. Threshold Panel */}
+          {showThresholdSettings && (
+            <div className="metric-card animate-fade-in-up">
+              <h3 style={{ marginBottom: 14, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Zone Thresholds</h3>
+              <div className="grid grid-cols-3 gap-6">
                 <div>
                   <p className="mb-2 font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Buy Zone (Upside to Bear)</p>
                   <div className="flex items-center gap-3 mb-1">
@@ -2998,48 +3015,126 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+
+          {/* 3. KPI Summary Strip */}
+          <div className="kpi-grid">
+            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-positive)" }}>
+              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Buy Zone</p>
+              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.buyZone.length}</p>
+              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>near bear case</p>
+            </div>
+            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
+              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>Near Base</p>
+              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.cmpNearBase.length}</p>
+              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>at fair value</p>
+            </div>
+            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-warning)" }}>
+              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>Take Profit</p>
+              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.sellZone.length}</p>
+              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>near bull case</p>
+            </div>
+            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-negative)" }}>
+              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>Overvalued</p>
+              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.overvalued.length}</p>
+              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>above bull case</p>
+            </div>
+            {(() => {
+              const now = new Date();
+              const cutoff = now.getTime() + 28 * 86400000;
+              const count = Object.values(enrichmentCache).reduce((n, data) => {
+                const d = data.earningsDate ? new Date(data.earningsDate).getTime() : 0;
+                return n + (d > now.getTime() && d < cutoff ? 1 : 0);
+              }, 0);
+              return (
+                <div className="kpi-card kpi-warning">
+                  <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>Catalysts</p>
+                  <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{count}</p>
+                  <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>earnings next 28d</p>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* Buy & Sell Zones */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="metric-card animate-fade-in-up delay-1" style={{ borderTop: "3px solid var(--color-positive)" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Buy Zone — CMP Near Bear <span className="pill pill-green ml-2">{decisionData.buyZone.length}</span></h3>
-              {decisionData.buyZone.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><Th sortCol={zoneSorts.buy?.col || ""} sortDir={zoneSorts.buy?.dir || "desc"} onSort={c => toggleZoneSort("buy", c)} col="companyShort" label="Company" /><Th sortCol={zoneSorts.buy?.col || ""} sortDir={zoneSorts.buy?.dir || "desc"} onSort={c => toggleZoneSort("buy", c)} col="liveCmp" label="CMP" /><Th sortCol={zoneSorts.buy?.col || ""} sortDir={zoneSorts.buy?.dir || "desc"} onSort={c => toggleZoneSort("buy", c)} col="bear_current" label="Bear" /><Th sortCol={zoneSorts.buy?.col || ""} sortDir={zoneSorts.buy?.dir || "desc"} onSort={c => toggleZoneSort("buy", c)} col="upsideBearCalc" label="↑ Bear" /><Th sortCol={zoneSorts.buy?.col || ""} sortDir={zoneSorts.buy?.dir || "desc"} onSort={c => toggleZoneSort("buy", c)} col="upsideBaseCalc" label="↑ Base" /></tr></thead>
-                  <tbody>{sortZoneData("buy", decisionData.buyZone).map((s, i) => (<tr key={i} className="row-buy-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td><td><UpsideBar value={(s.upsideBearCalc || 0) * 100} /></td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
-              )}
-            </div>
-            <div className="metric-card animate-fade-in-up delay-2" style={{ borderTop: "3px solid var(--color-negative)" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Take Profit — CMP Near Bull <span className="pill pill-red ml-2">{decisionData.sellZone.length}</span></h3>
-              {decisionData.sellZone.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><Th sortCol={zoneSorts.sell?.col || ""} sortDir={zoneSorts.sell?.dir || "desc"} onSort={c => toggleZoneSort("sell", c)} col="companyShort" label="Company" /><Th sortCol={zoneSorts.sell?.col || ""} sortDir={zoneSorts.sell?.dir || "desc"} onSort={c => toggleZoneSort("sell", c)} col="liveCmp" label="CMP" /><Th sortCol={zoneSorts.sell?.col || ""} sortDir={zoneSorts.sell?.dir || "desc"} onSort={c => toggleZoneSort("sell", c)} col="bull_current" label="Bull" /><Th sortCol={zoneSorts.sell?.col || ""} sortDir={zoneSorts.sell?.dir || "desc"} onSort={c => toggleZoneSort("sell", c)} col="upsideBullCalc" label="Upside to Bull" /></tr></thead>
-                  <tbody>{sortZoneData("sell", decisionData.sellZone).map((s, i) => (<tr key={i} className="row-sell-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td><td><UpsideBar value={(s.upsideBullCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
-              )}
+          {/* 4. Unified Zone Alert Tables */}
+          <div className="metric-card animate-fade-in-up">
+            <h3 style={{ marginBottom: 14, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Action Zones</h3>
+            <div style={{ overflowX: "auto" }}>
+              <table className="data-table w-full" role="table">
+                <thead>
+                  <tr>
+                    <th style={{ minWidth: 140 }}>Company</th>
+                    <th>Sector</th>
+                    <th>CMP</th>
+                    <th>Reference</th>
+                    <th>Signal</th>
+                    <th>↑ Base</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colSpan={6} style={{ background: "rgba(5,150,105,0.10)", color: "var(--color-positive)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Buy Zone — CMP Near Bear · {decisionData.buyZone.length} stock{decisionData.buyZone.length !== 1 ? "s" : ""}</td></tr>
+                  {decisionData.buyZone.length === 0
+                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
+                    : sortZoneData("buy", decisionData.buyZone).map((s, i) => (
+                      <tr key={i} className="row-buy-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
+                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBearCalc)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                      </tr>
+                    ))
+                  }
+                  <tr><td colSpan={6} style={{ background: "rgba(59,130,246,0.10)", color: "var(--color-accent-blue)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Near Base — CMP at Fair Value · {decisionData.cmpNearBase.length} stock{decisionData.cmpNearBase.length !== 1 ? "s" : ""}</td></tr>
+                  {decisionData.cmpNearBase.length === 0
+                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
+                    : sortZoneData("nearBase", decisionData.cmpNearBase).map((s, i) => (
+                      <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
+                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.base_current, 0)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                      </tr>
+                    ))
+                  }
+                  <tr><td colSpan={6} style={{ background: "rgba(217,119,6,0.10)", color: "var(--color-warning)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Take Profit — CMP Near Bull · {decisionData.sellZone.length} stock{decisionData.sellZone.length !== 1 ? "s" : ""}</td></tr>
+                  {decisionData.sellZone.length === 0
+                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
+                    : sortZoneData("sell", decisionData.sellZone).map((s, i) => (
+                      <tr key={i} className="row-sell-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
+                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBullCalc)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                      </tr>
+                    ))
+                  }
+                  <tr><td colSpan={6} style={{ background: "rgba(220,38,38,0.10)", color: "var(--color-negative)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Overvalued — CMP Above Bull · {decisionData.overvalued.length} stock{decisionData.overvalued.length !== 1 ? "s" : ""}</td></tr>
+                  {decisionData.overvalued.length === 0
+                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
+                    : sortZoneData("overvalued", decisionData.overvalued).map((s, i) => (
+                      <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
+                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBullCalc)}</td>
+                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
             </div>
           </div>
 
-          {/* Overvalued & High Conviction */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #DC2626" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Overvalued — CMP Above Bull <span className="pill pill-red ml-2">{decisionData.overvalued.length}</span></h3>
-              {decisionData.overvalued.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><Th sortCol={zoneSorts.overvalued?.col || ""} sortDir={zoneSorts.overvalued?.dir || "desc"} onSort={c => toggleZoneSort("overvalued", c)} col="companyShort" label="Company" /><Th sortCol={zoneSorts.overvalued?.col || ""} sortDir={zoneSorts.overvalued?.dir || "desc"} onSort={c => toggleZoneSort("overvalued", c)} col="liveCmp" label="CMP" /><Th sortCol={zoneSorts.overvalued?.col || ""} sortDir={zoneSorts.overvalued?.dir || "desc"} onSort={c => toggleZoneSort("overvalued", c)} col="bull_current" label="Bull" /><Th sortCol={zoneSorts.overvalued?.col || ""} sortDir={zoneSorts.overvalued?.dir || "desc"} onSort={c => toggleZoneSort("overvalued", c)} col="upsideBullCalc" label="% Above Bull" /></tr></thead>
-                  <tbody>{sortZoneData("overvalued", decisionData.overvalued).map((s, i) => (<tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td><td style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)", fontWeight: 600 }}>{s.upsideBullCalc != null ? `${(s.upsideBullCalc * 100).toFixed(1)}%` : "—"}</td></tr>))}</tbody></table></div>
-              )}
-            </div>
-            <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #3B82F6" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>CMP Near Base <span className="pill ml-2" style={{ background: "rgba(59,130,246,0.15)", color: "#3B82F6" }}>{decisionData.cmpNearBase.length}</span></h3>
-              {decisionData.cmpNearBase.length === 0 ? <p className="py-4" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>None currently</p> : (
-                <div className="overflow-auto max-h-[300px]"><table className="data-table w-full"><thead><tr><Th sortCol={zoneSorts.nearBase?.col || ""} sortDir={zoneSorts.nearBase?.dir || "desc"} onSort={c => toggleZoneSort("nearBase", c)} col="companyShort" label="Company" /><Th sortCol={zoneSorts.nearBase?.col || ""} sortDir={zoneSorts.nearBase?.dir || "desc"} onSort={c => toggleZoneSort("nearBase", c)} col="liveCmp" label="CMP" /><Th sortCol={zoneSorts.nearBase?.col || ""} sortDir={zoneSorts.nearBase?.dir || "desc"} onSort={c => toggleZoneSort("nearBase", c)} col="base_current" label="Base" /><Th sortCol={zoneSorts.nearBase?.col || ""} sortDir={zoneSorts.nearBase?.dir || "desc"} onSort={c => toggleZoneSort("nearBase", c)} col="upsideBaseCalc" label="Upside to Base" /></tr></thead>
-                  <tbody>{sortZoneData("nearBase", decisionData.cmpNearBase).map((s, i) => (
-                    <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.base_current, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>
-                  ))}</tbody></table></div>
-              )}
-            </div>
-          </div>
-
-          {/* Upside & Downside */}
+          {/* 5. Top 10 Rankings */}
           <div className="grid grid-cols-2 gap-4">
             <div className="metric-card animate-fade-in-up delay-3" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
               <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Top 10 — Highest Upside to Base</h3>
@@ -3053,24 +3148,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </div>
           </div>
 
-          {/* Sector Allocation */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation & Avg Upside</h3>
-              <div className="flex gap-1">
-                {(["sector", "subsector"] as const).map(v => (
-                  <button key={v} className="scatter-pill" style={pillStyle(sectorGroupBy === v)} onClick={() => setSectorGroupBy(v)}>
-                    {v === "sector" ? "Sectors" : "Subsectors"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <SectorBar sectors={sectorDisplayData} groupBy={sectorGroupBy} sourceStocks={dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks} onSelectStock={setDetailStock} />
-          </div>
-
-          {/* Risk/Reward Scatter Chart */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Risk / Reward Scatter — Base Upside vs Bear Downside</h3>
+          {/* 6. Risk/Reward Scatter */}
+          <div className="metric-card animate-fade-in-up">
+            <h3 style={{ marginBottom: 12, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Risk / Reward Scatter — Base Upside vs Bear Downside</h3>
             {/* Sector filter pills */}
             <div className="flex flex-wrap gap-1 mb-2">
               <button className="scatter-pill" style={{ background: scatterSectorFilters.size === 0 ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: scatterSectorFilters.size === 0 ? "#fff" : "var(--color-text-muted)" }} onClick={() => setScatterSectorFilters(new Set())}>All Sectors</button>
@@ -3152,310 +3232,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </div>
           </div>
 
-          {/* ── 52-Week Range Position ── */}
-          <div className="grid grid-cols-2 gap-4">
-            {(() => {
-              const withRange = enrichedStocks.filter(s => s.liveCmp && s.tikr && quotes[s.tikr]?.fiftyTwoWeekHigh && quotes[s.tikr]?.fiftyTwoWeekLow).map(s => {
-                const q = quotes[s.tikr];
-                const hi = q.fiftyTwoWeekHigh!, lo = q.fiftyTwoWeekLow!;
-                const rangePct = hi > lo ? ((s.liveCmp! - lo) / (hi - lo)) * 100 : 50;
-                return { ...s, rangePct, hi52: hi, lo52: lo };
-              });
-              const nearLow = [...withRange].sort((a, b) => a.rangePct - b.rangePct).slice(0, 10);
-              const nearHigh = [...withRange].sort((a, b) => b.rangePct - a.rangePct).slice(0, 10);
-              return (<>
-                <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-positive)" }}>
-                  <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Near 52-Week Low <span className="pill pill-green" style={{ marginLeft: 6 }}>{nearLow.length}</span></h3>
-                  <div className="overflow-auto max-h-[320px]"><table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>52W Low</th><th>52W High</th><th>Position</th></tr></thead>
-                    <tbody>{nearLow.map(s => (
-                      <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.lo52, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.hi52, 0)}</td>
-                        <td style={{ minWidth: 100 }}>
-                          <div className="flex items-center gap-2">
-                            <div className="range-bar-track flex-1"><div className="range-bar-fill" style={{ width: `${Math.max(2, Math.min(98, s.rangePct))}%`, background: s.rangePct < 15 ? "var(--color-positive)" : s.rangePct > 85 ? "var(--color-warning)" : "var(--color-accent-blue)" }} /><div className="range-bar-marker" style={{ left: `${Math.max(2, Math.min(98, s.rangePct))}%` }} /></div>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: s.rangePct < 15 ? "var(--color-positive)" : "var(--color-text-muted)", minWidth: 28 }}>{s.rangePct.toFixed(0)}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}</tbody></table></div>
-                </div>
-                <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-warning)" }}>
-                  <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Near 52-Week High <span className="pill pill-amber" style={{ marginLeft: 6 }}>{nearHigh.length}</span></h3>
-                  <div className="overflow-auto max-h-[320px]"><table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>52W Low</th><th>52W High</th><th>Position</th></tr></thead>
-                    <tbody>{nearHigh.map(s => (
-                      <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.lo52, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.hi52, 0)}</td>
-                        <td style={{ minWidth: 100 }}>
-                          <div className="flex items-center gap-2">
-                            <div className="range-bar-track flex-1"><div className="range-bar-fill" style={{ width: `${Math.max(2, Math.min(98, s.rangePct))}%`, background: s.rangePct > 85 ? "var(--color-warning)" : s.rangePct < 15 ? "var(--color-positive)" : "var(--color-accent-blue)" }} /><div className="range-bar-marker" style={{ left: `${Math.max(2, Math.min(98, s.rangePct))}%` }} /></div>
-                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: s.rangePct > 85 ? "var(--color-warning)" : "var(--color-text-muted)", minWidth: 28 }}>{s.rangePct.toFixed(0)}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}</tbody></table></div>
-                </div>
-              </>);
-            })()}
-          </div>
-
-          {/* ── Moving Average Signals ── */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #6366F1" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Moving Average Signals — 50 DMA & 200 DMA</h3>
-            {(() => {
-              const withMA = enrichedStocks.filter(s => s.liveCmp && s.tikr && quotes[s.tikr]?.fiftyDayAverage && quotes[s.tikr]?.twoHundredDayAverage).map(s => {
-                const q = quotes[s.tikr];
-                const above50 = s.liveCmp! > q.fiftyDayAverage!;
-                const above200 = s.liveCmp! > q.twoHundredDayAverage!;
-                return { ...s, above50, above200, ma50: q.fiftyDayAverage!, ma200: q.twoHundredDayAverage! };
-              });
-              const golden = withMA.filter(s => s.above50 && s.above200);
-              const death = withMA.filter(s => !s.above50 && !s.above200);
-              const above50Only = withMA.filter(s => s.above50 && !s.above200);
-              const below50Only = withMA.filter(s => !s.above50 && s.above200);
-              // Golden cross stocks in buy zone = strong signal
-              const goldenBuy = golden.filter(s => decisionData.buyZone.some(b => b.tikr === s.tikr));
-              return (
-                <div>
-                  <div className="grid grid-cols-4 gap-3 mb-4">
-                    <div className="kpi-card kpi-positive animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Golden Cross</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{golden.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Above both MAs</p></div>
-                    <div className="kpi-card animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Above 50 DMA</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{above50Only.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Above 50, below 200</p></div>
-                    <div className="kpi-card animate-fade-in-up delay-3"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Below 50 DMA</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{below50Only.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Below 50, above 200</p></div>
-                    <div className="kpi-card kpi-negative animate-fade-in-up delay-4"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Death Cross</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{death.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Below both MAs</p></div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold mb-2" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Golden Cross + Buy Zone ({goldenBuy.length})</h4>
-                      {goldenBuy.length > 0 ? (
-                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>50 DMA</th><th>200 DMA</th><th>↑ Base</th></tr></thead>
-                          <tbody>{goldenBuy.map(s => (
-                            <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
-                              <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
-                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma50, 0)}</td>
-                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma200, 0)}</td>
-                              <td className="cell-green" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{s.upsideBaseCalc != null ? `+${(s.upsideBaseCalc * 100).toFixed(1)}%` : "—"}</td>
-                            </tr>
-                          ))}</tbody></table>
-                      ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No stocks in both Golden Cross and Buy Zone</p>}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold mb-2" style={{ fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>Death Cross — Watch List ({death.length})</h4>
-                      {death.length > 0 ? (
-                        <div className="overflow-auto max-h-[200px]">
-                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>50 DMA</th><th>200 DMA</th><th>↓ Bear</th></tr></thead>
-                          <tbody>{death.sort((a, b) => (a.upsideBearCalc || 0) - (b.upsideBearCalc || 0)).map(s => (
-                            <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
-                              <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
-                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma50, 0)}</td>
-                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma200, 0)}</td>
-                              <td className="cell-red" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{s.upsideBearCalc != null ? `${(s.upsideBearCalc * 100).toFixed(1)}%` : "—"}</td>
-                            </tr>
-                          ))}</tbody></table></div>
-                      ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No Death Cross stocks</p>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* ── Concentration Risk Heatmap ── */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #EC4899" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Concentration Risk — Sector × Conviction Heatmap</h3>
-            {(() => {
-              const convLevels = [5, 4, 3, 2, 1];
-              const sectorList = Array.from(new Set(enrichedStocks.map(s => s.sector || "Other"))).sort();
-              const grid: Record<string, Record<number, { count: number; value: number }>> = {};
-              let maxVal = 0;
-              sectorList.forEach(sec => {
-                grid[sec] = {};
-                convLevels.forEach(c => { grid[sec][c] = { count: 0, value: 0 }; });
-              });
-              enrichedStocks.forEach(s => {
-                const sec = s.sector || "Other";
-                const conv = s.conviction || 0;
-                if (grid[sec] && grid[sec][conv]) {
-                  grid[sec][conv].count++;
-                  grid[sec][conv].value += s.holding_cash_lakhs || 0;
-                  if (grid[sec][conv].value > maxVal) maxVal = grid[sec][conv].value;
-                }
-              });
-              const sectorTotals: Record<string, { count: number; value: number }> = {};
-              sectorList.forEach(sec => { sectorTotals[sec] = { count: 0, value: 0 }; convLevels.forEach(c => { sectorTotals[sec].count += grid[sec][c].count; sectorTotals[sec].value += grid[sec][c].value; }); });
-              const convTotals: Record<number, { count: number; value: number }> = {};
-              convLevels.forEach(c => { convTotals[c] = { count: 0, value: 0 }; sectorList.forEach(sec => { convTotals[c].count += grid[sec][c].count; convTotals[c].value += grid[sec][c].value; }); });
-
-              return (
-                <div className="overflow-auto">
-                  <table style={{ borderCollapse: "separate", borderSpacing: 2, width: "100%" }}>
-                    <thead>
-                      <tr>
-                        <th style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "left", fontWeight: 600 }}>Sector</th>
-                        {convLevels.map(c => <th key={c} style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "center", fontWeight: 600 }}>Conv {c}</th>)}
-                        <th style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "center", fontWeight: 700 }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sectorList.filter(sec => sectorTotals[sec].count > 0).sort((a, b) => sectorTotals[b].value - sectorTotals[a].value).map(sec => (
-                        <tr key={sec}>
-                          <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)", padding: "2px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{sec}</td>
-                          {convLevels.map(c => {
-                            const cell = grid[sec][c];
-                            const intensity = maxVal > 0 ? cell.value / maxVal : 0;
-                            const bg = cell.count === 0 ? "transparent" : `rgba(99, 102, 241, ${0.08 + intensity * 0.6})`;
-                            const textColor = intensity > 0.5 ? "#fff" : "var(--color-text-primary)";
-                            return (
-                              <td key={c} style={{ padding: 2 }}>
-                                <div className="heatmap-cell" style={{ background: bg, color: cell.count > 0 ? textColor : "var(--color-text-muted)" }}>
-                                  {cell.count > 0 ? <><span style={{ fontWeight: 700 }}>{cell.count}</span>{cell.value > 0 && <span style={{ fontSize: 9, opacity: 0.8 }}>{fmtLakhs(cell.value)}</span>}</> : "—"}
-                                </div>
-                              </td>
-                            );
-                          })}
-                          <td style={{ padding: 2 }}>
-                            <div className="heatmap-cell" style={{ background: "var(--color-bg-elevated)", fontWeight: 700 }}>
-                              <span>{sectorTotals[sec].count}</span>
-                              {sectorTotals[sec].value > 0 && <span style={{ fontSize: 9, opacity: 0.8 }}>{fmtLakhs(sectorTotals[sec].value)}</span>}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      <tr>
-                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)", padding: "2px 8px", fontWeight: 700 }}>Total</td>
-                        {convLevels.map(c => (
-                          <td key={c} style={{ padding: 2 }}>
-                            <div className="heatmap-cell" style={{ background: "var(--color-bg-elevated)", fontWeight: 700 }}>
-                              <span>{convTotals[c].count}</span>
-                              {convTotals[c].value > 0 && <span style={{ fontSize: 9, opacity: 0.8 }}>{fmtLakhs(convTotals[c].value)}</span>}
-                            </div>
-                          </td>
-                        ))}
-                        <td style={{ padding: 2 }}>
-                          <div className="heatmap-cell" style={{ background: "var(--color-bg-elevated)", fontWeight: 700 }}>
-                            <span>{enrichedStocks.length}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* ── Tier 3A: Decision Journal ── */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
-                Decision Journal <span className="pill" style={{ background: "#8B5CF620", color: "#8B5CF6", marginLeft: 8 }}>{journalEntries.length}</span>
-              </h3>
-              <div className="flex items-center gap-2">
-                {(["all", "transitions", "annotations"] as const).map(f => (
-                  <button key={f} className={`scatter-pill${journalFilter === f ? " active" : ""}`} onClick={() => setJournalFilter(f)} style={journalFilter === f ? { background: "#8B5CF620", color: "#8B5CF6", borderColor: "#8B5CF6" } : {}}>
-                    {f === "all" ? "All" : f === "transitions" ? "Zone Changes" : "Notes"}
-                  </button>
-                ))}
-                <button className="scatter-pill" onClick={() => { setShowJournalForm(p => !p); setJournalTikr(""); setJournalAnnotation(""); }} style={{ background: showJournalForm ? "#8B5CF620" : undefined, color: showJournalForm ? "#8B5CF6" : undefined }}>
-                  + Add Note
-                </button>
-                <button className="scatter-pill" onClick={() => fetchJournal()} style={{ fontSize: 10 }}>↻</button>
-              </div>
-            </div>
-
-            {/* Add annotation form */}
-            {showJournalForm && (
-              <div style={{ padding: "12px 16px", background: "var(--color-bg-secondary)", borderRadius: "var(--radius-md)", marginBottom: 12, border: "1px solid var(--color-border)" }}>
-                <div className="flex items-center gap-3 mb-2">
-                  <select value={journalTikr} onChange={e => setJournalTikr(e.target.value)} style={{ flex: "0 0 200px", padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}>
-                    <option value="">Select stock...</option>
-                    {enrichedStocks.filter(s => s.tikr).sort((a, b) => (a.companyShort || "").localeCompare(b.companyShort || "")).map(s => <option key={s.tikr} value={s.tikr}>{s.companyShort || s.tikr}</option>)}
-                  </select>
-                  <input value={journalAnnotation} onChange={e => setJournalAnnotation(e.target.value)} placeholder="Add your note or thesis update..." style={{ flex: 1, padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }} />
-                  <button disabled={!journalTikr || !journalAnnotation.trim()} onClick={async () => {
-                    const stock = enrichedStocks.find(s => s.tikr === journalTikr);
-                    await postJournalEntry({ tikr: journalTikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: stock?.liveCmp, upside_base: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, cds_at_event: stock?.cds });
-                    setJournalAnnotation(""); setShowJournalForm(false);
-                    fetchJournal();
-                  }} className="btn btn-primary btn-sm" style={{ background: "#8B5CF6", opacity: (!journalTikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
-                </div>
-              </div>
-            )}
-
-            {/* Journal timeline */}
-            {journalLoading ? (
-              <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>Loading journal...</div>
-            ) : (() => {
-              const filtered = journalEntries.filter(e => {
-                if (journalFilter === "transitions") return e.event_type === "zone_enter" || e.event_type === "zone_exit";
-                if (journalFilter === "annotations") return e.event_type === "annotation";
-                return true;
-              });
-              if (filtered.length === 0) return (
-                <div style={{ padding: 24, textAlign: "center" }}>
-                  <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>
-                    {journalEntries.length === 0 ? "No journal entries yet. Zone transitions will be logged automatically." : "No entries match this filter."}
-                  </p>
-                </div>
-              );
-              // Group by date
-              const byDate: Record<string, typeof filtered> = {};
-              filtered.forEach(e => {
-                const d = new Date(e.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-                if (!byDate[d]) byDate[d] = [];
-                byDate[d].push(e);
-              });
-              return (
-                <div style={{ maxHeight: 400, overflowY: "auto" }}>
-                  {Object.entries(byDate).map(([date, entries]) => (
-                    <div key={date} style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 600, padding: "4px 0", borderBottom: "1px solid var(--color-border)", marginBottom: 6 }}>{date}</div>
-                      {entries.map(e => {
-                        const isEnter = e.event_type === "zone_enter";
-                        const isExit = e.event_type === "zone_exit";
-                        const isNote = e.event_type === "annotation";
-                        const color = isEnter ? (e.zone_name === "buy" ? "var(--color-positive)" : e.zone_name === "overvalued" ? "var(--color-negative)" : "#F59E0B") : isExit ? "var(--color-text-muted)" : "#8B5CF6";
-                        const icon = isEnter ? "→" : isExit ? "←" : "✎";
-                        const zoneLabel = e.zone_name === "buy" ? "Buy Zone" : e.zone_name === "sell" ? "Take Profit" : e.zone_name === "overvalued" ? "Overvalued" : e.zone_name || "";
-                        const stock = enrichedStocks.find(s => s.tikr === e.tikr);
-                        const name = stock?.companyShort || e.tikr;
-                        const time = new Date(e.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-                        return (
-                          <div key={e.id} style={{ display: "flex", gap: 8, padding: "6px 8px", borderRadius: "var(--radius-md)", cursor: "pointer", transition: "background 0.15s" }} className="hover-highlight" onClick={() => { const s = enrichedStocks.find(x => x.tikr === e.tikr); if (s) setDetailStock(s); }}>
-                            <div style={{ fontSize: 14, color, width: 20, textAlign: "center", flexShrink: 0, marginTop: 1 }}>{icon}</div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
-                                <span className="font-semibold">{name}</span>
-                                {(isEnter || isExit) && <span style={{ color }}> {isEnter ? "entered" : "exited"} {zoneLabel}</span>}
-                                {isNote && <span style={{ color: "var(--color-text-muted)" }}> — note</span>}
-                              </div>
-                              {isNote && e.annotation && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", marginTop: 2, lineHeight: 1.4 }}>{e.annotation}</div>}
-                              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 2 }}>
-                                {time}
-                                {e.cmp_at_event != null && <span> · CMP ₹{fmt(e.cmp_at_event, 0)}</span>}
-                                {e.upside_base != null && <span> · Base {e.upside_base > 0 ? "+" : ""}{fmt(e.upside_base, 1)}%</span>}
-                                {e.cds_at_event != null && <span> · CDS {e.cds_at_event}</span>}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* ── Tier 2C: Catalyst Calendar & Analysis Freshness ── */}
+          {/* 7. Catalyst Calendar */}
           <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #F59E0B" }}>
-            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Catalyst Calendar — Earnings, Ex-Dividend & Analysis Freshness</h3>
+            <h3 style={{ marginBottom: 12, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Catalyst Calendar — Earnings, Ex-Dividend & Analysis Freshness</h3>
             {(() => {
               const now = new Date();
               type CalEvent = { tikr: string; name: string; type: "Earnings" | "Ex-Dividend" | "Stale Analysis"; date: Date; daysUntil: number; sector?: string };
@@ -3565,6 +3344,322 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       </div>
                     </div>
                   )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 8. Decision Journal */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
+                Decision Journal <span className="pill" style={{ background: "#8B5CF620", color: "#8B5CF6", marginLeft: 8 }}>{journalEntries.length}</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                {(["all", "transitions", "annotations"] as const).map(f => (
+                  <button key={f} className={`scatter-pill${journalFilter === f ? " active" : ""}`} onClick={() => setJournalFilter(f)} style={journalFilter === f ? { background: "#8B5CF620", color: "#8B5CF6", borderColor: "#8B5CF6" } : {}}>
+                    {f === "all" ? "All" : f === "transitions" ? "Zone Changes" : "Notes"}
+                  </button>
+                ))}
+                <button className="scatter-pill" onClick={() => { setShowJournalForm(p => !p); setJournalTikr(""); setJournalAnnotation(""); }} style={{ background: showJournalForm ? "#8B5CF620" : undefined, color: showJournalForm ? "#8B5CF6" : undefined }}>
+                  + Add Note
+                </button>
+                <button className="scatter-pill" onClick={() => fetchJournal()} style={{ fontSize: 10 }}>↻</button>
+              </div>
+            </div>
+
+            {/* Add annotation form */}
+            {showJournalForm && (
+              <div style={{ padding: "12px 16px", background: "var(--color-bg-secondary)", borderRadius: "var(--radius-md)", marginBottom: 12, border: "1px solid var(--color-border)" }}>
+                <div className="flex items-center gap-3 mb-2">
+                  <select value={journalTikr} onChange={e => setJournalTikr(e.target.value)} style={{ flex: "0 0 200px", padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }}>
+                    <option value="">Select stock...</option>
+                    {enrichedStocks.filter(s => s.tikr).sort((a, b) => (a.companyShort || "").localeCompare(b.companyShort || "")).map(s => <option key={s.tikr} value={s.tikr}>{s.companyShort || s.tikr}</option>)}
+                  </select>
+                  <input value={journalAnnotation} onChange={e => setJournalAnnotation(e.target.value)} placeholder="Add your note or thesis update..." style={{ flex: 1, padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }} />
+                  <button disabled={!journalTikr || !journalAnnotation.trim()} onClick={async () => {
+                    const stock = enrichedStocks.find(s => s.tikr === journalTikr);
+                    await postJournalEntry({ tikr: journalTikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: stock?.liveCmp, upside_base: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, cds_at_event: stock?.cds });
+                    setJournalAnnotation(""); setShowJournalForm(false);
+                    fetchJournal();
+                  }} className="btn btn-primary btn-sm" style={{ background: "#8B5CF6", opacity: (!journalTikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
+                </div>
+              </div>
+            )}
+
+            {/* Journal timeline */}
+            {journalLoading ? (
+              <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>Loading journal...</div>
+            ) : (() => {
+              const filtered = journalEntries.filter(e => {
+                if (journalFilter === "transitions") return e.event_type === "zone_enter" || e.event_type === "zone_exit";
+                if (journalFilter === "annotations") return e.event_type === "annotation";
+                return true;
+              });
+              if (filtered.length === 0) return (
+                <div style={{ padding: 24, textAlign: "center" }}>
+                  <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>
+                    {journalEntries.length === 0 ? "No journal entries yet. Zone transitions will be logged automatically." : "No entries match this filter."}
+                  </p>
+                </div>
+              );
+              // Group by date
+              const byDate: Record<string, typeof filtered> = {};
+              filtered.forEach(e => {
+                const d = new Date(e.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+                if (!byDate[d]) byDate[d] = [];
+                byDate[d].push(e);
+              });
+              return (
+                <div style={{ maxHeight: 400, overflowY: "auto" }}>
+                  {Object.entries(byDate).map(([date, entries]) => (
+                    <div key={date} style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 600, padding: "4px 0", borderBottom: "1px solid var(--color-border)", marginBottom: 6 }}>{date}</div>
+                      {entries.map(e => {
+                        const isEnter = e.event_type === "zone_enter";
+                        const isExit = e.event_type === "zone_exit";
+                        const isNote = e.event_type === "annotation";
+                        const color = isEnter ? (e.zone_name === "buy" ? "var(--color-positive)" : e.zone_name === "overvalued" ? "var(--color-negative)" : "#F59E0B") : isExit ? "var(--color-text-muted)" : "#8B5CF6";
+                        const icon = isEnter ? "→" : isExit ? "←" : "✎";
+                        const zoneLabel = e.zone_name === "buy" ? "Buy Zone" : e.zone_name === "sell" ? "Take Profit" : e.zone_name === "overvalued" ? "Overvalued" : e.zone_name || "";
+                        const stock = enrichedStocks.find(s => s.tikr === e.tikr);
+                        const name = stock?.companyShort || e.tikr;
+                        const time = new Date(e.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+                        return (
+                          <div key={e.id} style={{ display: "flex", gap: 8, padding: "6px 8px", borderRadius: "var(--radius-md)", cursor: "pointer", transition: "background 0.15s" }} className="hover-highlight" onClick={() => { const s = enrichedStocks.find(x => x.tikr === e.tikr); if (s) setDetailStock(s); }}>
+                            <div style={{ fontSize: 14, color, width: 20, textAlign: "center", flexShrink: 0, marginTop: 1 }}>{icon}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>
+                                <span className="font-semibold">{name}</span>
+                                {(isEnter || isExit) && <span style={{ color }}> {isEnter ? "entered" : "exited"} {zoneLabel}</span>}
+                                {isNote && <span style={{ color: "var(--color-text-muted)" }}> — note</span>}
+                              </div>
+                              {isNote && e.annotation && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)", marginTop: 2, lineHeight: 1.4 }}>{e.annotation}</div>}
+                              <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 2 }}>
+                                {time}
+                                {e.cmp_at_event != null && <span> · CMP ₹{fmt(e.cmp_at_event, 0)}</span>}
+                                {e.upside_base != null && <span> · Base {e.upside_base > 0 ? "+" : ""}{fmt(e.upside_base, 1)}%</span>}
+                                {e.cds_at_event != null && <span> · CDS {e.cds_at_event}</span>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 9. Sector Allocation */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Sector Allocation & Avg Upside</h3>
+              <div className="flex gap-1">
+                {(["sector", "subsector"] as const).map(v => (
+                  <button key={v} className="scatter-pill" style={pillStyle(sectorGroupBy === v)} onClick={() => setSectorGroupBy(v)}>
+                    {v === "sector" ? "Sectors" : "Subsectors"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <SectorBar sectors={sectorDisplayData} groupBy={sectorGroupBy} sourceStocks={dsScope === "holdings" ? enrichedStocks.filter(s => holdingTikrs.has(s.tikr)) : enrichedStocks} onSelectStock={setDetailStock} />
+          </div>
+
+          {/* 10. 52-Week Range Position */}
+          <div className="grid grid-cols-2 gap-4">
+            {(() => {
+              const withRange = enrichedStocks.filter(s => s.liveCmp && s.tikr && quotes[s.tikr]?.fiftyTwoWeekHigh && quotes[s.tikr]?.fiftyTwoWeekLow).map(s => {
+                const q = quotes[s.tikr];
+                const hi = q.fiftyTwoWeekHigh!, lo = q.fiftyTwoWeekLow!;
+                const rangePct = hi > lo ? ((s.liveCmp! - lo) / (hi - lo)) * 100 : 50;
+                return { ...s, rangePct, hi52: hi, lo52: lo };
+              });
+              const nearLow = [...withRange].sort((a, b) => a.rangePct - b.rangePct).slice(0, 10);
+              const nearHigh = [...withRange].sort((a, b) => b.rangePct - a.rangePct).slice(0, 10);
+              return (<>
+                <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-positive)" }}>
+                  <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Near 52-Week Low <span className="pill pill-green" style={{ marginLeft: 6 }}>{nearLow.length}</span></h3>
+                  <div className="overflow-auto max-h-[320px]"><table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>52W Low</th><th>52W High</th><th>Position</th></tr></thead>
+                    <tbody>{nearLow.map(s => (
+                      <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.lo52, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.hi52, 0)}</td>
+                        <td style={{ minWidth: 100 }}>
+                          <div className="flex items-center gap-2">
+                            <div className="range-bar-track flex-1"><div className="range-bar-fill" style={{ width: `${Math.max(2, Math.min(98, s.rangePct))}%`, background: s.rangePct < 15 ? "var(--color-positive)" : s.rangePct > 85 ? "var(--color-warning)" : "var(--color-accent-blue)" }} /><div className="range-bar-marker" style={{ left: `${Math.max(2, Math.min(98, s.rangePct))}%` }} /></div>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: s.rangePct < 15 ? "var(--color-positive)" : "var(--color-text-muted)", minWidth: 28 }}>{s.rangePct.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}</tbody></table></div>
+                </div>
+                <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid var(--color-warning)" }}>
+                  <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Near 52-Week High <span className="pill pill-amber" style={{ marginLeft: 6 }}>{nearHigh.length}</span></h3>
+                  <div className="overflow-auto max-h-[320px]"><table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>52W Low</th><th>52W High</th><th>Position</th></tr></thead>
+                    <tbody>{nearHigh.map(s => (
+                      <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
+                        <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.lo52, 0)}</td>
+                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.hi52, 0)}</td>
+                        <td style={{ minWidth: 100 }}>
+                          <div className="flex items-center gap-2">
+                            <div className="range-bar-track flex-1"><div className="range-bar-fill" style={{ width: `${Math.max(2, Math.min(98, s.rangePct))}%`, background: s.rangePct > 85 ? "var(--color-warning)" : s.rangePct < 15 ? "var(--color-positive)" : "var(--color-accent-blue)" }} /><div className="range-bar-marker" style={{ left: `${Math.max(2, Math.min(98, s.rangePct))}%` }} /></div>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: s.rangePct > 85 ? "var(--color-warning)" : "var(--color-text-muted)", minWidth: 28 }}>{s.rangePct.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}</tbody></table></div>
+                </div>
+              </>);
+            })()}
+          </div>
+
+          {/* 11. Moving Average Signals */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #6366F1" }}>
+            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Moving Average Signals — 50 DMA & 200 DMA</h3>
+            {(() => {
+              const withMA = enrichedStocks.filter(s => s.liveCmp && s.tikr && quotes[s.tikr]?.fiftyDayAverage && quotes[s.tikr]?.twoHundredDayAverage).map(s => {
+                const q = quotes[s.tikr];
+                const above50 = s.liveCmp! > q.fiftyDayAverage!;
+                const above200 = s.liveCmp! > q.twoHundredDayAverage!;
+                return { ...s, above50, above200, ma50: q.fiftyDayAverage!, ma200: q.twoHundredDayAverage! };
+              });
+              const golden = withMA.filter(s => s.above50 && s.above200);
+              const death = withMA.filter(s => !s.above50 && !s.above200);
+              const above50Only = withMA.filter(s => s.above50 && !s.above200);
+              const below50Only = withMA.filter(s => !s.above50 && s.above200);
+              // Golden cross stocks in buy zone = strong signal
+              const goldenBuy = golden.filter(s => decisionData.buyZone.some(b => b.tikr === s.tikr));
+              return (
+                <div>
+                  <div className="grid grid-cols-4 gap-3 mb-4">
+                    <div className="kpi-card kpi-positive animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Golden Cross</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{golden.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Above both MAs</p></div>
+                    <div className="kpi-card animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Above 50 DMA</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{above50Only.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Above 50, below 200</p></div>
+                    <div className="kpi-card animate-fade-in-up delay-3"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Below 50 DMA</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{below50Only.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Below 50, above 200</p></div>
+                    <div className="kpi-card kpi-negative animate-fade-in-up delay-4"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Death Cross</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{death.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Below both MAs</p></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold mb-2" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Golden Cross + Buy Zone ({goldenBuy.length})</h4>
+                      {goldenBuy.length > 0 ? (
+                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>50 DMA</th><th>200 DMA</th><th>↑ Base</th></tr></thead>
+                          <tbody>{goldenBuy.map(s => (
+                            <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
+                              <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
+                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma50, 0)}</td>
+                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma200, 0)}</td>
+                              <td className="cell-green" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{s.upsideBaseCalc != null ? `+${(s.upsideBaseCalc * 100).toFixed(1)}%` : "—"}</td>
+                            </tr>
+                          ))}</tbody></table>
+                      ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No stocks in both Golden Cross and Buy Zone</p>}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-2" style={{ fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>Death Cross — Watch List ({death.length})</h4>
+                      {death.length > 0 ? (
+                        <div className="overflow-auto max-h-[200px]">
+                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>CMP</th><th>50 DMA</th><th>200 DMA</th><th>↓ Bear</th></tr></thead>
+                          <tbody>{death.sort((a, b) => (a.upsideBearCalc || 0) - (b.upsideBearCalc || 0)).map(s => (
+                            <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
+                              <td className="font-semibold" style={{ fontSize: "var(--text-xs)" }}>{s.companyShort}</td>
+                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.liveCmp, 0)}</td>
+                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma50, 0)}</td>
+                              <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>₹{fmt(s.ma200, 0)}</td>
+                              <td className="cell-red" style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{s.upsideBearCalc != null ? `${(s.upsideBearCalc * 100).toFixed(1)}%` : "—"}</td>
+                            </tr>
+                          ))}</tbody></table></div>
+                      ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No Death Cross stocks</p>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 12. Concentration Risk Heatmap */}
+          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #EC4899" }}>
+            <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Concentration Risk — Sector × Conviction Heatmap</h3>
+            {(() => {
+              const convLevels = [5, 4, 3, 2, 1];
+              const sectorList = Array.from(new Set(enrichedStocks.map(s => s.sector || "Other"))).sort();
+              const grid: Record<string, Record<number, { count: number; value: number }>> = {};
+              let maxVal = 0;
+              sectorList.forEach(sec => {
+                grid[sec] = {};
+                convLevels.forEach(c => { grid[sec][c] = { count: 0, value: 0 }; });
+              });
+              enrichedStocks.forEach(s => {
+                const sec = s.sector || "Other";
+                const conv = s.conviction || 0;
+                if (grid[sec] && grid[sec][conv]) {
+                  grid[sec][conv].count++;
+                  grid[sec][conv].value += s.holding_cash_lakhs || 0;
+                  if (grid[sec][conv].value > maxVal) maxVal = grid[sec][conv].value;
+                }
+              });
+              const sectorTotals: Record<string, { count: number; value: number }> = {};
+              sectorList.forEach(sec => { sectorTotals[sec] = { count: 0, value: 0 }; convLevels.forEach(c => { sectorTotals[sec].count += grid[sec][c].count; sectorTotals[sec].value += grid[sec][c].value; }); });
+              const convTotals: Record<number, { count: number; value: number }> = {};
+              convLevels.forEach(c => { convTotals[c] = { count: 0, value: 0 }; sectorList.forEach(sec => { convTotals[c].count += grid[sec][c].count; convTotals[c].value += grid[sec][c].value; }); });
+
+              return (
+                <div className="overflow-auto">
+                  <table style={{ borderCollapse: "separate", borderSpacing: 2, width: "100%" }}>
+                    <thead>
+                      <tr>
+                        <th style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "left", fontWeight: 600 }}>Sector</th>
+                        {convLevels.map(c => <th key={c} style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "center", fontWeight: 600 }}>Conv {c}</th>)}
+                        <th style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 8px", textAlign: "center", fontWeight: 700 }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sectorList.filter(sec => sectorTotals[sec].count > 0).sort((a, b) => sectorTotals[b].value - sectorTotals[a].value).map(sec => (
+                        <tr key={sec}>
+                          <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)", padding: "2px 8px", fontWeight: 600, whiteSpace: "nowrap" }}>{sec}</td>
+                          {convLevels.map(c => {
+                            const cell = grid[sec][c];
+                            const intensity = maxVal > 0 ? cell.value / maxVal : 0;
+                            const bg = cell.count === 0 ? "transparent" : `rgba(99, 102, 241, ${0.08 + intensity * 0.6})`;
+                            const textColor = intensity > 0.5 ? "#fff" : "var(--color-text-primary)";
+                            return (
+                              <td key={c} style={{ padding: 2 }}>
+                                <div className="heatmap-cell" style={{ background: bg, color: cell.count > 0 ? textColor : "var(--color-text-muted)" }}>
+                                  {cell.count > 0 ? <><span style={{ fontWeight: 700 }}>{cell.count}</span>{cell.value > 0 && <span style={{ fontSize: 9, opacity: 0.8 }}>{fmtLakhs(cell.value)}</span>}</> : "—"}
+                                </div>
+                              </td>
+                            );
+                          })}
+                          <td style={{ padding: 2 }}>
+                            <div className="heatmap-cell" style={{ background: "var(--color-bg-elevated)", fontWeight: 700 }}>
+                              <span>{sectorTotals[sec].count}</span>
+                              {sectorTotals[sec].value > 0 && <span style={{ fontSize: 9, opacity: 0.8 }}>{fmtLakhs(sectorTotals[sec].value)}</span>}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      <tr>
+                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)", padding: "2px 8px", fontWeight: 700 }}>Total</td>
+                        {convLevels.map(c => (
+                          <td key={c} style={{ padding: 2 }}>
+                            <div className="heatmap-cell" style={{ background: "var(--color-bg-elevated)", fontWeight: 700 }}>
+                              <span>{convTotals[c].count}</span>
+                              {convTotals[c].value > 0 && <span style={{ fontSize: 9, opacity: 0.8 }}>{fmtLakhs(convTotals[c].value)}</span>}
+                            </div>
+                          </td>
+                        ))}
+                        <td style={{ padding: 2 }}>
+                          <div className="heatmap-cell" style={{ background: "var(--color-bg-elevated)", fontWeight: 700 }}>
+                            <span>{enrichedStocks.length}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               );
             })()}
