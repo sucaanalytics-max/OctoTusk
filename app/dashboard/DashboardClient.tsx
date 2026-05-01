@@ -3401,6 +3401,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
             </div>
           </div>
         )}
+      </div>
 
       {/* ═══════════════════ TAB 5: SEGMENTS ═══════════════════ */}
       {activeTab === "segments" && (
@@ -3411,7 +3412,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
         />
       )}
 
-      </div>
     </div>
   );
 }
