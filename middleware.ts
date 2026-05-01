@@ -82,8 +82,17 @@ if (process.env.NODE_ENV === "development") {
   ALLOWED_ORIGINS.push("http://localhost:3000");
 }
 
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Allow any *.vercel.app origin in Vercel Preview deployments.
+  // Still protected by NextAuth — this unblocks same-project preview URLs
+  // whose hostname changes per-deploy and can't be hardcoded.
+  if (process.env.VERCEL_ENV === "preview" && origin.endsWith(".vercel.app")) return true;
+  return false;
+}
+
 function applyCors(response: NextResponse, origin: string | null): NextResponse {
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && isAllowedOrigin(origin)) {
     response.headers.set("Access-Control-Allow-Origin", origin);
     response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -115,7 +124,7 @@ export default auth((req: NextRequest) => {
   }
 
   // Block cross-origin requests from unauthorized domains
-  if (pathname.startsWith("/api/") && origin && !ALLOWED_ORIGINS.includes(origin)) {
+  if (pathname.startsWith("/api/") && origin && !isAllowedOrigin(origin)) {
     auditLog(req, 403, { reason: "forbidden_origin", blockedOrigin: origin });
     return NextResponse.json(
       { error: "Forbidden origin" },
