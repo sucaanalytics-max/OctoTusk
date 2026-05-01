@@ -54,6 +54,13 @@
   --color-chart-5: #7C3AED;
   --color-chart-6: #DB2777;
 
+  /* SEBI Market Cap Segment Colors */
+  --color-segment-large:        #2563EB;
+  --color-segment-mid:          #059669;
+  --color-segment-small:        #D97706;
+  --color-segment-micro:        #e94560;
+  --color-segment-unclassified: #6B7280;
+
   /* Typography */
   /* --font-sans and --font-mono are set by next/font via className on <html> */
   --text-xs: 0.6875rem;   /* 11px */
