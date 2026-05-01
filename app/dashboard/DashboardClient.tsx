@@ -2788,87 +2788,148 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             )}
           </div>
 
-          {comparedStocks.length > 0 && (
-            <div className="space-y-4">
-              {[
-                { title: "Price & Valuation", rows: [
-                  { label: "Sector", render: (s: EnrichedStock) => <span className="pill pill-blue">{s.sector || "—"}</span> },
-                  { label: "CMP", render: (s: EnrichedStock) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</span> },
-                  { label: "Bear", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</span> },
-                  { label: "Base", render: (s: EnrichedStock) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</span> },
-                  { label: "Bull", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</span> },
-                  { label: "1Y Target", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—"}</span> },
-                  { label: "2Y Target", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—"}</span> },
-                ]},
-                { title: "Upside Analysis", rows: [
-                  { label: "↑ Bear",    render: (s: EnrichedStock) => upsidePill(s.upsideBearCalc) },
-                  { label: "↑ Base",    render: (s: EnrichedStock) => upsidePill(s.upsideBaseCalc) },
-                  { label: "↑ Bull",    render: (s: EnrichedStock) => upsidePill(s.upsideBullCalc) },
-                  { label: "1Y Upside", render: (s: EnrichedStock) => upsidePill(s.upside1YCalc) },
-                  { label: "2Y Upside", render: (s: EnrichedStock) => upsidePill(s.upside2YCalc) },
-                ]},
-                { title: "Valuation Multiples", rows: [
-                  { label: "PE (Bear)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_pe ? `${s.bear_pe.toFixed(1)}x` : "—"}</span> },
-                  { label: "PE (Base)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</span> },
-                  { label: "PE (Bull)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{s.bull_pe ? `${s.bull_pe.toFixed(1)}x` : "—"}</span> },
-                  { label: "PE +2SD", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "—"}</span> },
-                  { label: "PB (Bear)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_pb ? `${s.bear_pb.toFixed(1)}x` : "—"}</span> },
-                  { label: "PB (Base)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</span> },
-                  { label: "PB (Bull)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{s.bull_pb ? `${s.bull_pb.toFixed(1)}x` : "—"}</span> },
-                  { label: "PB +2SD", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "—"}</span> },
-                  { label: "EV/EBITDA (Bear)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_evebitda ? `${s.bear_evebitda.toFixed(1)}x` : "—"}</span> },
-                  { label: "EV/EBITDA (Base)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</span> },
-                  { label: "EV/EBITDA (Bull)", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{s.bull_evebitda ? `${s.bull_evebitda.toFixed(1)}x` : "—"}</span> },
-                  { label: "EV/EBITDA +2SD", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "—"}</span> },
-                ]},
-                { title: "Fundamentals", rows: [
-                  { label: "Conviction", render: (s: EnrichedStock) => <span className="font-semibold">{s.conviction ?? "—"}</span> },
-                  { label: "CDS", render: (s: EnrichedStock) => <span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span> },
-                  { label: "Quality", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.qualityScore != null ? s.qualityScore.toFixed(1) : "—"}</span> },
-                  { label: "Fwd PE FY27", render: (s: EnrichedStock) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.forwardPE_fy27 ? `${s.forwardPE_fy27.toFixed(1)}x` : "—"}</span> },
-                  { label: "Score", render: (s: EnrichedStock) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.score ?? "—"}</span> },
-                  { label: "VA / SA", render: (s: EnrichedStock) => <span style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"} / {s.sa || "—"}</span> },
-                ]},
-                { title: "Market Data (Live)", rows: [
-                  { label: "Market Cap", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; const mc = q?.marketCap; if (!mc) return <span style={{ color: "var(--color-text-muted)" }}>—</span>; const cr = mc / 10000000; return <span style={{ fontFamily: "var(--font-mono)" }}>{cr >= 1000 ? `₹${(cr/100).toFixed(1)}K Cr` : `₹${cr.toFixed(0)} Cr`}</span>; }},
-                  { label: "52W High", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.fiftyTwoWeekHigh ? `₹${fmt(q.fiftyTwoWeekHigh, 1)}` : "—"}</span>; }},
-                  { label: "52W Low", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.fiftyTwoWeekLow ? `₹${fmt(q.fiftyTwoWeekLow, 1)}` : "—"}</span>; }},
-                  { label: "Trailing PE", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"}</span>; }},
-                  { label: "Forward PE", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"}</span>; }},
-                  { label: "P/B", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.priceToBook ? `${q.priceToBook.toFixed(1)}x` : "—"}</span>; }},
-                  { label: "50-Day MA", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; const above = q?.fiftyDayAverage && s.liveCmp ? s.liveCmp > q.fiftyDayAverage : null; return <span style={{ fontFamily: "var(--font-mono)", color: above === true ? "var(--color-positive)" : above === false ? "var(--color-negative)" : undefined }}>{q?.fiftyDayAverage ? `₹${fmt(q.fiftyDayAverage, 1)}` : "—"}</span>; }},
-                  { label: "200-Day MA", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; const above = q?.twoHundredDayAverage && s.liveCmp ? s.liveCmp > q.twoHundredDayAverage : null; return <span style={{ fontFamily: "var(--font-mono)", color: above === true ? "var(--color-positive)" : above === false ? "var(--color-negative)" : undefined }}>{q?.twoHundredDayAverage ? `₹${fmt(q.twoHundredDayAverage, 1)}` : "—"}</span>; }},
-                  { label: "Div Yield", render: (s: EnrichedStock) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : "—"}</span>; }},
-                  { label: "Beta", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.beta ? e.beta.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "ROE", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.returnOnEquity != null ? `${(e.returnOnEquity * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "D/E", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.debtToEquity != null ? e.debtToEquity.toFixed(1) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Analyst Target", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.targetMeanPrice ? `₹${fmt(e.targetMeanPrice, 0)}` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Recommendation", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; if (!e?.recommendationKey) return <span style={{ color: "var(--color-text-muted)" }}>{enrichmentLoading[s.tikr] ? "…" : "—"}</span>; const key = e.recommendationKey.toUpperCase(); const color = key.includes("BUY") ? "var(--color-positive)" : key.includes("SELL") ? "var(--color-negative)" : "var(--color-warning)"; return <span className="font-semibold" style={{ color }}>{key}</span>; }},
-                ]},
-                { title: "Profitability & Growth", rows: [
-                  { label: "Revenue Growth", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span className={pctColor(e?.revenueGrowth ?? null)} style={{ fontFamily: "var(--font-mono)" }}>{e?.revenueGrowth != null ? `${(e.revenueGrowth * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Earnings Growth", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span className={pctColor(e?.earningsGrowth ?? null)} style={{ fontFamily: "var(--font-mono)" }}>{e?.earningsGrowth != null ? `${(e.earningsGrowth * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "EBITDA Margin", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.ebitdaMargins != null ? `${(e.ebitdaMargins * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Operating Margin", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.operatingMargins != null ? `${(e.operatingMargins * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Profit Margin", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.profitMargins != null ? `${(e.profitMargins * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "ROA", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.returnOnAssets != null ? `${(e.returnOnAssets * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "PEG Ratio", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.pegRatio != null ? e.pegRatio.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Current Ratio", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.currentRatio != null ? e.currentRatio.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Free Cash Flow", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.freeCashflow ? fmtCr(e.freeCashflow) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                  { label: "Enterprise Value", render: (s: EnrichedStock) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.enterpriseValue ? fmtCr(e.enterpriseValue) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
-                ]},
-              ].map((section, si) => (
-                <div key={section.title} className={`metric-card animate-fade-in-up delay-${si + 1}`}>
-                  <h3 className="font-bold mb-3 uppercase tracking-wide" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{section.title}</h3>
-                  <table className="data-table w-full" role="table"><thead><tr><th>Metric</th>{comparedStocks.map(s => <th key={s.tikr}>{s.companyShort}</th>)}</tr></thead>
-                    <tbody>{section.rows.map(row => (
-                      <tr key={row.label}><td style={{ color: "var(--color-text-secondary)", fontWeight: 500 }}>{row.label}</td>{comparedStocks.map(s => <td key={s.tikr}>{row.render(s)}</td>)}</tr>
-                    ))}</tbody>
+          {comparedStocks.length > 0 && (() => {
+            const sections: Array<{ title: string; rows: Array<{ label: string; render: (s: EnrichedStock) => React.ReactNode }> }> = [
+              { title: "Price & Valuation", rows: [
+                { label: "Sector", render: (s) => <span className="pill pill-blue">{s.sector || "—"}</span> },
+                { label: "CMP", render: (s) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}</span> },
+                { label: "Bear", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</span> },
+                { label: "Base", render: (s) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</span> },
+                { label: "Bull", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</span> },
+                { label: "1Y Target", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.target_1y ? `₹${fmt(s.target_1y, 0)}` : "—"}</span> },
+                { label: "2Y Target", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.target_2y ? `₹${fmt(s.target_2y, 0)}` : "—"}</span> },
+              ]},
+              { title: "Upside Analysis", rows: [
+                { label: "↑ Bear",    render: (s) => upsidePill(s.upsideBearCalc) },
+                { label: "↑ Base",    render: (s) => upsidePill(s.upsideBaseCalc) },
+                { label: "↑ Bull",    render: (s) => upsidePill(s.upsideBullCalc) },
+                { label: "1Y Upside", render: (s) => upsidePill(s.upside1YCalc) },
+                { label: "2Y Upside", render: (s) => upsidePill(s.upside2YCalc) },
+              ]},
+              { title: "Valuation Multiples", rows: [
+                { label: "PE (Bear)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_pe ? `${s.bear_pe.toFixed(1)}x` : "—"}</span> },
+                { label: "PE (Base)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</span> },
+                { label: "PE (Bull)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{s.bull_pe ? `${s.bull_pe.toFixed(1)}x` : "—"}</span> },
+                { label: "PE +2SD", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>{s.base_pe_2sd ? `${s.base_pe_2sd.toFixed(1)}x` : "—"}</span> },
+                { label: "PB (Bear)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_pb ? `${s.bear_pb.toFixed(1)}x` : "—"}</span> },
+                { label: "PB (Base)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</span> },
+                { label: "PB (Bull)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{s.bull_pb ? `${s.bull_pb.toFixed(1)}x` : "—"}</span> },
+                { label: "PB +2SD", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>{s.base_pb_2sd ? `${s.base_pb_2sd.toFixed(1)}x` : "—"}</span> },
+                { label: "EV/EBITDA (Bear)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-negative)" }}>{s.bear_evebitda ? `${s.bear_evebitda.toFixed(1)}x` : "—"}</span> },
+                { label: "EV/EBITDA (Base)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</span> },
+                { label: "EV/EBITDA (Bull)", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{s.bull_evebitda ? `${s.bull_evebitda.toFixed(1)}x` : "—"}</span> },
+                { label: "EV/EBITDA +2SD", render: (s) => <span style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-muted)" }}>{s.base_evebitda_2sd ? `${s.base_evebitda_2sd.toFixed(1)}x` : "—"}</span> },
+              ]},
+              { title: "Fundamentals", rows: [
+                { label: "Conviction", render: (s) => <span className="font-semibold">{s.conviction ?? "—"}</span> },
+                { label: "CDS", render: (s) => <span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span> },
+                { label: "Quality", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.qualityScore != null ? s.qualityScore.toFixed(1) : "—"}</span> },
+                { label: "Fwd PE FY27", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.forwardPE_fy27 ? `${s.forwardPE_fy27.toFixed(1)}x` : "—"}</span> },
+                { label: "Score", render: (s) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.score ?? "—"}</span> },
+                { label: "VA / SA", render: (s) => <span style={{ color: "var(--color-text-secondary)" }}>{s.vp || "—"} / {s.sa || "—"}</span> },
+              ]},
+              { title: "Market Data (Live)", rows: [
+                { label: "Market Cap", render: (s) => { const q = quotes[s.tikr]; const mc = q?.marketCap; if (!mc) return <span style={{ color: "var(--color-text-muted)" }}>—</span>; const cr = mc / 10000000; return <span style={{ fontFamily: "var(--font-mono)" }}>{cr >= 1000 ? `₹${(cr/100).toFixed(1)}K Cr` : `₹${cr.toFixed(0)} Cr`}</span>; }},
+                { label: "52W High", render: (s) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.fiftyTwoWeekHigh ? `₹${fmt(q.fiftyTwoWeekHigh, 1)}` : "—"}</span>; }},
+                { label: "52W Low", render: (s) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.fiftyTwoWeekLow ? `₹${fmt(q.fiftyTwoWeekLow, 1)}` : "—"}</span>; }},
+                { label: "Trailing PE", render: (s) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.trailingPE ? `${q.trailingPE.toFixed(1)}x` : "—"}</span>; }},
+                { label: "Forward PE", render: (s) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.forwardPE ? `${q.forwardPE.toFixed(1)}x` : "—"}</span>; }},
+                { label: "P/B", render: (s) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.priceToBook ? `${q.priceToBook.toFixed(1)}x` : "—"}</span>; }},
+                { label: "50-Day MA", render: (s) => { const q = quotes[s.tikr]; const above = q?.fiftyDayAverage && s.liveCmp ? s.liveCmp > q.fiftyDayAverage : null; return <span style={{ fontFamily: "var(--font-mono)", color: above === true ? "var(--color-positive)" : above === false ? "var(--color-negative)" : undefined }}>{q?.fiftyDayAverage ? `₹${fmt(q.fiftyDayAverage, 1)}` : "—"}</span>; }},
+                { label: "200-Day MA", render: (s) => { const q = quotes[s.tikr]; const above = q?.twoHundredDayAverage && s.liveCmp ? s.liveCmp > q.twoHundredDayAverage : null; return <span style={{ fontFamily: "var(--font-mono)", color: above === true ? "var(--color-positive)" : above === false ? "var(--color-negative)" : undefined }}>{q?.twoHundredDayAverage ? `₹${fmt(q.twoHundredDayAverage, 1)}` : "—"}</span>; }},
+                { label: "Div Yield", render: (s) => { const q = quotes[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{q?.dividendYield ? `${(q.dividendYield * 100).toFixed(2)}%` : "—"}</span>; }},
+                { label: "Beta", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.beta ? e.beta.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "ROE", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.returnOnEquity != null ? `${(e.returnOnEquity * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "D/E", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.debtToEquity != null ? e.debtToEquity.toFixed(1) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Analyst Target", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.targetMeanPrice ? `₹${fmt(e.targetMeanPrice, 0)}` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Recommendation", render: (s) => { const e = enrichmentCache[s.tikr]; if (!e?.recommendationKey) return <span style={{ color: "var(--color-text-muted)" }}>{enrichmentLoading[s.tikr] ? "…" : "—"}</span>; const key = e.recommendationKey.toUpperCase(); const color = key.includes("BUY") ? "var(--color-positive)" : key.includes("SELL") ? "var(--color-negative)" : "var(--color-warning)"; return <span className="font-semibold" style={{ color }}>{key}</span>; }},
+              ]},
+              { title: "Profitability & Growth", rows: [
+                { label: "Revenue Growth", render: (s) => { const e = enrichmentCache[s.tikr]; return <span className={pctColor(e?.revenueGrowth ?? null)} style={{ fontFamily: "var(--font-mono)" }}>{e?.revenueGrowth != null ? `${(e.revenueGrowth * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Earnings Growth", render: (s) => { const e = enrichmentCache[s.tikr]; return <span className={pctColor(e?.earningsGrowth ?? null)} style={{ fontFamily: "var(--font-mono)" }}>{e?.earningsGrowth != null ? `${(e.earningsGrowth * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "EBITDA Margin", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.ebitdaMargins != null ? `${(e.ebitdaMargins * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Operating Margin", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.operatingMargins != null ? `${(e.operatingMargins * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Profit Margin", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.profitMargins != null ? `${(e.profitMargins * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "ROA", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.returnOnAssets != null ? `${(e.returnOnAssets * 100).toFixed(1)}%` : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "PEG Ratio", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.pegRatio != null ? e.pegRatio.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Current Ratio", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.currentRatio != null ? e.currentRatio.toFixed(2) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Free Cash Flow", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.freeCashflow ? fmtCr(e.freeCashflow) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+                { label: "Enterprise Value", render: (s) => { const e = enrichmentCache[s.tikr]; return <span style={{ fontFamily: "var(--font-mono)" }}>{e?.enterpriseValue ? fmtCr(e.enterpriseValue) : enrichmentLoading[s.tikr] ? "…" : "—"}</span>; }},
+              ]},
+            ];
+            return (
+              <div className="space-y-4">
+                {/* Per-stock scorecard cards */}
+                <div style={{ display: "grid", gridTemplateColumns: `repeat(${comparedStocks.length}, 1fr)`, gap: 12 }}>
+                  {comparedStocks.map(s => {
+                    const capColor = s.sebiSegment ? `var(--color-segment-${s.sebiSegment})` : "var(--color-border)";
+                    const capLabel = s.sebiSegment ? SEBI_LABELS[s.sebiSegment] : null;
+                    return (
+                      <div key={s.tikr} className="metric-card animate-fade-in-up" style={{ borderTop: `3px solid ${capColor}`, padding: "12px 14px" }}>
+                        <div className="flex items-start justify-between mb-2">
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="font-bold truncate" style={{ fontSize: "var(--text-base)", color: "var(--color-text-primary)", lineHeight: 1.2 }}>{s.companyShort}</div>
+                            <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>{s.tikr}</div>
+                          </div>
+                          <button onClick={() => setSelectedCompare(selectedCompare.filter(t => t !== s.tikr))} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-base)", lineHeight: 1, padding: "2px 6px", flexShrink: 0 }} aria-label={`Remove ${s.companyShort} from comparison`}>×</button>
+                        </div>
+                        <div className="flex gap-1 flex-wrap mb-3">
+                          {s.sector && <span className="pill pill-blue" style={{ fontSize: "0.6rem" }}>{s.sector}</span>}
+                          {capLabel && <span className="pill" style={{ fontSize: "0.6rem", background: `${capColor}18`, color: capColor, border: `1px solid ${capColor}40` }}>{capLabel}</span>}
+                        </div>
+                        <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "var(--text-xl)", color: "var(--color-text-primary)", marginBottom: 8 }}>
+                          {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px", marginBottom: 10 }}>
+                          <div>
+                            <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Conv</div>
+                            <div className="font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.conviction ?? "—"}</div>
+                          </div>
+                          <div>
+                            <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>CDS</div>
+                            <div className="font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.cds ?? "—"}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          {upsidePill(s.upsideBearCalc)}
+                          {upsidePill(s.upsideBaseCalc)}
+                          {upsidePill(s.upsideBullCalc)}
+                          {upsidePill(s.upside1YCalc)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Unified comparison table */}
+                <div className="metric-card animate-fade-in-up" style={{ overflowX: "auto" }}>
+                  <table className="data-table w-full" role="table" aria-label="Stock comparison">
+                    <thead>
+                      <tr>
+                        <th style={{ whiteSpace: "nowrap", minWidth: 150 }}>Metric</th>
+                        {comparedStocks.map(s => <th key={s.tikr} style={{ whiteSpace: "nowrap", minWidth: 130 }}>{s.companyShort}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sections.flatMap(section => [
+                        <tr key={`sep-${section.title}`}>
+                          <td colSpan={comparedStocks.length + 1} style={{ background: "var(--color-bg-secondary)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-muted)", padding: "6px 8px", borderBottom: "1px solid var(--color-border)", borderTop: "2px solid var(--color-border)" }}>
+                            {section.title}
+                          </td>
+                        </tr>,
+                        ...section.rows.map(row => (
+                          <tr key={`${section.title}-${row.label}`}>
+                            <td style={{ color: "var(--color-text-secondary)", fontWeight: 500, whiteSpace: "nowrap" }}>{row.label}</td>
+                            {comparedStocks.map(s => <td key={s.tikr}>{row.render(s)}</td>)}
+                          </tr>
+                        ))
+                      ])}
+                    </tbody>
                   </table>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            );
+          })()}
           {comparedStocks.length === 0 && selectedCompare.length === 0 && !compareSearch && compareSectorFilter === "all" && (
             <div className="text-center py-12" style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-3" style={{ color: "var(--color-border)" }}><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
