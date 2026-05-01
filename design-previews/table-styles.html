@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OctoTusk — Table Style Exploration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=DM+Mono:wght@400;500&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-page:    #F3F2EF;
+  --bg-card:    #FAFAF8;
+  --bg-stripe:  #F5F4F0;
+  --bg-hover:   #ECEAE4;
+  --primary:    #1E293B;
+  --accent:     #D97706;
+  --accent-lt:  #FEF3C7;
+  --border:     #E2E0D8;
+  --border-str: #C8C5BA;
+  --text-1:     #0F172A;
+  --text-2:     #475569;
+  --text-3:     #94A3B8;
+  --pos:        #16A34A;
+  --pos-bg:     #DCFCE7;
+  --pos-hi:     #D1FAE5;
+  --neg:        #DC2626;
+  --neg-bg:     #FEE2E2;
+  --neutral-bg: #F1F5F9;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-1);
+}
+body{background:var(--bg-page);padding:32px 24px;display:flex;flex-direction:column;gap:48px}
+
+/* ── shared section chrome ── */
+.style-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;color:var(--text-3);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.style-label span{background:var(--primary);color:#fff;padding:2px 10px;border-radius:3px;font-size:10px}
+.style-desc{font-size:12px;color:var(--text-2);margin-bottom:14px;max-width:680px;line-height:1.6}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06)}
+.card-hdr{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg-stripe)}
+.card-hdr-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--primary)}
+.card-hdr-meta{font-size:11px;color:var(--text-3)}
+.tw{overflow-x:auto}
+
+/* ── SHARED CELL ELEMENTS ── */
+.up-pos{display:inline-block;padding:1px 6px;border-radius:3px;background:var(--pos-bg);color:#15803D;font-variant-numeric:tabular-nums;font-weight:600}
+.up-high{display:inline-block;padding:1px 6px;border-radius:3px;background:var(--pos-hi);color:#065F46;font-variant-numeric:tabular-nums;font-weight:600}
+.up-neg{display:inline-block;padding:1px 6px;border-radius:3px;background:var(--neg-bg);color:var(--neg);font-variant-numeric:tabular-nums;font-weight:600}
+.up-neu{display:inline-block;padding:1px 6px;border-radius:3px;background:var(--neutral-bg);color:var(--text-2);font-variant-numeric:tabular-nums}
+.va-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-weight:600;background:#EEF2FF;color:#4338CA}
+.sa-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-weight:600;background:#FFF7ED;color:#C2410C}
+.conv{display:flex;gap:3px;justify-content:flex-end;align-items:center}
+.cd{width:7px;height:7px;border-radius:50%}
+.cd.on{background:var(--primary)}
+.cd.off{background:var(--border-str)}
+.dash{color:var(--text-3)}
+
+
+/* ═══════════════════════════════════════════════════
+   STYLE 1 — DENSE MONO
+   All mono font, tight rows, minimal chrome.
+   Bloomberg / terminal feel.
+═══════════════════════════════════════════════════ */
+.t1 table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:11.5px;min-width:1180px}
+.t1 thead tr{background:#1E293B}
+.t1 thead th{
+  padding:7px 10px;
+  font-size:9.5px;font-weight:500;
+  text-transform:uppercase;letter-spacing:0.09em;
+  color:#94A3B8;white-space:nowrap;
+  text-align:right;border-right:1px solid #2D3F55;
+}
+.t1 thead th:first-child{text-align:left;border-right:1px solid #2D3F55}
+.t1 thead th:nth-child(2){text-align:left;border-right:1px solid #2D3F55}
+.t1 thead th.g-up{color:#4ADE80;border-right:1px solid #1F3326}
+.t1 thead th.g-val{color:#FCD34D;border-right:1px solid #2D2A1A}
+.t1 tbody tr{border-bottom:1px solid #1E2A38}
+.t1 tbody tr:hover{background:#EEF2F8}
+.t1 tbody td{padding:6px 10px;vertical-align:middle;color:var(--text-1)}
+.t1 tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
+.t1 .cmp-main{font-weight:500;color:var(--text-1)}
+.t1 .cmp-chg{font-size:10px}
+.t1 .co-name{font-weight:500;font-size:12px;color:var(--text-1);white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;font-family:'Inter',sans-serif}
+.t1 .co-sec{font-size:10px;color:var(--text-3);font-family:'Inter',sans-serif}
+.t1 .base-v{color:var(--primary);font-weight:600}
+.t1 .bear-v,.t1 .bull-v{color:var(--text-2)}
+.t1 .up-pos,.t1 .up-high,.t1 .up-neg,.t1 .up-neu{font-size:10.5px;font-family:'JetBrains Mono',monospace}
+.t1 .va-tag,.t1 .sa-tag{font-size:9.5px}
+.t1 .mult{color:var(--text-2);font-size:11px}
+
+
+/* ═══════════════════════════════════════════════════
+   STYLE 2 — AIRY SERIF-ADJACENT
+   Inter throughout, generous row height,
+   subtle column separators, no alternating rows.
+   Clean LP report / research note aesthetic.
+═══════════════════════════════════════════════════ */
+.t2 table{width:100%;border-collapse:collapse;font-size:13px;min-width:1180px}
+.t2 thead tr{background:transparent;border-bottom:2px solid var(--primary)}
+.t2 thead th{
+  padding:10px 14px;
+  font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.09em;
+  color:var(--text-2);white-space:nowrap;
+  text-align:right;
+}
+.t2 thead th:first-child,.t2 thead th:nth-child(2){text-align:left}
+.t2 thead th.g-up{color:var(--pos);border-bottom:2px solid var(--pos)}
+.t2 thead th.g-val{color:var(--accent);border-bottom:2px solid var(--accent)}
+.t2 tbody tr{border-bottom:1px solid var(--border)}
+.t2 tbody tr:hover{background:#F0EFEA}
+.t2 tbody tr:last-child{border-bottom:2px solid var(--primary)}
+.t2 tbody td{padding:13px 14px;vertical-align:middle}
+.t2 tbody td.r{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:12.5px}
+.t2 .co-name{font-weight:600;font-size:13.5px;color:var(--text-1);white-space:nowrap}
+.t2 .co-sec{font-size:11px;color:var(--text-3);margin-top:2px}
+.t2 .cmp-main{font-weight:600;color:var(--text-1);font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.t2 .cmp-chg{font-size:11px;font-family:'JetBrains Mono',monospace;margin-top:1px}
+.t2 .base-v{color:var(--primary);font-weight:700;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.t2 .bear-v,.t2 .bull-v{color:var(--text-3);font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.t2 .up-pos,.t2 .up-high,.t2 .up-neg,.t2 .up-neu{font-size:11.5px;font-family:'JetBrains Mono',monospace}
+.t2 .va-tag,.t2 .sa-tag{font-size:10px}
+.t2 .mult{color:var(--text-2);font-size:12px;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+
+
+/* ═══════════════════════════════════════════════════
+   STYLE 3 — STRUCTURED GRID
+   Strong column group bands, alternating rows,
+   sticky first column shadow, pill upside cells.
+   Enterprise SaaS / Airtable feel.
+═══════════════════════════════════════════════════ */
+.t3 table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:1180px}
+.t3 thead{background:var(--bg-stripe)}
+.t3 thead tr:first-child th{
+  padding:4px 10px 2px;
+  font-size:9px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.09em;
+  color:var(--text-3);text-align:center;
+  border-bottom:1px solid var(--border);
+}
+.t3 thead tr:first-child th.g-price{background:#F5F4F0;color:var(--text-3)}
+.t3 thead tr:first-child th.g-target{background:#EBF5EF;color:#15803D;border-left:1px solid #C6E6D0;border-right:1px solid #C6E6D0}
+.t3 thead tr:first-child th.g-upside{background:#D1FAE5;color:#065F46;border-left:1px solid #A7F3D0;border-right:1px solid #A7F3D0}
+.t3 thead tr:first-child th.g-mult{background:#FEF3C7;color:#92400E;border-left:1px solid #FDE68A;border-right:1px solid #FDE68A}
+.t3 thead tr:first-child th.g-meta{background:#F5F4F0;color:var(--text-3)}
+.t3 thead tr:last-child th{
+  padding:6px 10px;
+  font-size:9.5px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.07em;
+  color:var(--text-3);white-space:nowrap;
+  text-align:right;
+  border-bottom:2px solid var(--border);
+}
+.t3 thead tr:last-child th:first-child,.t3 thead tr:last-child th:nth-child(2){text-align:left}
+.t3 thead tr:last-child .g-upside-col{background:#F0FDF4;color:#15803D}
+.t3 thead tr:last-child .g-mult-col{background:#FFFBEB;color:#B45309}
+.t3 tbody tr{border-bottom:1px solid var(--border)}
+.t3 tbody tr:nth-child(even){background:var(--bg-stripe)}
+.t3 tbody tr:hover{background:var(--bg-hover)}
+.t3 tbody tr:last-child{border-bottom:none}
+.t3 tbody td{padding:9px 10px;vertical-align:middle}
+.t3 tbody td.r{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:12px}
+.t3 tbody td.g-upside-col{background:rgba(240,253,244,0.6)}
+.t3 tbody td.g-mult-col{background:rgba(255,251,235,0.5)}
+.t3 .co-name{font-weight:600;font-size:12.5px;color:var(--text-1);white-space:nowrap;max-width:155px;overflow:hidden;text-overflow:ellipsis}
+.t3 .co-sec{font-size:10.5px;color:var(--text-3);margin-top:1px}
+.t3 .cmp-main{font-weight:600;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;color:var(--text-1)}
+.t3 .cmp-chg{font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:1px}
+.t3 .base-v{color:var(--primary);font-weight:700;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.t3 .bear-v,.t3 .bull-v{color:var(--text-2);font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;font-size:11.5px}
+.t3 .up-pos,.t3 .up-high,.t3 .up-neg,.t3 .up-neu{font-size:11px;font-family:'JetBrains Mono',monospace;border-radius:4px}
+.t3 .va-tag,.t3 .sa-tag{font-size:10px}
+.t3 .mult{color:var(--text-2);font-size:11.5px;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+
+/* sort indicator hint */
+th[data-sort]::after{content:' ⇅';opacity:0.3;font-size:9px}
+th[data-sort]:hover{color:var(--primary)!important;cursor:pointer}
+th[data-sort]:hover::after{opacity:0.7}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     STYLE 1 — DENSE MONO
+══════════════════════════════════════════ -->
+<section>
+  <div class="style-label"><span>Style 1</span> Dense Mono</div>
+  <div class="style-desc">All monospaced font. Dark header, tight 32px rows, column separators on header. Maximum data density — closest to a Bloomberg / terminal aesthetic. Good for power users who scan quickly.</div>
+  <div class="card t1">
+    <div class="card-hdr">
+      <div class="card-hdr-title">Octopus Model · 95 stocks</div>
+      <div class="card-hdr-meta">Synced 06:12 AM</div>
+    </div>
+    <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:155px" data-sort>Company</th>
+          <th style="text-align:left;min-width:100px" data-sort>Sector</th>
+          <th style="min-width:82px" data-sort>CMP</th>
+          <th style="min-width:62px" data-sort>Bear</th>
+          <th style="min-width:62px" data-sort>Base</th>
+          <th style="min-width:62px" data-sort>Bull</th>
+          <th class="g-up" style="min-width:68px" data-sort>↑ Bear</th>
+          <th class="g-up" style="min-width:68px" data-sort>↑ Base</th>
+          <th class="g-up" style="min-width:68px" data-sort>↑ Bull</th>
+          <th class="g-up" style="min-width:72px" data-sort>1Y Up</th>
+          <th class="g-up" style="min-width:72px" data-sort>2Y Up</th>
+          <th class="g-val" style="min-width:50px" data-sort>PE</th>
+          <th class="g-val" style="min-width:50px" data-sort>PB</th>
+          <th class="g-val" style="min-width:72px" data-sort>EV/EBITDA</th>
+          <th style="min-width:64px" data-sort>Conv.</th>
+          <th style="min-width:40px">VA</th>
+          <th style="min-width:40px">SA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="co-name">HDFC Bank</div><div class="co-sec">HDFCBANK</div></td>
+          <td class="co-sec" style="font-family:'Inter',sans-serif;font-size:11.5px">BFSI</td>
+          <td class="r"><div class="cmp-main">1,847</div><div class="cmp-chg pos">+1.2%</div></td>
+          <td class="r bear-v">1,520</td><td class="r base-v">2,400</td><td class="r bull-v">3,100</td>
+          <td class="r"><span class="up-neg">-17.7%</span></td>
+          <td class="r"><span class="up-pos">+30.0%</span></td>
+          <td class="r"><span class="up-high">+67.8%</span></td>
+          <td class="r"><span class="up-pos">+24.3%</span></td>
+          <td class="r"><span class="up-high">+51.8%</span></td>
+          <td class="r mult">19.2x</td><td class="r mult">2.4x</td><td class="r mult">11.8x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Bajaj Finance</div><div class="co-sec">BAJFINANCE</div></td>
+          <td class="co-sec" style="font-family:'Inter',sans-serif;font-size:11.5px">BFSI</td>
+          <td class="r"><div class="cmp-main">6,920</div><div class="cmp-chg pos">+0.8%</div></td>
+          <td class="r bear-v">5,400</td><td class="r base-v">9,000</td><td class="r bull-v">12,000</td>
+          <td class="r"><span class="up-neg">-22.0%</span></td>
+          <td class="r"><span class="up-pos">+30.1%</span></td>
+          <td class="r"><span class="up-high">+73.4%</span></td>
+          <td class="r"><span class="up-pos">+28.4%</span></td>
+          <td class="r"><span class="up-high">+62.0%</span></td>
+          <td class="r mult">28.4x</td><td class="r mult">5.1x</td><td class="r mult">22.3x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span></div></td>
+          <td class="r dash">—</td><td class="r"><span class="sa-tag">SA</span></td>
+        </tr>
+        <tr>
+          <td><div class="co-name">MCX</div><div class="co-sec">MCX</div></td>
+          <td class="co-sec" style="font-family:'Inter',sans-serif;font-size:11.5px">Financials</td>
+          <td class="r"><div class="cmp-main">4,210</div><div class="cmp-chg pos">+2.1%</div></td>
+          <td class="r bear-v">3,200</td><td class="r base-v">5,800</td><td class="r bull-v">7,500</td>
+          <td class="r"><span class="up-neg">-24.0%</span></td>
+          <td class="r"><span class="up-high">+37.8%</span></td>
+          <td class="r"><span class="up-high">+78.2%</span></td>
+          <td class="r"><span class="up-pos">+31.2%</span></td>
+          <td class="r"><span class="up-high">+68.5%</span></td>
+          <td class="r mult">34.2x</td><td class="r mult">8.6x</td><td class="r mult">24.1x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Tips Music</div><div class="co-sec">TIPSMUSIC</div></td>
+          <td class="co-sec" style="font-family:'Inter',sans-serif;font-size:11.5px">Media</td>
+          <td class="r"><div class="cmp-main">620</div><div class="cmp-chg neg">-0.5%</div></td>
+          <td class="r bear-v">480</td><td class="r base-v">950</td><td class="r bull-v">1,400</td>
+          <td class="r"><span class="up-neg">-22.6%</span></td>
+          <td class="r"><span class="up-high">+53.2%</span></td>
+          <td class="r"><span class="up-high">+125.8%</span></td>
+          <td class="r"><span class="up-high">+44.1%</span></td>
+          <td class="r"><span class="up-high">+98.7%</span></td>
+          <td class="r mult">42.8x</td><td class="r mult">12.1x</td><td class="r mult">31.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Vedanta</div><div class="co-sec">VEDL</div></td>
+          <td class="co-sec" style="font-family:'Inter',sans-serif;font-size:11.5px">Metals</td>
+          <td class="r"><div class="cmp-main">445</div><div class="cmp-chg neg">-1.8%</div></td>
+          <td class="r bear-v">380</td><td class="r" style="color:var(--neg);font-weight:600;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">380</td><td class="r bull-v">620</td>
+          <td class="r"><span class="up-neg">-14.6%</span></td>
+          <td class="r"><span class="up-neg">-14.6%</span></td>
+          <td class="r"><span class="up-pos">+39.3%</span></td>
+          <td class="r"><span class="up-neg">-10.2%</span></td>
+          <td class="r"><span class="up-pos">+22.4%</span></td>
+          <td class="r mult">6.1x</td><td class="r mult">1.8x</td><td class="r mult">5.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span><span class="cd off"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Smartworks</div><div class="co-sec">Smartworks</div></td>
+          <td class="co-sec" style="font-family:'Inter',sans-serif;font-size:11.5px">Real Estate</td>
+          <td class="r"><div class="cmp-main">68</div><div class="cmp-chg pos">+3.4%</div></td>
+          <td class="r bear-v">55</td><td class="r base-v">120</td><td class="r bull-v">180</td>
+          <td class="r"><span class="up-neg">-19.1%</span></td>
+          <td class="r"><span class="up-high">+76.5%</span></td>
+          <td class="r"><span class="up-high">+164.7%</span></td>
+          <td class="r"><span class="up-high">+62.3%</span></td>
+          <td class="r"><span class="up-high">+138.2%</span></td>
+          <td class="r mult">—</td><td class="r mult">2.1x</td><td class="r mult">18.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r dash">—</td><td class="r"><span class="sa-tag">SA</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     STYLE 2 — AIRY / REPORT
+══════════════════════════════════════════ -->
+<section>
+  <div class="style-label"><span>Style 2</span> Airy Report</div>
+  <div class="style-desc">Inter for company names, JetBrains Mono for numbers. Generous 44px rows, no alternating rows, bold double-rule border between header and data. Base target in primary dark, bear/bull in muted grey. LP report / research note feel.</div>
+  <div class="card t2">
+    <div class="card-hdr">
+      <div class="card-hdr-title">Octopus Model · 95 stocks</div>
+      <div class="card-hdr-meta">Synced 06:12 AM</div>
+    </div>
+    <div class="tw">
+    <table>
+      <thead>
+        <tr>
+          <th style="min-width:160px" data-sort>Company</th>
+          <th style="text-align:left;min-width:105px" data-sort>Sector</th>
+          <th style="min-width:88px" data-sort>CMP</th>
+          <th style="min-width:66px" data-sort>Bear</th>
+          <th style="min-width:66px" data-sort>Base</th>
+          <th style="min-width:66px" data-sort>Bull</th>
+          <th class="g-up" style="min-width:72px" data-sort>↑ Bear</th>
+          <th class="g-up" style="min-width:72px" data-sort>↑ Base</th>
+          <th class="g-up" style="min-width:72px" data-sort>↑ Bull</th>
+          <th class="g-up" style="min-width:76px" data-sort>1Y Upside</th>
+          <th class="g-up" style="min-width:76px" data-sort>2Y Upside</th>
+          <th class="g-val" style="min-width:52px" data-sort>PE</th>
+          <th class="g-val" style="min-width:52px" data-sort>PB</th>
+          <th class="g-val" style="min-width:78px" data-sort>EV/EBITDA</th>
+          <th style="min-width:68px" data-sort>Conv.</th>
+          <th style="min-width:42px">VA</th>
+          <th style="min-width:42px">SA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="co-name">HDFC Bank</div><div class="co-sec">HDFCBANK · BFSI</div></td>
+          <td style="color:var(--text-2);font-size:12.5px">BFSI</td>
+          <td class="r"><div class="cmp-main">1,847</div><div class="cmp-chg pos" style="font-size:11px">+1.2%</div></td>
+          <td class="r bear-v">1,520</td><td class="r base-v">2,400</td><td class="r bull-v">3,100</td>
+          <td class="r"><span class="up-neg">-17.7%</span></td>
+          <td class="r"><span class="up-pos">+30.0%</span></td>
+          <td class="r"><span class="up-high">+67.8%</span></td>
+          <td class="r"><span class="up-pos">+24.3%</span></td>
+          <td class="r"><span class="up-high">+51.8%</span></td>
+          <td class="r mult">19.2x</td><td class="r mult">2.4x</td><td class="r mult">11.8x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Bajaj Finance</div><div class="co-sec">BAJFINANCE · BFSI</div></td>
+          <td style="color:var(--text-2);font-size:12.5px">BFSI</td>
+          <td class="r"><div class="cmp-main">6,920</div><div class="cmp-chg pos" style="font-size:11px">+0.8%</div></td>
+          <td class="r bear-v">5,400</td><td class="r base-v">9,000</td><td class="r bull-v">12,000</td>
+          <td class="r"><span class="up-neg">-22.0%</span></td>
+          <td class="r"><span class="up-pos">+30.1%</span></td>
+          <td class="r"><span class="up-high">+73.4%</span></td>
+          <td class="r"><span class="up-pos">+28.4%</span></td>
+          <td class="r"><span class="up-high">+62.0%</span></td>
+          <td class="r mult">28.4x</td><td class="r mult">5.1x</td><td class="r mult">22.3x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span></div></td>
+          <td class="r dash">—</td><td class="r"><span class="sa-tag">SA</span></td>
+        </tr>
+        <tr>
+          <td><div class="co-name">MCX</div><div class="co-sec">MCX · Financials</div></td>
+          <td style="color:var(--text-2);font-size:12.5px">Financials</td>
+          <td class="r"><div class="cmp-main">4,210</div><div class="cmp-chg pos" style="font-size:11px">+2.1%</div></td>
+          <td class="r bear-v">3,200</td><td class="r base-v">5,800</td><td class="r bull-v">7,500</td>
+          <td class="r"><span class="up-neg">-24.0%</span></td>
+          <td class="r"><span class="up-high">+37.8%</span></td>
+          <td class="r"><span class="up-high">+78.2%</span></td>
+          <td class="r"><span class="up-pos">+31.2%</span></td>
+          <td class="r"><span class="up-high">+68.5%</span></td>
+          <td class="r mult">34.2x</td><td class="r mult">8.6x</td><td class="r mult">24.1x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Tips Music</div><div class="co-sec">TIPSMUSIC · Media</div></td>
+          <td style="color:var(--text-2);font-size:12.5px">Media</td>
+          <td class="r"><div class="cmp-main">620</div><div class="cmp-chg neg" style="font-size:11px">-0.5%</div></td>
+          <td class="r bear-v">480</td><td class="r base-v">950</td><td class="r bull-v">1,400</td>
+          <td class="r"><span class="up-neg">-22.6%</span></td>
+          <td class="r"><span class="up-high">+53.2%</span></td>
+          <td class="r"><span class="up-high">+125.8%</span></td>
+          <td class="r"><span class="up-high">+44.1%</span></td>
+          <td class="r"><span class="up-high">+98.7%</span></td>
+          <td class="r mult">42.8x</td><td class="r mult">12.1x</td><td class="r mult">31.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Vedanta</div><div class="co-sec">VEDL · Metals</div></td>
+          <td style="color:var(--text-2);font-size:12.5px">Metals</td>
+          <td class="r"><div class="cmp-main">445</div><div class="cmp-chg neg" style="font-size:11px">-1.8%</div></td>
+          <td class="r bear-v">380</td><td class="r" style="color:var(--neg);font-weight:700;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums">380</td><td class="r bull-v">620</td>
+          <td class="r"><span class="up-neg">-14.6%</span></td>
+          <td class="r"><span class="up-neg">-14.6%</span></td>
+          <td class="r"><span class="up-pos">+39.3%</span></td>
+          <td class="r"><span class="up-neg">-10.2%</span></td>
+          <td class="r"><span class="up-pos">+22.4%</span></td>
+          <td class="r mult">6.1x</td><td class="r mult">1.8x</td><td class="r mult">5.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span><span class="cd off"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Smartworks</div><div class="co-sec">Smartworks · Real Estate</div></td>
+          <td style="color:var(--text-2);font-size:12.5px">Real Estate</td>
+          <td class="r"><div class="cmp-main">68</div><div class="cmp-chg pos" style="font-size:11px">+3.4%</div></td>
+          <td class="r bear-v">55</td><td class="r base-v">120</td><td class="r bull-v">180</td>
+          <td class="r"><span class="up-neg">-19.1%</span></td>
+          <td class="r"><span class="up-high">+76.5%</span></td>
+          <td class="r"><span class="up-high">+164.7%</span></td>
+          <td class="r"><span class="up-high">+62.3%</span></td>
+          <td class="r"><span class="up-high">+138.2%</span></td>
+          <td class="r mult">—</td><td class="r mult">2.1x</td><td class="r mult">18.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r dash">—</td><td class="r"><span class="sa-tag">SA</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+
+<!-- ══════════════════════════════════════════
+     STYLE 3 — STRUCTURED GRID
+══════════════════════════════════════════ -->
+<section>
+  <div class="style-label"><span>Style 3</span> Structured Grid</div>
+  <div class="style-desc">Two-row header with column group labels (Price · Targets · Upside · Multiples · Meta). Alternating row stripes. Upside and multiples columns have faint background tints. Medium density, 38px rows. Best orientation for scanning by group.</div>
+  <div class="card t3">
+    <div class="card-hdr">
+      <div class="card-hdr-title">Octopus Model · 95 stocks</div>
+      <div class="card-hdr-meta">Synced 06:12 AM</div>
+    </div>
+    <div class="tw">
+    <table>
+      <thead>
+        <!-- Group row -->
+        <tr>
+          <th colspan="2" class="g-price" style="text-align:left"></th>
+          <th colspan="4" class="g-price">Price &amp; Targets</th>
+          <th colspan="5" class="g-upside">Upside to Scenarios</th>
+          <th colspan="3" class="g-mult">Valuation Multiples</th>
+          <th colspan="3" class="g-meta">Meta</th>
+        </tr>
+        <!-- Column row -->
+        <tr>
+          <th style="text-align:left;min-width:155px" data-sort>Company</th>
+          <th style="text-align:left;min-width:100px" data-sort>Sector</th>
+          <th style="min-width:82px" data-sort>CMP</th>
+          <th style="min-width:62px" data-sort>Bear</th>
+          <th style="min-width:62px" data-sort>Base</th>
+          <th style="min-width:62px" data-sort>Bull</th>
+          <th class="g-upside-col" style="min-width:68px" data-sort>↑ Bear</th>
+          <th class="g-upside-col" style="min-width:68px" data-sort>↑ Base</th>
+          <th class="g-upside-col" style="min-width:68px" data-sort>↑ Bull</th>
+          <th class="g-upside-col" style="min-width:72px" data-sort>1Y Up</th>
+          <th class="g-upside-col" style="min-width:72px" data-sort>2Y Up</th>
+          <th class="g-mult-col" style="min-width:50px" data-sort>PE</th>
+          <th class="g-mult-col" style="min-width:50px" data-sort>PB</th>
+          <th class="g-mult-col" style="min-width:72px" data-sort>EV/EBITDA</th>
+          <th style="min-width:64px" data-sort>Conv.</th>
+          <th style="min-width:40px">VA</th>
+          <th style="min-width:40px">SA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><div class="co-name">HDFC Bank</div><div class="co-sec">HDFCBANK</div></td>
+          <td style="color:var(--text-2);font-size:12px">BFSI</td>
+          <td class="r"><div class="cmp-main">1,847</div><div class="cmp-chg pos" style="font-size:10px">+1.2%</div></td>
+          <td class="r bear-v">1,520</td><td class="r base-v">2,400</td><td class="r bull-v">3,100</td>
+          <td class="r g-upside-col"><span class="up-neg">-17.7%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+30.0%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+67.8%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+24.3%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+51.8%</span></td>
+          <td class="r g-mult-col mult">19.2x</td><td class="r g-mult-col mult">2.4x</td><td class="r g-mult-col mult">11.8x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Bajaj Finance</div><div class="co-sec">BAJFINANCE</div></td>
+          <td style="color:var(--text-2);font-size:12px">BFSI</td>
+          <td class="r"><div class="cmp-main">6,920</div><div class="cmp-chg pos" style="font-size:10px">+0.8%</div></td>
+          <td class="r bear-v">5,400</td><td class="r base-v">9,000</td><td class="r bull-v">12,000</td>
+          <td class="r g-upside-col"><span class="up-neg">-22.0%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+30.1%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+73.4%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+28.4%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+62.0%</span></td>
+          <td class="r g-mult-col mult">28.4x</td><td class="r g-mult-col mult">5.1x</td><td class="r g-mult-col mult">22.3x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span></div></td>
+          <td class="r dash">—</td><td class="r"><span class="sa-tag">SA</span></td>
+        </tr>
+        <tr>
+          <td><div class="co-name">MCX</div><div class="co-sec">MCX</div></td>
+          <td style="color:var(--text-2);font-size:12px">Financials</td>
+          <td class="r"><div class="cmp-main">4,210</div><div class="cmp-chg pos" style="font-size:10px">+2.1%</div></td>
+          <td class="r bear-v">3,200</td><td class="r base-v">5,800</td><td class="r bull-v">7,500</td>
+          <td class="r g-upside-col"><span class="up-neg">-24.0%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+37.8%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+78.2%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+31.2%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+68.5%</span></td>
+          <td class="r g-mult-col mult">34.2x</td><td class="r g-mult-col mult">8.6x</td><td class="r g-mult-col mult">24.1x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Tips Music</div><div class="co-sec">TIPSMUSIC</div></td>
+          <td style="color:var(--text-2);font-size:12px">Media</td>
+          <td class="r"><div class="cmp-main">620</div><div class="cmp-chg neg" style="font-size:10px">-0.5%</div></td>
+          <td class="r bear-v">480</td><td class="r base-v">950</td><td class="r bull-v">1,400</td>
+          <td class="r g-upside-col"><span class="up-neg">-22.6%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+53.2%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+125.8%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+44.1%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+98.7%</span></td>
+          <td class="r g-mult-col mult">42.8x</td><td class="r g-mult-col mult">12.1x</td><td class="r g-mult-col mult">31.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Vedanta</div><div class="co-sec">VEDL</div></td>
+          <td style="color:var(--text-2);font-size:12px">Metals</td>
+          <td class="r"><div class="cmp-main">445</div><div class="cmp-chg neg" style="font-size:10px">-1.8%</div></td>
+          <td class="r bear-v">380</td><td class="r" style="color:var(--neg);font-weight:700;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;text-align:right">380</td><td class="r bull-v">620</td>
+          <td class="r g-upside-col"><span class="up-neg">-14.6%</span></td>
+          <td class="r g-upside-col"><span class="up-neg">-14.6%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+39.3%</span></td>
+          <td class="r g-upside-col"><span class="up-neg">-10.2%</span></td>
+          <td class="r g-upside-col"><span class="up-pos">+22.4%</span></td>
+          <td class="r g-mult-col mult">6.1x</td><td class="r g-mult-col mult">1.8x</td><td class="r g-mult-col mult">5.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span><span class="cd off"></span><span class="cd off"></span></div></td>
+          <td class="r"><span class="va-tag">VP</span></td><td class="r dash">—</td>
+        </tr>
+        <tr>
+          <td><div class="co-name">Smartworks</div><div class="co-sec">Smartworks</div></td>
+          <td style="color:var(--text-2);font-size:12px">Real Estate</td>
+          <td class="r"><div class="cmp-main">68</div><div class="cmp-chg pos" style="font-size:10px">+3.4%</div></td>
+          <td class="r bear-v">55</td><td class="r base-v">120</td><td class="r bull-v">180</td>
+          <td class="r g-upside-col"><span class="up-neg">-19.1%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+76.5%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+164.7%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+62.3%</span></td>
+          <td class="r g-upside-col"><span class="up-high">+138.2%</span></td>
+          <td class="r g-mult-col mult">—</td><td class="r g-mult-col mult">2.1x</td><td class="r g-mult-col mult">18.4x</td>
+          <td><div class="conv"><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd on"></span><span class="cd off"></span></div></td>
+          <td class="r dash">—</td><td class="r"><span class="sa-tag">SA</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
