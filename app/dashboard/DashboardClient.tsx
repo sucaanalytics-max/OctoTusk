@@ -300,15 +300,6 @@ function upsidePill(val: number | null | undefined): React.ReactNode {
   return <span className={`up-pill ${cls}`}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
-function upsideCellClass(val: number | null | undefined): string {
-  if (val == null || isNaN(val as number)) return "";
-  const pct = val * 100;
-  if (pct > 25) return "cell-strong";
-  if (pct > 3)  return "cell-pos";
-  if (pct > -3) return "";
-  return "cell-neg";
-}
-
 const cleanTikr = (tikr: string | null | undefined): string => {
   if (!tikr || typeof tikr !== "string") return "";
   if (tikr.includes("(XNSE:")) { const m = tikr.match(/\(XNSE:(\w+)\)/); return m ? m[1] : tikr; }
@@ -2186,11 +2177,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>
-                      <td className={`text-center ${upsideCellClass(s.upsideBearCalc)}`}>{upsidePill(s.upsideBearCalc)}</td>
-                      <td className={`text-center ${upsideCellClass(s.upsideBaseCalc)}`}>{upsidePill(s.upsideBaseCalc)}</td>
-                      <td className={`text-center ${upsideCellClass(s.upsideBullCalc)}`}>{upsidePill(s.upsideBullCalc)}</td>
-                      <td className={`text-center ${upsideCellClass(s.upside1YCalc)}`}>{upsidePill(s.upside1YCalc)}</td>
-                      <td className={`text-center ${upsideCellClass(s.upside2YCalc)}`}>{upsidePill(s.upside2YCalc)}</td>
+                      <td className="text-center cell-bear">{upsidePill(s.upsideBearCalc)}</td>
+                      <td className="text-center cell-upside">{upsidePill(s.upsideBaseCalc)}</td>
+                      <td className="text-center cell-upside">{upsidePill(s.upsideBullCalc)}</td>
+                      <td className="text-center cell-upside">{upsidePill(s.upside1YCalc)}</td>
+                      <td className="text-center cell-upside">{upsidePill(s.upside2YCalc)}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>
                       <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>

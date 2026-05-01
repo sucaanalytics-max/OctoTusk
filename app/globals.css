@@ -272,10 +272,9 @@ body {
   background: var(--color-bg-hover) !important;
 }
 
-/* Upside cell heat-map fills — declared after zebra striping so they win */
-.data-table tbody tr td.cell-neg    { background: rgba(220, 38,  38, 0.10); }
-.data-table tbody tr td.cell-pos    { background: rgba(  5, 150, 105, 0.10); }
-.data-table tbody tr td.cell-strong { background: rgba(  5, 150, 105, 0.20); }
+/* Column-type fills: uniform per column, beats zebra striping */
+.data-table tbody tr td.cell-bear   { background: rgba(220, 38,  38, 0.07) !important; }
+.data-table tbody tr td.cell-upside { background: rgba(  5, 150, 105, 0.07) !important; }
 
 /* Conditional formatting cells */
 .cell-green { color: var(--color-positive); font-weight: 600; }
