@@ -649,7 +649,7 @@ function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
 
 // ═══════════════════════════════ MAIN ═══════════════════════════════
 export default function DashboardClient({ stocks, tickerMap, metadata, initialHoldings = [] }: Props) {
-  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions" | "segments">("octopus");
+  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
   const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
   const [quotesLoading, setQuotesLoading] = useState(true);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
@@ -724,6 +724,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   // Holdings table sort
   const [holdSortCol, setHoldSortCol] = useState<string>("value");
   const [holdSortDir, setHoldSortDir] = useState<"asc" | "desc">("desc");
+  const [holdingsSubTab, setHoldingsSubTab] = useState<"portfolio" | "segments">("portfolio");
 
   // Treemap heatmap
   const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "upsideBear" | "upsideBull" | "pnl" | "conviction">("dayChange");
@@ -863,7 +864,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   const handleTabSwitch = (tab: typeof activeTab) => {
     if (activeTab === "holdings" && tab !== "holdings") {
-      setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError("");
+      setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError(""); setHoldingsSubTab("portfolio");
     }
     setDetailStock(null);
     setActiveTab(tab);
@@ -1950,7 +1951,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             { key: "holdings" as const, label: "Holdings" },
             { key: "comparison" as const, label: "Comparison" },
             { key: "decisions" as const, label: "Decision Support" },
-            { key: "segments" as const, label: "Segments" },
           ]).map(tab => (
             <button key={tab.key} onClick={() => handleTabSwitch(tab.key)} role="tab" aria-selected={activeTab === tab.key} aria-controls={`panel-${tab.key}`} tabIndex={activeTab === tab.key ? 0 : -1} className={`tab-btn ${activeTab === tab.key ? "tab-active" : ""}`}>
               {tab.label}
@@ -2372,6 +2372,21 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   </>);
                 })()}
               </div>
+              {/* Sub-tab nav: Portfolio | Segments */}
+              <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: 2 }}>
+                {(["portfolio", "segments"] as const).map(st => (
+                  <button
+                    key={st}
+                    onClick={() => setHoldingsSubTab(st)}
+                    className={`tab-btn ${holdingsSubTab === st ? "tab-active" : ""}`}
+                    role="tab"
+                    aria-selected={holdingsSubTab === st}
+                  >
+                    {st === "portfolio" ? "Portfolio" : "Segments"}
+                  </button>
+                ))}
+              </div>
+              {holdingsSubTab === "portfolio" && (<>
               {(() => {
                 // Holdings sort helper
                 const holdCols: Record<string, (h: typeof enrichedHoldings[0]) => number | string> = {
@@ -2398,10 +2413,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
                   return holdSortDir === "desc" ? -cmp : cmp;
                 });
-                const hTh = (label: string, col: string) => {
+                const hTh = (label: string, col: string, className?: string) => {
                   const active = holdSortCol === col;
                   return (
-                    <th key={col} onClick={() => { if (holdSortCol === col) setHoldSortDir(d => d === "asc" ? "desc" : "asc"); else { setHoldSortCol(col); setHoldSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", color: active ? "var(--color-accent-blue)" : undefined }}>
+                    <th key={col} className={className} onClick={() => { if (holdSortCol === col) setHoldSortDir(d => d === "asc" ? "desc" : "asc"); else { setHoldSortCol(col); setHoldSortDir("desc"); } }} style={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap", color: active ? "var(--color-warning)" : undefined }}>
                       {label}{active ? (holdSortDir === "desc" ? " ▾" : " ▴") : ""}
                     </th>
                   );
@@ -2409,7 +2424,22 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                 return (
               <div className="rounded-xl table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 260px)", overflowY: "auto", overflowX: "hidden" }}>
                 <table className="data-table w-full" role="table" aria-label="Holdings data">
-                  <thead><tr>{hTh("Stock","name")}{hTh("Qty","qty")}{hTh("Avg Cost","avgCost")}{hTh("CMP","cmp")}{hTh("Day %","dayPct")}{hTh("Day P&L","dayPnl")}{hTh("Invested","invested")}{hTh("Value","value")}{hTh("P&L","pnl")}{hTh("P&L %","pnlPct")}{hTh("Bear","bear")}{hTh("Base","base")}{hTh("Bull","bull")}{hTh("↑ Bear","uBear")}{hTh("↑ Base","uBase")}{hTh("↑ Bull","uBull")}</tr></thead>
+                  <thead>
+                    <tr>
+                      <th className="thead-group" colSpan={3}>Position</th>
+                      <th className="thead-group tint-amber" colSpan={3}>Live</th>
+                      <th className="thead-group tint-amber" colSpan={4}>Investment</th>
+                      <th className="thead-group" colSpan={3}>Model</th>
+                      <th className="thead-group tint-green" colSpan={3}>Upsides</th>
+                    </tr>
+                    <tr>
+                      {hTh("Stock","name","thead-col")}{hTh("Qty","qty","thead-col")}{hTh("Avg Cost","avgCost","thead-col")}
+                      {hTh("CMP","cmp","thead-col tint-amber")}{hTh("Day %","dayPct","thead-col tint-amber")}{hTh("Day P&L","dayPnl","thead-col tint-amber")}
+                      {hTh("Invested","invested","thead-col tint-amber")}{hTh("Value","value","thead-col tint-amber")}{hTh("P&L","pnl","thead-col tint-amber")}{hTh("P&L %","pnlPct","thead-col tint-amber")}
+                      {hTh("Bear","bear","thead-col")}{hTh("Base","base","thead-col")}{hTh("Bull","bull","thead-col")}
+                      {hTh("↑ Bear","uBear","thead-col tint-green")}{hTh("↑ Base","uBase","thead-col tint-green")}{hTh("↑ Bull","uBull","thead-col tint-green")}
+                    </tr>
+                  </thead>
                   <tbody>
                     {sortedHoldings.map((h, i) => (
                       <tr key={i}>
@@ -2426,9 +2456,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bear_current ? `₹${fmt(h.stockData.bear_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.base_current ? `₹${fmt(h.stockData.base_current, 0)}` : "—"}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{h.stockData?.bull_current ? `₹${fmt(h.stockData.bull_current, 0)}` : "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.upsideToBear != null ? h.upsideToBear / 100 : null) }}>{h.upsideToBear != null ? `${h.upsideToBear >= 0 ? "+" : ""}${h.upsideToBear.toFixed(1)}%` : "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", fontWeight: 600, ...pctBgStyle(h.upsideToBase != null ? h.upsideToBase / 100 : null) }}>{h.upsideToBase != null ? `${h.upsideToBase >= 0 ? "+" : ""}${h.upsideToBase.toFixed(1)}%` : "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums", ...pctBgStyle(h.upsideToBull != null ? h.upsideToBull / 100 : null) }}>{h.upsideToBull != null ? `${h.upsideToBull >= 0 ? "+" : ""}${h.upsideToBull.toFixed(1)}%` : "—"}</td>
+                        <td>{upsidePill(h.upsideToBear != null ? h.upsideToBear / 100 : null)}</td>
+                        <td>{upsidePill(h.upsideToBase != null ? h.upsideToBase / 100 : null)}</td>
+                        <td>{upsidePill(h.upsideToBull != null ? h.upsideToBull / 100 : null)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -2713,6 +2743,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   </div>
                 );
               })()}
+              </>)}
+              {holdingsSubTab === "segments" && (
+                <SegmentsTab
+                  enrichedStocks={enrichedStocks}
+                  enrichedHoldings={enrichedHoldings}
+                  quotes={quotes}
+                />
+              )}
 
             </div>
           )}
@@ -3511,14 +3549,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         )}
       </div>
 
-      {/* ═══════════════════ TAB 5: SEGMENTS ═══════════════════ */}
-      {activeTab === "segments" && (
-        <SegmentsTab
-          enrichedStocks={enrichedStocks}
-          enrichedHoldings={enrichedHoldings}
-          quotes={quotes}
-        />
-      )}
 
     </div>
   );
