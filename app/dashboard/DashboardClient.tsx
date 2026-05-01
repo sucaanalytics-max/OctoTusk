@@ -3408,8 +3408,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata }: Props) 
           enrichedStocks={enrichedStocks}
           enrichedHoldings={enrichedHoldings}
           quotes={quotes}
-          isUnlocked={holdingsUnlocked}
-          onUnlockRequest={() => setActiveTab("holdings")}
         />
       )}
 

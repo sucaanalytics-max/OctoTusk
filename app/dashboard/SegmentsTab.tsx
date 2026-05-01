@@ -16,8 +16,6 @@ interface SegmentsTabProps {
   enrichedStocks: EnrichedStock[];
   enrichedHoldings: EnrichedHolding[];
   quotes: Record<string, QuoteData>;
-  isUnlocked: boolean;
-  onUnlockRequest: () => void;
 }
 
 type BucketKey = SebiSegment | "unclassified";
@@ -49,8 +47,7 @@ function fmtPnl(n: number): string {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function SegmentsTab({ enrichedStocks, enrichedHoldings, quotes, isUnlocked, onUnlockRequest }: SegmentsTabProps) {
-  // useMemo must be called unconditionally — no early returns before hooks
+export function SegmentsTab({ enrichedStocks, enrichedHoldings, quotes }: SegmentsTabProps) {
   const { buckets, totalPortfolioValue, modelStocks } = useMemo(() => {
     const model = enrichedStocks.filter(s => (s.base_current ?? 0) > 0);
     const raw: Record<BucketKey, EnrichedHolding[]> = {
@@ -79,20 +76,6 @@ export function SegmentsTab({ enrichedStocks, enrichedHoldings, quotes, isUnlock
       modelStocks: model,
     };
   }, [enrichedStocks, enrichedHoldings, quotes]);
-
-  if (!isUnlocked) {
-    return (
-      <div id="panel-segments" role="tabpanel" aria-labelledby="tab-segments" className="animate-fade-in"
-        style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 16 }}>
-        <div style={{ fontSize: 48 }}>🔒</div>
-        <div style={{ fontWeight: 600, fontSize: "var(--text-lg)" }}>Holdings PIN Required</div>
-        <div style={{ color: "var(--color-text-secondary)", textAlign: "center", maxWidth: 360 }}>
-          Segment analysis uses portfolio values and P&amp;L. Please unlock the Holdings tab first.
-        </div>
-        <button className="btn btn-primary" onClick={onUnlockRequest}>Go to Holdings</button>
-      </div>
-    );
-  }
 
   return (
     <div id="panel-segments" role="tabpanel" aria-labelledby="tab-segments" className="animate-fade-in"
