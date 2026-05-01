@@ -1985,58 +1985,75 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       {/* ═══════════════════ TAB 1: OCTOPUS ═══════════════════ */}
       {activeTab === "octopus" && (
         <div id="panel-octopus" role="tabpanel" aria-labelledby="tab-octopus" className="animate-fade-in">
-          <div className="filter-bar mb-3" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* Row 1: Search + count + clear */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <input type="text" placeholder="Search company, sector, VA..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="input-dark flex-1 md:min-w-[220px] max-w-sm" aria-label="Search stocks" style={{ minWidth: 160 }} />
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{sortedStocks.length} stocks · {Object.keys(quotes).length} live</span>
-              {activeFilters > 0 && (
-                <button
-                  onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: "var(--color-warning)", whiteSpace: "nowrap" }}
-                  aria-label="Clear all filters"
-                >
-                  × Clear all ({activeFilters})
-                </button>
-              )}
-            </div>
-            {/* Row 2: Sector + Cap pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(["all", "BFSI", "Technology", "Consumption", "Healthcare", "Industrials", "Infra", "Real Estate"] as const).map(s => (
-                <button key={s} className={`filter-pill${filterSector === s ? " active" : ""}`} onClick={() => setFilterSector(s)} aria-pressed={filterSector === s}>
-                  {s === "all" ? "All Sectors" : s}
-                </button>
-              ))}
-              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
-              {([["all", "All Cap"], ["large", "Large"], ["mid", "Mid"], ["small", "Small"], ["micro", "Micro"]] as [string, string][]).map(([val, label]) => (
-                <button key={val} className={`filter-pill${filterSegment === val ? " active" : ""}`} onClick={() => setFilterSegment(val)} aria-pressed={filterSegment === val}>
-                  {label}
-                </button>
-              ))}
-              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
-              <button onClick={() => setFilterHoldingsOnly(v => !v)} className={`filter-pill${filterHoldingsOnly ? " active" : ""}`} aria-pressed={filterHoldingsOnly} title="Show only held stocks">Portfolio</button>
-            </div>
-            {/* Row 3: VA + Conv + Upside threshold pills */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(["all", ...filterOptions.vps]).map(v => (
-                <button key={v} className={`filter-pill${filterVP === v ? " active" : ""}`} onClick={() => setFilterVP(v)} aria-pressed={filterVP === v}>
-                  {v === "all" ? "All VAs" : v}
-                </button>
-              ))}
-              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
-              {([["all", "All Conv"], ...filterOptions.convictions.map(c => [String(c), `${c}+`])] as [string, string][]).map(([val, label]) => (
-                <button key={val} className={`filter-pill${filterConviction === val ? " active" : ""}`} onClick={() => setFilterConviction(val)} aria-pressed={filterConviction === val}>
-                  {label}
-                </button>
-              ))}
-              <div style={{ width: 1, height: 16, background: "var(--color-border)", margin: "0 4px" }} />
-              {([[null, "Any Up"], [10, "≥10%"], [20, "≥20%"], [30, "≥30%"]] as [number | null, string][]).map(([val, label]) => (
-                <button key={String(val)} className={`filter-pill${filterUpside1Y === val ? " active" : ""}`} onClick={() => setFilterUpside1Y(val)} aria-pressed={filterUpside1Y === val}>
-                  {label}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <input
+              type="text"
+              placeholder="Search company, sector, VA..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="input-dark"
+              style={{ minWidth: 160, maxWidth: 260, flex: "1 1 160px" }}
+              aria-label="Search stocks"
+            />
+            <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector">
+              <option value="all">All Sectors</option>
+              <option value="BFSI">BFSI</option>
+              <option value="Technology">Technology</option>
+              <option value="Consumption">Consumption</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Industrials">Industrials</option>
+              <option value="Infra">Infra</option>
+              <option value="Real Estate">Real Estate</option>
+            </select>
+            <select value={filterSegment} onChange={e => setFilterSegment(e.target.value)} className="select-dark" aria-label="Filter by cap">
+              <option value="all">All Cap</option>
+              <option value="large">Large Cap</option>
+              <option value="mid">Mid Cap</option>
+              <option value="small">Small Cap</option>
+              <option value="micro">Micro Cap</option>
+            </select>
+            <select value={filterVP} onChange={e => setFilterVP(e.target.value)} className="select-dark" aria-label="Filter by VA analyst">
+              <option value="all">All VAs</option>
+              {filterOptions.vps.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <select value={filterConviction} onChange={e => setFilterConviction(e.target.value)} className="select-dark" aria-label="Filter by conviction">
+              <option value="all">All Conv</option>
+              {filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}+</option>)}
+            </select>
+            <select
+              value={filterUpside1Y == null ? "any" : String(filterUpside1Y)}
+              onChange={e => setFilterUpside1Y(e.target.value === "any" ? null : Number(e.target.value))}
+              className="select-dark"
+              aria-label="Filter by 1Y upside"
+            >
+              <option value="any">Any Upside</option>
+              <option value="10">≥ 10%</option>
+              <option value="20">≥ 20%</option>
+              <option value="30">≥ 30%</option>
+            </select>
+            <button
+              onClick={() => setFilterHoldingsOnly(v => !v)}
+              className={`btn btn-sm ${filterHoldingsOnly ? "btn-primary" : "btn-ghost"}`}
+              style={filterHoldingsOnly
+                ? { background: "var(--color-warning)", color: "#fff", border: "1px solid var(--color-warning)" }
+                : { color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }}
+              aria-label="Show held stocks only"
+            >
+              Portfolio
+            </button>
+            <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>
+              {sortedStocks.length} stocks · {Object.keys(quotes).length} live
+            </span>
+            {activeFilters > 0 && (
+              <button
+                onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
+                className="btn btn-ghost btn-sm"
+                style={{ color: "var(--color-warning)", whiteSpace: "nowrap" }}
+                aria-label="Clear all filters"
+              >
+                × Clear ({activeFilters})
+              </button>
+            )}
           </div>
 
           {/* Watchlist bar */}
@@ -2074,12 +2091,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </div>
           )}
 
-          <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)" }}>
+          <div className="rounded-xl table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 310px)", overflowY: "auto", overflowX: "hidden" }}>
             <table className="data-table w-full" role="table" aria-label="Stock data table">
               <thead>
                 <tr>
                   <th className="thead-group" colSpan={1} style={{ cursor: "default" }} />
-                  <th className="thead-group" colSpan={2}>Company</th>
+                  <th className="thead-group" colSpan={1}>Company</th>
                   <th className="thead-group" colSpan={1}>Price</th>
                   <th className="thead-group" colSpan={3}>Targets</th>
                   <th className="thead-group tint-green" colSpan={3}>Scenario Upsides</th>
@@ -2090,7 +2107,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                 <tr>
                   <th className="thead-col" style={{ width: 40, cursor: "default" }} />
                   <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="companyShort" label="Company" />
-                  <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="sector" label="Sector" />
+
                   <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="liveCmp" label="CMP" />
                   <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="bear_current" label="Bear" />
                   <Th className="thead-col" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} col="base_current" label="Base" />
@@ -2112,10 +2129,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                 {quotesLoading && Object.keys(quotes).length === 0 ? (
                   Array.from({ length: 15 }).map((_, i) => <SkeletonRow key={i} />)
                 ) : sortedStocks.map((s, i) => {
-                  const isBuy = s.liveCmp && s.bear_current && s.liveCmp <= s.bear_current * 1.05;
-                  const isSell = s.liveCmp && s.bull_current && s.liveCmp >= s.bull_current * 0.95;
                   return (
-                    <tr key={`${s.tikr}-${i}`} className={`cursor-pointer ${isBuy ? "row-buy-zone" : isSell ? "row-sell-zone" : ""}`} onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)} role="row" aria-label={`${s.companyShort} - click for details`}>
+                    <tr key={`${s.tikr}-${i}`} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)} role="row" aria-label={`${s.companyShort} - click for details`}>
                       <td onClick={e => e.stopPropagation()} style={{ padding: "var(--space-1)", position: "relative" }}>
                         <div className="flex items-center gap-0.5">
                           <button onClick={() => toggleHideStock(s.tikr)} className="stock-action-btn" title={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"} aria-label={hiddenStocks.has(s.tikr) ? "Unhide stock" : "Hide stock"}>
@@ -2147,8 +2162,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                           )}
                         </div>
                       </td>
-                      <td className="font-semibold" style={{ whiteSpace: "normal", minWidth: 120, maxWidth: 220, color: "var(--color-text-primary)" }}>{s.companyShort}</td>
-                      <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                      <td style={{ whiteSpace: "normal", minWidth: 100, maxWidth: 200 }}>
+                        <div className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{s.companyShort}</div>
+                        {s.sector && <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", marginTop: 1, lineHeight: 1.2 }}>{s.sector}</div>}
+                      </td>
                       <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
                         {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
                         {s.liveChangePct != null && (
@@ -2390,7 +2407,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   );
                 };
                 return (
-              <div className="rounded-xl overflow-auto table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: 1360 }}>
+              <div className="rounded-xl table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", maxHeight: "calc(100vh - 260px)", overflowY: "auto", overflowX: "hidden" }}>
                 <table className="data-table w-full" role="table" aria-label="Holdings data">
                   <thead><tr>{hTh("Stock","name")}{hTh("Qty","qty")}{hTh("Avg Cost","avgCost")}{hTh("CMP","cmp")}{hTh("Day %","dayPct")}{hTh("Day P&L","dayPnl")}{hTh("Invested","invested")}{hTh("Value","value")}{hTh("P&L","pnl")}{hTh("P&L %","pnlPct")}{hTh("Bear","bear")}{hTh("Base","base")}{hTh("Bull","bull")}{hTh("↑ Bear","uBear")}{hTh("↑ Base","uBase")}{hTh("↑ Bull","uBull")}</tr></thead>
                   <tbody>

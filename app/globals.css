@@ -192,7 +192,7 @@ body {
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-3) var(--space-2);
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
@@ -242,7 +242,7 @@ body {
 .data-table th.thead-col.tint-amber:hover { background: #4A3A22; color: #FDE68A; }
 
 .data-table td {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-2);
   font-size: var(--text-sm);
   border-bottom: 1px solid var(--color-border-subtle);
   white-space: nowrap;
@@ -284,28 +284,6 @@ body {
 .up-pill.up-pos    { background: #F0FDF4; color: #16A34A; }
 .up-pill.up-neu    { background: #FEF3C7; color: #D97706; }
 .up-pill.up-neg    { background: #FEF2F2; color: #DC2626; }
-
-/* Filter pill buttons */
-.filter-pill {
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  font-size: var(--text-xs);
-  cursor: pointer;
-  background: transparent;
-  color: var(--color-text-secondary);
-  transition: all 0.1s;
-  white-space: nowrap;
-}
-.filter-pill:hover {
-  border-color: var(--color-warning);
-  color: var(--color-warning);
-}
-.filter-pill.active {
-  background: var(--color-warning);
-  color: #fff;
-  border-color: var(--color-warning);
-}
 
 /* Zone row highlights */
 .row-buy-zone td { background: var(--color-positive-bg) !important; }
