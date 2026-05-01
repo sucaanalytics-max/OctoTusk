@@ -247,11 +247,6 @@ body {
 .data-table th.thead-group.tint-amber       { background: #261A0C; color: #FCD34D; }
 .data-table th.thead-group.tint-amber:hover { background: #261A0C; color: #FCD34D; }
 
-/* Upside cell heat-map fills */
-.data-table tbody tr td.cell-neg    { background: rgba(220, 38,  38, 0.10); }
-.data-table tbody tr td.cell-pos    { background: rgba(  5, 150, 105, 0.10); }
-.data-table tbody tr td.cell-strong { background: rgba(  5, 150, 105, 0.20); }
-
 .data-table td {
   padding: var(--space-2) var(--space-2);
   font-size: var(--text-sm);
@@ -276,6 +271,11 @@ body {
 .data-table tbody tr.cursor-pointer:hover td {
   background: var(--color-bg-hover) !important;
 }
+
+/* Upside cell heat-map fills — declared after zebra striping so they win */
+.data-table tbody tr td.cell-neg    { background: rgba(220, 38,  38, 0.10); }
+.data-table tbody tr td.cell-pos    { background: rgba(  5, 150, 105, 0.10); }
+.data-table tbody tr td.cell-strong { background: rgba(  5, 150, 105, 0.20); }
 
 /* Conditional formatting cells */
 .cell-green { color: var(--color-positive); font-weight: 600; }
