@@ -150,13 +150,18 @@ async function main(): Promise<void> {
 
     const fields = parseCsvLine(line);
 
-    // Filter: NSE exchange, D (derivatives) segment, FUTSTK or OPTSTK instrument
+    // Filter: derivatives segment, FUTSTK or OPTSTK instrument.
+    // In Dhan's scrip master, stock futures (FUTSTK) are listed under BSE/D
+    // and stock options (OPTSTK) are listed under NSE/D.
     const exch     = fields[IDX_EXCH];
     const segment  = fields[IDX_SEGMENT];
     const instrName= fields[IDX_INSTR_NAME];
 
-    if (exch !== "NSE" || segment !== "D") continue;
     if (instrName !== "FUTSTK" && instrName !== "OPTSTK") continue;
+    if (segment !== "D") continue;
+    // FUTSTK rows appear as BSE/D; OPTSTK rows appear as NSE/D
+    if (instrName === "OPTSTK" && exch !== "NSE") continue;
+    if (instrName === "FUTSTK" && exch !== "BSE") continue;
 
     nseFnoRows++;
 
