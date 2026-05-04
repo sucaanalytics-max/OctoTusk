@@ -16,6 +16,7 @@ export async function GET() {
     return NextResponse.json({
       stocks: staticDb.stocks,
       holdings: staticDb.holdings,
+      fo_positions: (staticDb as Record<string, unknown>).fo_positions ?? [],
       ticker_map: staticDb.ticker_map,
       source: "static_fallback",
       synced_at: null,
@@ -26,7 +27,7 @@ export async function GET() {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from("sync_snapshot")
-      .select("stocks, holdings, ticker_map, synced_at")
+      .select("stocks, holdings, fo_positions, ticker_map, synced_at")
       .eq("id", 1)
       .single();
 
@@ -34,6 +35,7 @@ export async function GET() {
       return NextResponse.json({
         stocks: staticDb.stocks,
         holdings: staticDb.holdings,
+        fo_positions: (staticDb as Record<string, unknown>).fo_positions ?? [],
         ticker_map: staticDb.ticker_map,
         source: "static_fallback",
         synced_at: null,
@@ -55,6 +57,7 @@ export async function GET() {
     return NextResponse.json({
       stocks,
       holdings: data.holdings,
+      fo_positions: data.fo_positions ?? [],
       ticker_map: data.ticker_map,
       source: "supabase",
       synced_at: data.synced_at,
@@ -64,6 +67,7 @@ export async function GET() {
     return NextResponse.json({
       stocks: staticDb.stocks,
       holdings: staticDb.holdings,
+      fo_positions: (staticDb as Record<string, unknown>).fo_positions ?? [],
       ticker_map: staticDb.ticker_map,
       source: "static_fallback_error",
       synced_at: null,
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, reason: "db_not_configured" });
   }
 
-  let body: { stocks?: unknown; holdings?: unknown; ticker_map?: unknown } = {};
+  let body: { stocks?: unknown; holdings?: unknown; fo_positions?: unknown; ticker_map?: unknown } = {};
   try {
     body = await request.json();
   } catch {
@@ -101,6 +105,7 @@ export async function POST(request: Request) {
         id: 1,
         stocks: body.stocks ?? [],
         holdings: body.holdings ?? [],
+        fo_positions: body.fo_positions ?? [],
         ticker_map: body.ticker_map ?? {},
         synced_at: new Date().toISOString(),
       });
