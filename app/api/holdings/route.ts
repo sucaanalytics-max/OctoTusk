@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     let holdings: unknown[] = (staticDb as Record<string, unknown>).holdings as unknown[] || [];
+    let fo_positions: unknown[] = (staticDb as Record<string, unknown>).fo_positions as unknown[] || [];
     let holdingsDate: string = ((staticDb as Record<string, unknown>).metadata as Record<string, string>)?.holdings_date || "unknown";
     let source = "static";
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
         const supabase = getSupabase();
         const { data, error } = await supabase
           .from("sync_snapshot")
-          .select("holdings, synced_at")
+          .select("holdings, fo_positions, synced_at")
           .eq("id", 1)
           .single();
 
@@ -54,13 +55,15 @@ export async function POST(request: NextRequest) {
             holdingsDate = (data.synced_at as string) ?? holdingsDate;
             source = "supabase";
           }
+          const snapshotFo = data.fo_positions;
+          fo_positions = Array.isArray(snapshotFo) ? snapshotFo : [];
         }
       } catch (err) {
         console.warn("[/api/holdings] Snapshot query failed, using static fallback:", err instanceof Error ? err.message : err);
       }
     }
 
-    return NextResponse.json({ holdings, unlocked: true, holdingsDate, source });
+    return NextResponse.json({ holdings, fo_positions, unlocked: true, holdingsDate, source });
   } catch (error: unknown) {
     console.error("[/api/holdings] Error:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
