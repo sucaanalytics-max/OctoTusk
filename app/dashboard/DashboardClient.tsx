@@ -3070,7 +3070,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                           const pnl = p.live_pnl ?? p.unrealised_pnl;
                           const expDisplay = p.expiry.slice(5).replace("-", "/") + "/" + p.expiry.slice(2, 4);
                           return (
-                            <tr key={i}>
+                            <tr key={p.instrument_name}>
                               <td style={{ padding: "7px 12px", fontWeight: 500, color: "var(--color-text-primary)" }}>{p.underlying}</td>
                               <td style={{ padding: "7px 8px", textAlign: "center" }}>
                                 <span style={{ background: p.instrument_type === "FUT" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)", color: p.instrument_type === "FUT" ? "var(--color-accent-blue)" : "#c084fc", padding: "2px 6px", borderRadius: 3, fontSize: "var(--text-xs)", fontWeight: 500 }}>
