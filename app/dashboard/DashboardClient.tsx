@@ -2635,7 +2635,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       const netExp = foPositions.reduce((s, p) => s + p.exposure, 0);
                       const hasLive = foPositions.some(p => p.live_price != null);
                       return (
-                        <div className={`kpi-card ${livePnl >= 0 ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-5`} style={{ borderLeft: "2px solid var(--color-warning)" }}>
+                        <div className="kpi-card animate-fade-in-up delay-5" style={{ borderLeft: "2px solid var(--color-warning)", background: "rgba(217, 119, 6, 0.08)" }}>
                           <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>F&amp;O P&amp;L</p>
                           <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: livePnl >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
                             {livePnl >= 0 ? "+" : ""}{fmtRupee(livePnl)}
@@ -3088,7 +3088,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                               </td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(Math.abs(p.quantity))}</td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(p.avg_cost, 2)}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-warning)" : "var(--color-text-muted)" }}>
+                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-text-primary)" : "var(--color-warning)" }}>
                                 {p.live_price != null ? fmt(p.live_price, 2) : "—"}
                               </td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{fmtCr(p.exposure)}</td>
