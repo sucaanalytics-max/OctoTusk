@@ -4,9 +4,6 @@ import foInstruments from "@/data/dhan-fo-instruments.json";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Parse an expiry string from DD-MM-YY to YYYY-MM-DD.
- */
 function parseExpiry(ddmmyy: string): string {
   const parts = ddmmyy.split("-");
   if (parts.length !== 3) return ddmmyy;
@@ -43,11 +40,6 @@ function instrumentToKey(name: string): string | null {
   return null;
 }
 
-/**
- * POST /api/fo-quotes
- * Body:    { instruments: string[] }
- * Returns: { quotes: { [instrument_name]: number } }
- */
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
@@ -130,10 +122,9 @@ export async function POST(request: NextRequest) {
       const instrumentName = secIdToName[secId];
       if (!instrumentName) continue;
 
-      const ltp = (info as any)?.last_price;
-      if (typeof ltp === "number") {
-        quotes[instrumentName] = ltp;
-      }
+      const ltp = (info as Record<string, unknown>)?.last_price;
+      if (typeof ltp !== "number") continue;
+      quotes[instrumentName] = ltp;
     }
 
     return NextResponse.json({ quotes });
