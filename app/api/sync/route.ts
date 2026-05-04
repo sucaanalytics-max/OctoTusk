@@ -518,13 +518,14 @@ interface FoPosition {
 }
 
 function parseExpiry(ddmmyy: string): string {
-  const [dd, mm, yy] = ddmmyy.split("-");
+  const parts = ddmmyy.split("-");
+  if (parts.length !== 3) return ddmmyy;
+  const [dd, mm, yy] = parts;
   return `20${yy}-${mm}-${dd}`;
 }
 
 async function readFoPositions(token: string): Promise<FoPosition[] | null> {
   try {
-    // List files in Positions & Leverage folder
     const listUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${POSITIONS_FOLDER_ID}/children?$select=id,name,lastModifiedDateTime,file&$top=50`;
     const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
     const listData = await listRes.json();
@@ -533,7 +534,6 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
       return null;
     }
 
-    // Find all "YYYYMMDD Tusk FO.xlsx" files; sort descending so newest is first
     const foFiles: { id: string; name: string }[] = (listData.value || [])
       .filter((f: { file?: unknown; name: string }) =>
         f.file && /^\d{6,8}\s+Tusk FO\.xlsx$/i.test(f.name)
@@ -548,7 +548,6 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
     const file = foFiles[0];
     console.log(`[fo] Reading: ${file.name}`);
 
-    // Download the file
     const dlRes = await fetch(
       `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`,
       { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }
@@ -567,7 +566,6 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
       defval: "",
     });
 
-    // Find the header row (contains "Instrument Name")
     let headerRow = -1;
     for (let i = 0; i < rawRows.length; i++) {
       if (rawRows[i].some((c) => String(c).includes("Instrument Name"))) {
@@ -626,7 +624,8 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
 
       // Strike price column may show puts as (2600.00) — parse and abs
       const rawStrike = ci.strike >= 0 ? row[ci.strike] : "";
-      const strikeFromCol = rawStrike !== "" ? Math.abs(parseFloat(String(rawStrike).replace(/[()]/g, "")) || 0) : undefined;
+      const parsedStrike = parseFloat(String(rawStrike).replace(/[()]/g, ""));
+      const strikeFromCol = rawStrike !== "" && !isNaN(parsedStrike) ? Math.abs(parsedStrike) : undefined;
       if (instrument_type === "OPT" && strikeFromCol) strike = strikeFromCol;
 
       const broker = String(row[ci.broker] ?? "").trim();

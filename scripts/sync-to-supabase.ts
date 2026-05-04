@@ -485,7 +485,9 @@ interface FoPosition {
 }
 
 function parseExpiry(ddmmyy: string): string {
-  const [dd, mm, yy] = ddmmyy.split("-");
+  const parts = ddmmyy.split("-");
+  if (parts.length !== 3) return ddmmyy;
+  const [dd, mm, yy] = parts;
   return `20${yy}-${mm}-${dd}`;
 }
 
@@ -565,7 +567,8 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
 
       // Strike price column may show puts as (2600.00) — parse and abs
       const rawStrike = ci.strike >= 0 ? row[ci.strike] : "";
-      const strikeFromCol = rawStrike !== "" ? Math.abs(parseFloat(String(rawStrike).replace(/[()]/g, "")) || 0) : undefined;
+      const parsedStrike = parseFloat(String(rawStrike).replace(/[()]/g, ""));
+      const strikeFromCol = rawStrike !== "" && !isNaN(parsedStrike) ? Math.abs(parsedStrike) : undefined;
       if (instrument_type === "OPT" && strikeFromCol) strike = strikeFromCol;
 
       const broker = String(row[ci.broker] ?? "").trim();
