@@ -1036,6 +1036,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instruments: pos.map(p => p.instrument_name) }),
       });
+      if (!res.ok) { console.warn("[fo-quotes] HTTP", res.status); return; }
       const data = await res.json();
       if (data.quotes) {
         setFoPositions(prev => prev.map(p => {

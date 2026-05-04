@@ -66,9 +66,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ quotes: {} });
   }
 
-  // Build map: securityId → instrument_name (for reversing Dhan response)
+  // Build map: securityId → instrument_name, grouped by exchange segment
+  // FUTSTK are on BSE_FNO; OPTSTK are on NSE_FNO — must use correct key in Dhan LTP API
+  type FoEntry = { securityId: number; exchange: string; lotSize?: number };
   const secIdToName: Record<number, string> = {};
-  const securityIds: number[] = [];
+  const byExchange: Record<string, number[]> = {};
 
   for (const name of instruments) {
     const key = instrumentToKey(name);
@@ -77,17 +79,18 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const entry = (foInstruments as Record<string, { securityId: number; lotSize?: number }>)[key];
+    const entry = (foInstruments as Record<string, FoEntry>)[key];
     if (!entry) {
       console.warn(`[fo-quotes] No securityId found for key: ${key} (instrument: ${name})`);
       continue;
     }
 
+    const exch = entry.exchange ?? "NSE_FNO";
     secIdToName[entry.securityId] = name;
-    securityIds.push(entry.securityId);
+    (byExchange[exch] ??= []).push(entry.securityId);
   }
 
-  if (securityIds.length === 0) {
+  if (Object.keys(byExchange).length === 0) {
     return NextResponse.json({ quotes: {} });
   }
 
@@ -99,7 +102,7 @@ export async function POST(request: NextRequest) {
         "client-id": clientId,
         "access-token": accessToken,
       },
-      body: JSON.stringify({ NSE_FNO: securityIds }),
+      body: JSON.stringify(byExchange),
     });
 
     if (!dhanResponse.ok) {
@@ -109,22 +112,25 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await dhanResponse.json();
-    const nseFno = data?.data?.NSE_FNO;
+    const exchData = data?.data;
 
-    if (!nseFno || typeof nseFno !== "object") {
-      console.warn("[fo-quotes] Dhan response missing data.NSE_FNO");
+    if (!exchData || typeof exchData !== "object") {
+      console.warn("[fo-quotes] Dhan response missing data");
       return NextResponse.json({ quotes: {} });
     }
 
     const quotes: Record<string, number> = {};
-    for (const [secIdStr, info] of Object.entries(nseFno)) {
-      const secId = Number(secIdStr);
-      const instrumentName = secIdToName[secId];
-      if (!instrumentName) continue;
+    for (const segmentData of Object.values(exchData)) {
+      if (!segmentData || typeof segmentData !== "object") continue;
+      for (const [secIdStr, info] of Object.entries(segmentData as Record<string, unknown>)) {
+        const secId = Number(secIdStr);
+        const instrumentName = secIdToName[secId];
+        if (!instrumentName) continue;
 
-      const ltp = (info as Record<string, unknown>)?.last_price;
-      if (typeof ltp !== "number") continue;
-      quotes[instrumentName] = ltp;
+        const ltp = (info as Record<string, unknown>)?.last_price;
+        if (typeof ltp !== "number") continue;
+        quotes[instrumentName] = ltp;
+      }
     }
 
     return NextResponse.json({ quotes });

@@ -14,6 +14,7 @@ const CSV_URL = "https://images.dhan.co/api-data/api-scrip-master.csv";
 
 interface InstrumentEntry {
   securityId: number;
+  exchange: "NSE_FNO" | "BSE_FNO";
   lotSize?: number;
 }
 
@@ -159,8 +160,12 @@ async function main(): Promise<void> {
       continue;
     }
 
+    // FUTSTK rows are in Dhan's BSE/D segment → use BSE_FNO in the LTP API
+    // OPTSTK rows are in Dhan's NSE/D segment → use NSE_FNO in the LTP API
+    const exchange: "NSE_FNO" | "BSE_FNO" = instrName === "FUTSTK" ? "BSE_FNO" : "NSE_FNO";
+
     const lotSize = parseFloat(lotUnitsRaw);
-    const entry: InstrumentEntry = { securityId };
+    const entry: InstrumentEntry = { securityId, exchange };
     if (!isNaN(lotSize) && lotSize > 0) {
       entry.lotSize = lotSize;
     }
