@@ -49,3 +49,4 @@ coverage/
 
 # Git worktrees
 .worktrees/
+.superpowers/
