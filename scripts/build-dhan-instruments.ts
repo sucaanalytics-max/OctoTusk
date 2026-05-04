@@ -1,11 +1,4 @@
 // Re-run when new expiry month rolls in: npx tsx scripts/build-dhan-instruments.ts
-//
-// Downloads the Dhan scrip master CSV and extracts NSE F&O instruments
-// (FUTSTK + OPTSTK), building a lookup keyed by:
-//   futures: `${underlying}-FUT-${YYYY-MM-DD}--`
-//   options: `${underlying}-OPT-${YYYY-MM-DD}-${strike}-${CE|PE}`
-//
-// Output: data/dhan-fo-instruments.json
 
 "use strict";
 
@@ -28,10 +21,7 @@ type LookupTable = Record<string, InstrumentEntry>;
 
 // ─── CSV parsing ─────────────────────────────────────────────────────────────
 
-/**
- * Minimal CSV line parser that handles quoted fields.
- * Does NOT handle multi-line quoted values (none expected in this CSV).
- */
+// Minimal CSV line parser; handles quoted fields and RFC 4180 escaped quotes ("").
 function parseCsvLine(line: string): string[] {
   const fields: string[] = [];
   let current = "";
@@ -40,7 +30,12 @@ function parseCsvLine(line: string): string[] {
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (ch === '"') {
-      inQuotes = !inQuotes;
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (ch === "," && !inQuotes) {
       fields.push(current.trim());
       current = "";
@@ -54,18 +49,6 @@ function parseCsvLine(line: string): string[] {
 
 // ─── Key builder ─────────────────────────────────────────────────────────────
 
-/**
- * Build lookup key from raw CSV fields.
- *
- * SEM_TRADING_SYMBOL examples:
- *   "BAJAJFINSV-May2026-FUT"        → futures
- *   "CGPOWER-Jun2026-840-PE"        → put option
- *   "EICHERMOT-May2026-5400-CE"     → call option
- *
- * SEM_EXPIRY_DATE: "2026-05-26 14:30:00"  → extract "2026-05-26"
- * SEM_OPTION_TYPE: CE | PE | XX (XX = futures)
- * SEM_STRIKE_PRICE: "-0.01000" for futures, "840.00000" for options
- */
 function buildKey(
   tradingSymbol: string,
   expiryDate: string,
@@ -73,36 +56,28 @@ function buildKey(
   optionType: string,
   instrumentName: string
 ): string | null {
-  // Extract underlying: everything before the first dash+month pattern
-  // e.g. "BAJAJFINSV-May2026-FUT" → "BAJAJFINSV"
-  //       "EICHERMOT-May2026-5400-CE" → "EICHERMOT"
   const dashIdx = tradingSymbol.indexOf("-");
   if (dashIdx === -1) return null;
   const underlying = tradingSymbol.substring(0, dashIdx);
 
-  // Normalise expiry to YYYY-MM-DD
-  const expiry = expiryDate.split(" ")[0]; // strip time component
+  const expiry = expiryDate.split(" ")[0];
 
   const isFuture =
     instrumentName === "FUTSTK" || optionType === "XX";
 
   if (isFuture) {
-    // Futures key: BAJAJFINSV-FUT-2026-05-26--
     return `${underlying}-FUT-${expiry}--`;
   }
 
-  // Options: normalise strike (drop trailing zeros after decimal point but keep integer)
-  // e.g. "840.00000" → "840", "4000.00000" → "4000", "2600.50000" → "2600.5"
   const strikeNum = parseFloat(strikePrice);
   if (isNaN(strikeNum)) return null;
-  // Format: remove unnecessary decimals
+
   const strikeStr =
     strikeNum % 1 === 0 ? String(Math.round(strikeNum)) : String(strikeNum);
 
   const optType = optionType === "CE" || optionType === "PE" ? optionType : null;
   if (!optType) return null;
 
-  // Options key: BSE-OPT-2026-05-26-4000-CE
   return `${underlying}-OPT-${expiry}-${strikeStr}-${optType}`;
 }
 
