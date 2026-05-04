@@ -497,6 +497,175 @@ const TIKR_ALIAS: Record<string, string> = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// F&O positions reader — reads latest "YYYYMMDD Tusk FO.xlsx"
+// from the Positions & Leverage folder on OneDrive
+// ═══════════════════════════════════════════════════════════════
+
+interface FoPosition {
+  instrument_name: string;
+  underlying: string;
+  instrument_type: "FUT" | "OPT";
+  expiry: string;
+  strike?: number;
+  option_type?: "CE" | "PE";
+  broker: string;
+  direction: "BUY" | "SELL";
+  quantity: number;
+  avg_cost: number;
+  curr_price: number;
+  exposure: number;
+  unrealised_pnl: number;
+}
+
+function parseExpiry(ddmmyy: string): string {
+  const [dd, mm, yy] = ddmmyy.split("-");
+  return `20${yy}-${mm}-${dd}`;
+}
+
+async function readFoPositions(token: string): Promise<FoPosition[] | null> {
+  try {
+    // List files in Positions & Leverage folder
+    const listUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${POSITIONS_FOLDER_ID}/children?$select=id,name,lastModifiedDateTime,file&$top=50`;
+    const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const listData = await listRes.json();
+    if (listData.error) {
+      console.warn(`[fo] Folder listing error: ${listData.error.message}`);
+      return null;
+    }
+
+    // Find all "YYYYMMDD Tusk FO.xlsx" files; sort descending so newest is first
+    const foFiles: { id: string; name: string }[] = (listData.value || [])
+      .filter((f: { file?: unknown; name: string }) =>
+        f.file && /^\d{6,8}\s+Tusk FO\.xlsx$/i.test(f.name)
+      )
+      .sort((a: { name: string }, b: { name: string }) => b.name.localeCompare(a.name));
+
+    if (foFiles.length === 0) {
+      console.warn("[fo] No 'Tusk FO.xlsx' file found in Positions folder");
+      return null;
+    }
+
+    const file = foFiles[0];
+    console.log(`[fo] Reading: ${file.name}`);
+
+    // Download the file
+    const dlRes = await fetch(
+      `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`,
+      { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }
+    );
+    if (!dlRes.ok) {
+      console.warn(`[fo] Download failed: ${dlRes.status}`);
+      return null;
+    }
+
+    const buffer = await dlRes.arrayBuffer();
+    const XLSX = await getXLSX();
+    const wb = XLSX.read(new Uint8Array(buffer), { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, {
+      header: 1,
+      defval: "",
+    });
+
+    // Find the header row (contains "Instrument Name")
+    let headerRow = -1;
+    for (let i = 0; i < rawRows.length; i++) {
+      if (rawRows[i].some((c) => String(c).includes("Instrument Name"))) {
+        headerRow = i;
+        break;
+      }
+    }
+    if (headerRow === -1) {
+      console.warn("[fo] Header row not found in Tusk FO file");
+      return null;
+    }
+
+    const headers = rawRows[headerRow].map((h) => String(h).trim());
+    const ci = {
+      name:          headers.findIndex((h) => h.includes("Instrument Name")),
+      broker:        headers.findIndex((h) => h.toLowerCase().includes("broker")),
+      direction:     headers.findIndex((h) => /^buy\/sell$/i.test(h) || /^buy.sell$/i.test(h)),
+      strike:        headers.findIndex((h) => h.toLowerCase().includes("strike")),
+      quantity:      headers.findIndex((h) => h.toLowerCase() === "quantity"),
+      avgCost:       headers.findIndex((h) => h.toLowerCase().includes("cost/unit") || (h.toLowerCase().includes("cost") && !h.toLowerCase().includes("total"))),
+      currPrice:     headers.findIndex((h) => h.toLowerCase().includes("curr") && h.toLowerCase().includes("price")),
+      exposure:      headers.findIndex((h) => h.toLowerCase().includes("exposure")),
+      unrealisedPnl: headers.findIndex((h) => h.toLowerCase().includes("unreali")),
+    };
+
+    const SKIP_ROW = /^(stock|total|figures)/i;
+    const positions: FoPosition[] = [];
+
+    for (let i = headerRow + 1; i < rawRows.length; i++) {
+      const row = rawRows[i];
+      const name = String(row[ci.name] ?? "").trim();
+      if (!name || SKIP_ROW.test(name)) continue;
+
+      const futMatch = name.match(/^(.+)-FUTSTK:(\d{2}-\d{2}-\d{2})$/);
+      const optMatch = name.match(/^(.+)-OPTSTK:(\d{2}-\d{2}-\d{2}):([\d.]+):(CE|PE)$/);
+
+      if (!futMatch && !optMatch) continue;
+
+      let underlying: string;
+      let instrument_type: "FUT" | "OPT";
+      let expiry: string;
+      let strike: number | undefined;
+      let option_type: "CE" | "PE" | undefined;
+
+      if (futMatch) {
+        underlying = futMatch[1];
+        instrument_type = "FUT";
+        expiry = parseExpiry(futMatch[2]);
+      } else {
+        underlying = optMatch![1];
+        instrument_type = "OPT";
+        expiry = parseExpiry(optMatch![2]);
+        strike = Math.abs(Number(optMatch![3])) || undefined;
+        option_type = optMatch![4] as "CE" | "PE";
+      }
+
+      // Strike price column may show puts as (2600.00) — parse and abs
+      const rawStrike = ci.strike >= 0 ? row[ci.strike] : "";
+      const strikeFromCol = rawStrike !== "" ? Math.abs(parseFloat(String(rawStrike).replace(/[()]/g, "")) || 0) : undefined;
+      if (instrument_type === "OPT" && strikeFromCol) strike = strikeFromCol;
+
+      const broker = String(row[ci.broker] ?? "").trim();
+      const dirRaw = String(row[ci.direction] ?? "").trim().toUpperCase();
+      const direction = dirRaw === "SELL" ? "SELL" : "BUY";
+      const quantity = Number(row[ci.quantity]) || 0;
+      const avg_cost = Number(row[ci.avgCost]) || 0;
+      const curr_price = Number(row[ci.currPrice]) || 0;
+      const exposure = Number(row[ci.exposure]) || 0;
+      const unrealised_pnl = Number(row[ci.unrealisedPnl]) || 0;
+
+      const pos: FoPosition = {
+        instrument_name: name,
+        underlying,
+        instrument_type,
+        expiry,
+        broker,
+        direction,
+        quantity: direction === "SELL" ? -Math.abs(quantity) : Math.abs(quantity),
+        avg_cost,
+        curr_price,
+        exposure,
+        unrealised_pnl,
+      };
+      if (strike !== undefined) pos.strike = strike;
+      if (option_type !== undefined) pos.option_type = option_type;
+
+      positions.push(pos);
+    }
+
+    console.log(`[fo] Parsed ${positions.length} F&O positions from ${file.name}`);
+    return positions.length > 0 ? positions : null;
+  } catch (err) {
+    console.warn("[fo] Error:", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // POST handler — supports 3 modes:
 //   { mode: "baseline" }  → JVB Output only (fast, <10s)
 //   { mode: "vf", offset, batchSize, baselineStocks }  → process a batch of vF files
@@ -538,15 +707,20 @@ export async function POST(request: Request) {
       if (bFilled > 0) console.log(`[sync] Baseline: filled static-db fields for ${bFilled} stocks`);
       if (bAdded > 0) console.log(`[sync] Baseline: added ${bAdded} static-db stocks`);
 
-      // Read live holdings in parallel with baseline (non-blocking)
-      const liveHoldingsBaseline = await readHoldings(token);
+      // Read live holdings and F&O positions in parallel with baseline (non-blocking)
+      const [liveHoldingsBaseline, liveFoBaseline] = await Promise.all([
+        readHoldings(token),
+        readFoPositions(token),
+      ]);
       const holdingsBaseline = liveHoldingsBaseline ?? staticDb.holdings;
       console.log(`[sync] Holdings (baseline): ${holdingsBaseline.length} records (${liveHoldingsBaseline ? "live" : "static"})`);
+      console.log(`[sync] F&O positions (baseline): ${(liveFoBaseline ?? []).length} records (${liveFoBaseline ? "live" : "static"})`);
 
       return NextResponse.json({
         mode: "baseline",
         stocks: deduplicateStocks(baselineStocks),
         holdings: holdingsBaseline,
+        fo_positions: liveFoBaseline ?? [],
         ticker_map: staticDb.ticker_map,
         holdings_source: liveHoldingsBaseline ? "live_onedrive" : "static_fallback",
         vfFiles: dedupedFiles.map((f) => ({ id: f.id, name: f.name, size: f.size, webUrl: f.webUrl })),
@@ -722,18 +896,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No valid stocks found" }, { status: 422 });
     }
 
-    // Read live holdings from OneDrive (fallback to static database.json)
-    console.log("[sync] Reading live holdings...");
-    const liveHoldings = await readHoldings(token);
+    // Read live holdings and F&O positions from OneDrive (fallback to static database.json)
+    console.log("[sync] Reading live holdings and F&O positions...");
+    const [liveHoldings, liveFoPositions] = await Promise.all([
+      readHoldings(token),
+      readFoPositions(token),
+    ]);
     const holdings = liveHoldings ?? staticDb.holdings;
+    const foPositions = liveFoPositions ?? [];
     const holdingsSource = liveHoldings ? "live_onedrive" : "static_fallback";
     console.log(`[sync] Holdings: ${holdings.length} records (${holdingsSource})`);
+    console.log(`[sync] F&O positions: ${foPositions.length} records (${liveFoPositions ? "live" : "static"})`);
 
     reportSuccess("sync");
     return NextResponse.json({
       mode: "full",
       stocks: finalStocks,
       holdings,
+      fo_positions: foPositions,
       ticker_map: staticDb.ticker_map,
       metadata: {
         source: "JVB Output + vF overrides",
