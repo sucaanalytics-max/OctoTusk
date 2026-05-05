@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, Fragment } from "react";
 import {
   getSebiSegment,
   SEBI_LABELS,
@@ -140,8 +140,18 @@ function SegmentKPIs({ buckets, total }: { buckets: Record<BucketKey, SegmentBuc
 // ── Allocation Summary ─────────────────────────────────────────────────────────
 
 function AllocationSummary({ buckets, total }: { buckets: Record<BucketKey, SegmentBucket>; total: number }) {
+  const [expanded, setExpanded] = useState<Set<BucketKey>>(new Set());
   const allKeys: BucketKey[] = [...SEGMENT_ORDER, "unclassified"];
   const totalCount = allKeys.reduce((s, k) => s + buckets[k].holdings.length, 0);
+
+  function toggle(key: BucketKey) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
   return (
     <div className="metric-card">
       <SectionHeading>Allocation</SectionHeading>
@@ -158,31 +168,89 @@ function AllocationSummary({ buckets, total }: { buckets: Record<BucketKey, Segm
           </thead>
           <tbody>
             {allKeys.map(key => {
-              const b      = buckets[key];
-              const weight = total > 0 ? (b.totalValue / total) * 100 : 0;
-              const label  = key === "unclassified" ? "Unclassified" : SEBI_LABELS[key as SebiSegment];
-              const color  = key === "unclassified" ? "var(--color-segment-unclassified)" : `var(--color-segment-${key})`;
+              const b        = buckets[key];
+              const weight   = total > 0 ? (b.totalValue / total) * 100 : 0;
+              const label    = key === "unclassified" ? "Unclassified" : SEBI_LABELS[key as SebiSegment];
+              const color    = key === "unclassified" ? "var(--color-segment-unclassified)" : `var(--color-segment-${key})`;
+              const isOpen   = expanded.has(key);
+              const hasHoldings = b.holdings.length > 0;
+              const sorted   = [...b.holdings].sort((a, c) => c.liveValue - a.liveValue);
               return (
-                <tr key={key}>
-                  <td style={{ fontWeight: 600 }}>
-                    <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, marginRight: 8, verticalAlign: "middle" }} />
-                    {label}
-                    {key === "micro" && <sup style={{ marginLeft: 4, color: "var(--color-text-secondary)", fontSize: "0.6rem" }}>*</sup>}
-                  </td>
-                  <td style={{ textAlign: "right", color: "var(--color-text-secondary)" }}>
-                    {key === "unclassified" ? "Market cap unavailable" : SEBI_THRESHOLDS[key as SebiSegment]}
-                  </td>
-                  <td style={{ textAlign: "right" }}>{b.holdings.length}</td>
-                  <td style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>{fmtRs(b.totalValue)}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
-                      <div style={{ width: 60, height: 4, borderRadius: 2, background: "var(--color-border)", overflow: "hidden", flexShrink: 0 }}>
-                        <div style={{ width: `${Math.min(weight, 100)}%`, height: "100%", background: color, borderRadius: 2, transition: "width 0.3s" }} />
+                <Fragment key={key}>
+                  <tr
+                    onClick={() => hasHoldings && toggle(key)}
+                    style={{ cursor: hasHoldings ? "pointer" : "default" }}
+                  >
+                    <td style={{ fontWeight: 600 }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                        {label}
+                        {key === "micro" && <sup style={{ color: "var(--color-text-secondary)", fontSize: "0.6rem" }}>*</sup>}
+                        {hasHoldings && (
+                          <span style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", marginLeft: 2, lineHeight: 1 }}>
+                            {isOpen ? "▲" : "▼"}
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right", color: "var(--color-text-secondary)" }}>
+                      {key === "unclassified" ? "Market cap unavailable" : SEBI_THRESHOLDS[key as SebiSegment]}
+                    </td>
+                    <td style={{ textAlign: "right" }}>{b.holdings.length}</td>
+                    <td style={{ textAlign: "right", fontFamily: "var(--font-mono)" }}>{fmtRs(b.totalValue)}</td>
+                    <td style={{ textAlign: "right" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+                        <div style={{ width: 60, height: 4, borderRadius: 2, background: "var(--color-border)", overflow: "hidden", flexShrink: 0 }}>
+                          <div style={{ width: `${Math.min(weight, 100)}%`, height: "100%", background: color, borderRadius: 2, transition: "width 0.3s" }} />
+                        </div>
+                        <span style={{ fontFamily: "var(--font-mono)", minWidth: 40, textAlign: "right" }}>{weight.toFixed(1)}%</span>
                       </div>
-                      <span style={{ fontFamily: "var(--font-mono)", minWidth: 40, textAlign: "right" }}>{weight.toFixed(1)}%</span>
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0, background: "var(--color-surface-secondary, rgba(0,0,0,0.15))" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--text-xs)" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                              <th style={{ textAlign: "left", padding: "6px 12px 6px 28px", color: "var(--color-text-muted)", fontWeight: 600 }}>Stock</th>
+                              <th style={{ textAlign: "right", padding: "6px 12px", color: "var(--color-text-muted)", fontWeight: 600 }}>Value</th>
+                              <th style={{ textAlign: "right", padding: "6px 12px", color: "var(--color-text-muted)", fontWeight: 600 }}>% of Seg</th>
+                              <th style={{ textAlign: "right", padding: "6px 12px", color: "var(--color-text-muted)", fontWeight: 600 }}>P&amp;L (₹)</th>
+                              <th style={{ textAlign: "right", padding: "6px 12px", color: "var(--color-text-muted)", fontWeight: 600 }}>P&amp;L %</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sorted.map((h, i) => {
+                              const segPct   = b.totalValue > 0 ? (h.liveValue / b.totalValue) * 100 : 0;
+                              const pnlPct   = h.amt_invested > 0 ? (h.liveGain / h.amt_invested) * 100 : 0;
+                              const pnlColor = h.liveGain >= 0 ? "var(--color-positive)" : "var(--color-negative)";
+                              return (
+                                <tr key={h.tikr ?? i} style={{ borderBottom: "1px solid var(--color-border-subtle, rgba(255,255,255,0.04))" }}>
+                                  <td style={{ padding: "5px 12px 5px 28px", fontWeight: 500, color: "var(--color-text-primary)" }}>
+                                    {h.asset_name || h.tikr || "—"}
+                                  </td>
+                                  <td style={{ textAlign: "right", padding: "5px 12px", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>
+                                    {fmtRs(h.liveValue)}
+                                  </td>
+                                  <td style={{ textAlign: "right", padding: "5px 12px", fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>
+                                    {segPct.toFixed(1)}%
+                                  </td>
+                                  <td style={{ textAlign: "right", padding: "5px 12px", fontFamily: "var(--font-mono)", color: pnlColor }}>
+                                    {fmtPnl(h.liveGain)}
+                                  </td>
+                                  <td style={{ textAlign: "right", padding: "5px 12px", fontFamily: "var(--font-mono)", color: pnlColor }}>
+                                    {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
             <tr style={{ fontWeight: 700, borderTop: "2px solid var(--color-border)" }}>
@@ -196,7 +264,7 @@ function AllocationSummary({ buckets, total }: { buckets: Record<BucketKey, Segm
         </table>
       </div>
       <p style={{ marginTop: 8, fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
-        * Micro Cap (&lt; ₹500 Cr) is a market convention — not defined by SEBI circular SEBI/HO/IMD/DF3/CIR/P/2017/114. Market cap from Yahoo Finance (full, not free-float).
+        * Micro Cap (&lt; ₹500 Cr) is a market convention — not defined by SEBI circular SEBI/HO/IMD/DF3/CIR/P/2017/114. Market cap from Yahoo Finance (full, not free-float). Click a segment row to view holdings breakdown.
       </p>
     </div>
   );
