@@ -578,7 +578,12 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
       const avg_cost = Number(row[ci.avgCost]) || 0;
       const curr_price = Number(row[ci.currPrice]) || 0;
       const exposure = Number(row[ci.exposure]) || 0;
-      const unrealised_pnl = Number(row[ci.unrealisedPnl]) || 0;
+      const rawPnl = Number(row[ci.unrealisedPnl]) || 0;
+      // Some brokers compute (curr_price - avg_cost) × qty regardless of direction.
+      // For SELL, profit means curr_price < avg_cost → priceDiff > 0 → rawPnl should be > 0.
+      // If sign contradicts expected direction, flip it.
+      const priceDiff = direction === "SELL" ? avg_cost - curr_price : curr_price - avg_cost;
+      const unrealised_pnl = priceDiff !== 0 && (rawPnl >= 0) !== (priceDiff >= 0) ? -rawPnl : rawPnl;
 
       const pos: FoPosition = {
         instrument_name: name,

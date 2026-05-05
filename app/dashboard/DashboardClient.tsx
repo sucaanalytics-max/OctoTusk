@@ -1046,7 +1046,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         setFoPositions(prev => prev.map(p => {
           const ltp = data.quotes[p.instrument_name];
           if (typeof ltp !== "number") return p;
-          return { ...p, live_price: ltp, live_pnl: (ltp - p.avg_cost) * p.quantity };
+          const absQty = Math.abs(p.quantity);
+          const live_pnl = p.direction === "BUY"
+            ? (ltp - p.avg_cost) * absQty
+            : (p.avg_cost - ltp) * absQty;
+          return { ...p, live_price: ltp, live_pnl };
         }));
       }
     } catch (err) { console.error("[fo-quotes]", err); }
