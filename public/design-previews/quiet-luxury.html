@@ -1,0 +1,1930 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-page="octopus" data-subtab="portfolio">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OctoTusk — Quiet Luxury (Octopus + Holdings)</title>
+<meta name="description" content="OctoTusk dashboard — canonical Quiet Luxury preview applied to the actual Octopus and Holdings pages.">
+<meta name="theme-color" content="#FAFAF7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="OctoTusk — Quiet Luxury">
+<meta property="og:description" content="Equity research dashboard, redesigned. Near-black + copper. Octopus and Holdings, exactly as they will be built.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Serif:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ═══════════════════════════════════════════════
+   QUIET LUXURY — TOKEN SYSTEM
+   ═══════════════════════════════════════════════ */
+:root{
+  --ink-1:#0A0A0B; --ink-2:#4B4F57; --ink-3:#6B6E76; --ink-4:#B5B8BE;
+  --page:#FAFAF7; --card:#FFFFFF; --hover:#F4F3EE; --stripe:#FCFCFA;
+  --accent:#B45309; --accent-hi:#92400E;
+  --accent-soft:rgba(180,83,9,0.10);
+  --accent-line:rgba(180,83,9,0.22);
+  --border:rgba(10,10,11,0.07); --border-strong:rgba(10,10,11,0.14);
+  --positive:#047857;
+  --positive-bg:rgba(4,120,87,0.08);
+  --positive-line:rgba(4,120,87,0.22);
+  --negative:#B91C1C;
+  --negative-bg:rgba(185,28,28,0.06);
+  --negative-line:rgba(185,28,28,0.22);
+  --warning:#B45309;
+  /* Tier-color background buckets for upside cells (Alt 8 hybrid) */
+  --tier-pos-deep:rgba(4,120,87,0.16);
+  --tier-pos-mid:rgba(4,120,87,0.10);
+  --tier-pos-soft:rgba(4,120,87,0.05);
+  --tier-neg-soft:rgba(185,28,28,0.05);
+  --tier-neg-deep:rgba(185,28,28,0.14);
+  /* Chart subsystem */
+  --chart-axis:rgba(10,10,11,0.10);
+  --chart-grid:rgba(10,10,11,0.05);
+  --chart-tooltip-bg:#0A0A0B;
+  --chart-tooltip-fg:#FAFAF7;
+  --r-sm:4px; --r-md:8px; --r-full:9999px;
+  --font-sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,monospace;
+  --font-display:'IBM Plex Serif',Georgia,serif;
+  --ease:cubic-bezier(0.32,0.72,0,1);
+  --t-fast:120ms; --t-base:200ms; --t-slow:360ms;
+  --shadow-rest:0 0 0 1px var(--border);
+  --shadow-hover:0 1px 2px rgba(10,10,11,0.04),0 8px 24px rgba(10,10,11,0.06);
+}
+
+[data-theme="dark"]{
+  --ink-1:#F5F4F0; --ink-2:#B5B7BD; --ink-3:#898C94; --ink-4:#3F424A;
+  --page:#0E0E10; --card:#16161A; --hover:#1C1C20; --stripe:#131316;
+  --accent:#D97706; --accent-hi:#F59E0B;
+  --accent-soft:rgba(217,119,6,0.16);
+  --accent-line:rgba(217,119,6,0.30);
+  --border:rgba(255,255,255,0.07); --border-strong:rgba(255,255,255,0.14);
+  --positive:#10B981;
+  --positive-bg:rgba(16,185,129,0.10);
+  --positive-line:rgba(16,185,129,0.28);
+  --negative:#F87171;
+  --negative-bg:rgba(248,113,113,0.10);
+  --negative-line:rgba(248,113,113,0.28);
+  --warning:#D97706;
+  --tier-pos-deep:rgba(16,185,129,0.22);
+  --tier-pos-mid:rgba(16,185,129,0.14);
+  --tier-pos-soft:rgba(16,185,129,0.06);
+  --tier-neg-soft:rgba(248,113,113,0.06);
+  --tier-neg-deep:rgba(248,113,113,0.20);
+  --chart-axis:rgba(255,255,255,0.10);
+  --chart-grid:rgba(255,255,255,0.05);
+  --chart-tooltip-bg:#F5F4F0;
+  --chart-tooltip-fg:#0E0E10;
+  --shadow-rest:0 0 0 1px var(--border);
+  --shadow-hover:0 1px 2px rgba(0,0,0,0.4),0 8px 24px rgba(0,0,0,0.32);
+}
+
+/* ═══════════════════════════════════════════════
+   BASE
+   ═══════════════════════════════════════════════ */
+html,body{height:100%}
+body{
+  background:var(--page); color:var(--ink-1);
+  font-family:var(--font-sans); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  font-feature-settings:"ss01","cv11";
+  transition: background var(--t-slow) var(--ease), color var(--t-slow) var(--ease);
+}
+[data-numeral],.num,.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum","lnum"}
+.serif{font-family:var(--font-display);font-variant-numeric:tabular-nums;font-feature-settings:"tnum","lnum";letter-spacing:-0.01em}
+::selection{background:var(--accent-soft);color:var(--ink-1)}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-sm)}
+.tab-btn:focus-visible{outline-offset:4px}
+.icon-btn:focus-visible{outline-offset:1px}
+
+.skip-link{
+  position:absolute;top:-40px;left:8px;
+  background:var(--ink-1);color:var(--page);
+  padding:8px 14px;border-radius:var(--r-sm);
+  font-size:12px;font-weight:600;text-decoration:none;z-index:1001;
+  transition: top var(--t-fast) var(--ease);
+}
+.skip-link:focus{top:8px}
+
+.design-badge{
+  position:fixed;top:14px;right:14px;
+  background:var(--ink-1);color:var(--page);
+  font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
+  padding:6px 12px;border-radius:var(--r-full);z-index:1000;
+}
+
+/* ═══════════════════════════════════════════════
+   GLOBAL HEADER
+   ═══════════════════════════════════════════════ */
+.lux-header{
+  background:var(--card);border-bottom:1px solid var(--border);
+  height:64px;display:flex;align-items:center;padding:0 28px;
+  position:sticky;top:0;z-index:100;
+}
+.brand-lock{display:flex;align-items:center;gap:12px;min-width:240px}
+.brand-mark{
+  width:30px;height:30px;border-radius:7px;background:var(--ink-1);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.brand-mark svg{width:16px;height:16px;fill:var(--page)}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.brand-name{font-size:14px;font-weight:700;letter-spacing:-0.01em;color:var(--ink-1)}
+.brand-tag{font-size:9.5px;font-weight:500;text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-3);margin-top:2px}
+.brand-divider{width:1px;height:32px;background:var(--border);margin:0 24px}
+
+.hero-portfolio{flex:1;display:flex;align-items:center;gap:32px}
+.hero-cell{display:flex;flex-direction:column;gap:2px}
+.hero-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:var(--ink-3)}
+.hero-value{
+  font-family:var(--font-display);font-size:24px;font-weight:500;
+  font-variant-numeric:tabular-nums;font-feature-settings:"tnum","lnum";
+  letter-spacing:-0.015em;color:var(--ink-1);line-height:1.1;
+}
+.hero-value.delta-pos{color:var(--positive)}
+.hero-value.delta-neg{color:var(--negative)}
+.hero-sub{
+  font-family:var(--font-mono);font-size:10.5px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3);letter-spacing:-0.01em;
+}
+
+.header-spacer{flex:1}
+.header-controls{display:flex;align-items:center;gap:6px}
+.icon-btn{
+  width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid transparent;border-radius:var(--r-md);
+  color:var(--ink-2);cursor:pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.icon-btn:hover{background:var(--hover);color:var(--ink-1);border-color:var(--border)}
+.icon-btn:active{transform:translateY(0.5px)}
+.icon-btn svg{width:15px;height:15px}
+.theme-moon,.theme-sun{transition: opacity var(--t-fast) var(--ease)}
+[data-theme="light"] .theme-sun{display:none}
+[data-theme="dark"] .theme-moon{display:none}
+.profile-dot{
+  width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg, var(--ink-1), var(--ink-2));
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--page);font-size:11px;font-weight:600;margin-left:4px;
+}
+
+/* ═══════════════════════════════════════════════
+   TAB BAR
+   ═══════════════════════════════════════════════ */
+.lux-tabs{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:0 28px;display:flex;align-items:center;height:48px;
+  position:sticky;top:64px;z-index:99;
+}
+.tab-list{display:flex;gap:0;height:100%;align-items:stretch}
+.tab-btn{
+  position:relative;display:inline-flex;align-items:center;
+  padding:0 18px;background:none;border:none;cursor:pointer;
+  font-family:var(--font-sans);font-size:13.5px;font-weight:500;
+  color:var(--ink-3);letter-spacing:-0.005em;
+  transition: color var(--t-fast) var(--ease);
+}
+.tab-btn:hover{color:var(--ink-2)}
+.tab-btn::after{
+  content:"";position:absolute;bottom:-1px;left:12px;right:12px;height:2px;
+  background:transparent;border-radius:1px;
+  transform:scaleX(0);transform-origin:center;
+  transition: transform var(--t-base) var(--ease), background var(--t-base) var(--ease);
+}
+.tab-btn.active{color:var(--ink-1);font-weight:700;letter-spacing:-0.01em}
+.tab-btn.active::after{background:var(--accent);transform:scaleX(1)}
+.tab-btn:hover::after{background:var(--accent-line);transform:scaleX(0.6)}
+.tab-btn.active:hover::after{background:var(--accent);transform:scaleX(1)}
+
+.tab-controls{
+  margin-left:auto;display:flex;align-items:center;gap:14px;
+  padding-left:20px;border-left:1px solid var(--border);
+}
+.timestamp{display:flex;align-items:baseline;gap:8px}
+.timestamp-label{font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:var(--ink-3)}
+.timestamp-value{
+  font-family:var(--font-mono);font-size:11.5px;
+  font-variant-numeric:tabular-nums;color:var(--ink-2);letter-spacing:-0.01em;
+}
+.live-cluster{display:inline-flex;align-items:center;gap:8px}
+.live-dot{
+  position:relative;width:6px;height:6px;border-radius:50%;
+  background:var(--positive);display:inline-block;
+}
+.live-dot::before{
+  content:"";position:absolute;inset:-2px;border-radius:50%;
+  background:var(--positive);opacity:0.4;
+  animation: lux-pulse 1.6s var(--ease) infinite;
+}
+.live-dot.paused{background:var(--ink-3)}
+.live-dot.paused::before{animation:none;opacity:0}
+@keyframes lux-pulse{
+  0%{transform:scale(0.6);opacity:0.5}
+  70%{transform:scale(2.6);opacity:0}
+  100%{transform:scale(2.6);opacity:0}
+}
+.countdown{
+  font-family:var(--font-mono);font-size:11px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3);
+  min-width:24px;text-align:right;letter-spacing:-0.01em;
+}
+.tab-controls-sep{width:1px;height:18px;background:var(--border)}
+
+/* ═══════════════════════════════════════════════
+   PAGE WRAPPERS
+   ═══════════════════════════════════════════════ */
+.lux-main{
+  max-width:1500px;margin:0 auto;padding:24px 28px 80px;
+  display:flex;flex-direction:column;gap:24px;
+}
+.lux-page{display:none}
+[data-page="octopus"]  .lux-page.page-octopus{display:flex;flex-direction:column;gap:24px}
+[data-page="holdings"] .lux-page.page-holdings{display:flex;flex-direction:column;gap:24px}
+[data-page="comparison"] .lux-page.page-other,
+[data-page="decision"]   .lux-page.page-other{display:flex;flex-direction:column;gap:24px;align-items:center;justify-content:center;min-height:60vh;text-align:center}
+
+.lux-h{
+  font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.14em;color:var(--ink-3);
+  margin-bottom:10px;display:flex;align-items:center;gap:10px;
+}
+.lux-h::after{content:"";flex:1;height:1px;background:var(--border)}
+
+.section{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);overflow:hidden;
+}
+.section.accent-top{position:relative}
+.section.accent-top::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent);
+}
+.section-head{
+  padding:16px 22px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);gap:14px;
+}
+.section-title{
+  font-size:13.5px;font-weight:600;color:var(--ink-1);
+  letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;
+}
+.section-tag{
+  font-size:10px;font-weight:600;padding:2.5px 9px;
+  background:var(--accent-soft);color:var(--accent);
+  border-radius:var(--r-full);letter-spacing:0.02em;font-family:var(--font-sans);
+}
+.section-meta{
+  font-family:var(--font-mono);font-size:11px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3);letter-spacing:-0.01em;
+}
+
+/* ═══════════════════════════════════════════════
+   OCTOPUS — TOOLBAR
+   ═══════════════════════════════════════════════ */
+.toolbar{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:14px 18px;background:var(--card);
+  border:1px solid var(--border);border-radius:var(--r-md);
+}
+.search-input{
+  flex:1;min-width:220px;max-width:320px;
+  height:34px;padding:0 12px 0 32px;
+  background:var(--page);border:1px solid var(--border);
+  border-radius:var(--r-md);color:var(--ink-1);
+  font-family:var(--font-sans);font-size:12.5px;
+  position:relative;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B6E76' stroke-width='1.8'><circle cx='11' cy='11' r='7'/><path d='m21 21-4.35-4.35'/></svg>");
+  background-repeat:no-repeat;background-position:10px center;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.search-input::placeholder{color:var(--ink-3)}
+.search-input:hover{border-color:var(--border-strong)}
+.search-input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+
+.select{
+  height:34px;padding:0 28px 0 12px;
+  background:var(--page);border:1px solid var(--border);
+  border-radius:var(--r-md);color:var(--ink-1);
+  font-family:var(--font-sans);font-size:12px;font-weight:500;
+  appearance:none;cursor:pointer;letter-spacing:-0.005em;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%236B6E76' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat:no-repeat;background-position:right 10px center;
+  transition: border-color var(--t-fast) var(--ease);
+}
+.select:hover{border-color:var(--border-strong)}
+.select:disabled{opacity:0.5;cursor:not-allowed}
+.select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+
+.toggle-pill{
+  height:30px;padding:0 14px;
+  background:transparent;border:1px solid var(--border);
+  border-radius:var(--r-full);color:var(--ink-2);
+  font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+  cursor:pointer;letter-spacing:-0.005em;
+  transition: all var(--t-fast) var(--ease);
+}
+.toggle-pill:hover{border-color:var(--border-strong);color:var(--ink-1)}
+.toggle-pill.active{
+  background:var(--accent-soft);border-color:var(--accent-line);color:var(--accent);
+}
+
+.toolbar-stats{
+  margin-left:auto;
+  font-family:var(--font-mono);font-size:11px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3);letter-spacing:-0.01em;
+  display:flex;align-items:center;gap:8px;
+}
+.toolbar-stats .live-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:2px 8px;border-radius:var(--r-full);
+  background:var(--positive-bg);color:var(--positive);
+  font-size:10px;font-weight:600;font-family:var(--font-sans);letter-spacing:0;
+}
+.btn-clear{
+  height:30px;padding:0 12px;
+  background:transparent;border:1px solid var(--border);
+  border-radius:var(--r-md);color:var(--ink-2);
+  font-family:var(--font-sans);font-size:11.5px;font-weight:600;
+  cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;
+  transition: all var(--t-fast) var(--ease);
+}
+.btn-clear:hover{background:var(--negative-bg);color:var(--negative);border-color:var(--negative-line)}
+
+/* Watchlist view-pill bar */
+.watch-bar{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:10px 18px;background:var(--card);
+  border:1px solid var(--border);border-radius:var(--r-md);
+  margin-top:0;
+}
+.watch-pill{
+  height:28px;padding:0 12px;
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-full);
+  color:var(--ink-2);font-family:var(--font-sans);
+  font-size:11.5px;font-weight:500;
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+  letter-spacing:-0.005em;
+  transition: all var(--t-fast) var(--ease);
+}
+.watch-pill:hover{border-color:var(--border-strong);color:var(--ink-1)}
+.watch-pill.active{background:var(--ink-1);color:var(--page);border-color:var(--ink-1);font-weight:600}
+.watch-pill .ct{color:var(--ink-3);font-family:var(--font-mono);font-size:10.5px}
+.watch-pill.active .ct{color:rgba(255,255,255,0.6)}
+.watch-pill.add{border-style:dashed;color:var(--ink-3)}
+.watch-pill.add:hover{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+
+/* ═══════════════════════════════════════════════
+   OCTOPUS — STOCK TABLE
+   ═══════════════════════════════════════════════ */
+.stock-table-wrap{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);overflow:hidden;
+}
+.stock-table-scroll{
+  overflow:auto;max-height:calc(100vh - 320px);
+}
+.stock-table{
+  width:100%;border-collapse:separate;border-spacing:0;
+  font-size:12.5px;
+}
+.stock-table thead{position:sticky;top:0;z-index:11}
+.stock-table thead tr{background:var(--card)}
+.stock-table thead th{
+  padding:8px 10px;text-align:right;
+  font-size:9.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--ink-3);background:var(--card);
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;cursor:pointer;user-select:none;
+  position:relative;
+}
+.stock-table thead th:first-child{text-align:left}
+.stock-table thead th.col-action{width:40px;cursor:default}
+/* Group header row */
+.stock-table thead tr.thead-group th{
+  font-size:9px;font-weight:700;letter-spacing:0.12em;
+  padding:6px 10px 4px;color:var(--ink-3);
+  background:var(--card);border-bottom:none;
+  text-align:center;cursor:default;
+}
+.stock-table thead tr.thead-group th.tint-pos{color:var(--positive)}
+.stock-table thead tr.thead-group th.tint-pos::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:2px;
+  height:1.5px;background:var(--positive);opacity:0.45;
+}
+.stock-table thead tr.thead-group th.tint-accent{color:var(--accent)}
+.stock-table thead tr.thead-group th.tint-accent::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:2px;
+  height:1.5px;background:var(--accent);opacity:0.45;
+}
+.stock-table thead tr.thead-group th .gear{
+  width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:var(--r-sm);color:var(--ink-3);cursor:pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.stock-table thead tr.thead-group th .gear:hover{background:var(--hover);color:var(--ink-1)}
+
+.stock-table tbody tr{
+  border-bottom:1px solid var(--border);cursor:pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+.stock-table tbody tr:hover td{background:var(--stripe)}
+.stock-table tbody td{
+  padding:11px 10px;vertical-align:middle;text-align:right;
+  font-family:var(--font-mono);font-size:12px;
+  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;
+  color:var(--ink-1);border-bottom:1px solid var(--border);
+  white-space:nowrap;background:var(--card);
+}
+.stock-table tbody td:first-child{text-align:left;font-family:var(--font-sans);font-variant-numeric:normal}
+.stock-table tbody tr:last-child td{border-bottom:none}
+
+/* Row left-zone signal */
+.stock-table tbody tr.zone-buy td:first-child{box-shadow:inset 3px 0 0 var(--positive)}
+.stock-table tbody tr.zone-hold td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.stock-table tbody tr.zone-over td:first-child{box-shadow:inset 3px 0 0 var(--negative)}
+
+/* Action cell */
+.act-cell{display:inline-flex;gap:2px}
+.act-btn{
+  width:22px;height:22px;border-radius:var(--r-sm);
+  background:transparent;border:none;color:var(--ink-3);
+  cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  transition: all var(--t-fast) var(--ease);
+}
+.act-btn:hover{background:var(--hover);color:var(--ink-1)}
+.act-btn svg{width:12px;height:12px}
+
+/* Company cell */
+.co-name{font-weight:600;font-size:13px;color:var(--ink-1);letter-spacing:-0.01em}
+.co-sub{
+  font-size:10px;color:var(--ink-3);margin-top:2px;
+  letter-spacing:0.02em;text-transform:uppercase;font-weight:500;
+  display:flex;align-items:center;gap:6px;
+}
+.cap-tag{
+  font-size:9px;font-weight:600;padding:1px 5px;border-radius:3px;
+  text-transform:uppercase;letter-spacing:0.06em;font-family:var(--font-sans);
+}
+.cap-large{background:var(--accent-soft);color:var(--accent)}
+.cap-mid{background:rgba(75,79,87,0.12);color:var(--ink-2)}
+.cap-small{background:var(--positive-bg);color:var(--positive)}
+.cap-micro{background:var(--negative-bg);color:var(--negative)}
+.cap-uncl{background:rgba(75,79,87,0.08);color:var(--ink-3)}
+
+/* CMP cell with delta */
+.cmp-cell{display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.1}
+.cmp-val{font-weight:600;color:var(--ink-1)}
+.cmp-delta{font-size:10.5px;display:inline-flex;align-items:center;gap:2px}
+.cmp-delta.pos{color:var(--positive)}
+.cmp-delta.neg{color:var(--negative)}
+
+.cell-pos{color:var(--positive)}
+.cell-neg{color:var(--negative)}
+.cell-emph{font-weight:600;color:var(--ink-1)}
+.cell-muted{color:var(--ink-3)}
+.cell-base{font-weight:600;color:var(--ink-1)}
+
+/* Upside cell — Alt 8 hybrid (tier bg + pill + magnitude bar overlay) */
+.upside-td{position:relative;padding:10px 10px 14px !important}
+.upside-td.tier-pos-deep{background:var(--tier-pos-deep)}
+.upside-td.tier-pos-mid{background:var(--tier-pos-mid)}
+.upside-td.tier-pos-soft{background:var(--tier-pos-soft)}
+.upside-td.tier-neg-soft{background:var(--tier-neg-soft)}
+.upside-td.tier-neg-deep{background:var(--tier-neg-deep)}
+.upside-pill{
+  display:inline-block;font-family:var(--font-mono);
+  font-variant-numeric:tabular-nums;
+  font-size:11.5px;font-weight:600;letter-spacing:-0.01em;
+}
+.upside-pill.pos{color:var(--positive)}
+.upside-pill.neg{color:var(--negative)}
+.upside-pill.emph{font-weight:700}
+/* Magnitude bar overlay at bottom of cell */
+.mag-bar{
+  position:absolute;left:50%;bottom:5px;
+  height:3px;border-radius:1.5px;
+  background:var(--positive);opacity:0.85;
+  transition: width var(--t-slow) var(--ease);
+  pointer-events:none;
+}
+.mag-bar.neg{background:var(--negative);transform-origin:right center}
+
+/* Conviction dots */
+.conv-dots{display:inline-flex;gap:2.5px;align-items:center;justify-content:flex-end}
+.conv-dot{width:5px;height:5px;border-radius:50%;background:var(--ink-4)}
+.conv-dot.on{background:var(--ink-1)}
+
+/* VA / SA pills */
+.va-pill,.sa-pill{
+  display:inline-block;font-size:9.5px;font-weight:600;
+  font-family:var(--font-sans);padding:2px 7px;border-radius:3px;letter-spacing:0.04em;
+}
+.va-pill{background:rgba(67,56,202,0.10);color:#6366F1}
+.sa-pill{background:var(--accent-soft);color:var(--accent)}
+
+/* SEBI segment pill */
+.seg-pill{display:inline-block;font-size:9.5px;font-weight:600;font-family:var(--font-sans);padding:2px 7px;border-radius:3px;letter-spacing:0.04em}
+.seg-pill.lg{background:var(--accent-soft);color:var(--accent)}
+.seg-pill.md{background:rgba(75,79,87,0.12);color:var(--ink-2)}
+.seg-pill.sm{background:var(--positive-bg);color:var(--positive)}
+.seg-pill.mc{background:var(--negative-bg);color:var(--negative)}
+
+/* Last decision pill */
+.dec-cell{display:inline-flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.1}
+.dec-tag{
+  font-size:9.5px;font-weight:600;padding:1px 6px;border-radius:3px;letter-spacing:0.04em;
+  font-family:var(--font-sans);
+}
+.dec-tag.buy{background:var(--positive-bg);color:var(--positive)}
+.dec-tag.hold{background:var(--accent-soft);color:var(--accent)}
+.dec-tag.review{background:rgba(75,79,87,0.12);color:var(--ink-2)}
+.dec-date{font-size:9.5px;color:var(--ink-3)}
+
+/* ═══════════════════════════════════════════════
+   OCTOPUS — TREEMAP
+   ═══════════════════════════════════════════════ */
+.treemap-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:18px 22px 22px;
+}
+.treemap-axes{
+  display:grid;grid-template-columns:repeat(4, max-content);gap:14px 24px;
+  margin-bottom:16px;
+}
+.axis{display:flex;align-items:center;gap:8px}
+.axis-label{
+  font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.10em;
+  color:var(--ink-3);min-width:42px;
+}
+.axis-pills{display:flex;gap:2px}
+.axis-pill{
+  height:24px;padding:0 9px;
+  background:transparent;border:1px solid transparent;border-radius:var(--r-sm);
+  color:var(--ink-3);font-family:var(--font-sans);
+  font-size:11px;font-weight:500;cursor:pointer;letter-spacing:-0.005em;
+  transition: all var(--t-fast) var(--ease);
+}
+.axis-pill:hover{color:var(--ink-1);background:var(--hover)}
+.axis-pill.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+
+.treemap-svg-wrap{
+  width:100%;height:340px;background:var(--page);
+  border-radius:var(--r-sm);overflow:hidden;position:relative;
+  border:1px solid var(--border);
+}
+.treemap-svg{display:block;width:100%;height:100%}
+.tm-rect{stroke:var(--page);stroke-width:1.5;cursor:pointer;transition:opacity var(--t-fast) var(--ease)}
+.tm-rect:hover{opacity:0.85}
+.tm-label{font-family:var(--font-sans);font-size:11px;font-weight:600;fill:#FFFFFF;pointer-events:none;letter-spacing:-0.005em}
+.tm-pct{font-family:var(--font-mono);font-size:9.5px;fill:rgba(255,255,255,0.85);pointer-events:none;font-variant-numeric:tabular-nums}
+.tm-sec{font-family:var(--font-sans);font-size:9px;font-weight:700;fill:var(--ink-2);text-transform:uppercase;letter-spacing:0.10em;pointer-events:none}
+
+.treemap-legend{
+  display:flex;align-items:center;gap:14px;
+  margin-top:14px;font-family:var(--font-mono);font-size:11px;color:var(--ink-3);
+}
+.legend-bar{
+  width:200px;height:8px;border-radius:4px;
+  background:linear-gradient(90deg, var(--negative) 0%, var(--ink-4) 50%, var(--positive) 100%);
+  position:relative;
+}
+.legend-tick{
+  position:absolute;top:-3px;width:1px;height:14px;
+  background:var(--ink-3);
+}
+.legend-stops{display:flex;justify-content:space-between;width:200px;font-size:9.5px;color:var(--ink-3);margin-top:2px}
+
+/* ═══════════════════════════════════════════════
+   HOLDINGS — KPI STRIP (8 cards, single row)
+   ═══════════════════════════════════════════════ */
+.kpi-strip-h{
+  display:grid;
+  grid-template-columns:repeat(8, minmax(0, 1fr));
+  gap:10px;
+}
+.kpi-h{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:14px 16px;
+  position:relative;overflow:hidden;
+  transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+}
+.kpi-h:hover{
+  transform:translateY(-1px);border-color:var(--border-strong);
+  box-shadow:var(--shadow-hover);
+}
+.kpi-h.kpi-fno{
+  border-color:var(--accent-line);background:var(--accent-soft);
+}
+.kpi-h.kpi-fno .kpi-h-label{color:var(--accent)}
+.kpi-h-label{
+  font-size:9.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.10em;color:var(--ink-3);
+  margin-bottom:8px;
+}
+.kpi-h-value{
+  font-family:var(--font-display);font-size:21px;font-weight:500;
+  font-variant-numeric:tabular-nums;letter-spacing:-0.02em;
+  color:var(--ink-1);line-height:1.05;
+}
+.kpi-h-value.pos{color:var(--positive)}
+.kpi-h-value.neg{color:var(--negative)}
+.kpi-h-sub{
+  font-family:var(--font-mono);font-size:10px;
+  font-variant-numeric:tabular-nums;color:var(--ink-3);
+  letter-spacing:-0.01em;margin-top:6px;
+}
+.kpi-h-pill{
+  display:inline-block;padding:1px 6px;border-radius:var(--r-full);
+  font-size:9.5px;font-weight:600;font-family:var(--font-sans);
+  letter-spacing:0.02em;margin-right:4px;
+}
+.kpi-h-pill.pos{background:var(--positive-bg);color:var(--positive)}
+.kpi-h-pill.neg{background:var(--negative-bg);color:var(--negative)}
+.kpi-h-pill.accent{background:var(--accent-soft);color:var(--accent)}
+
+/* ═══════════════════════════════════════════════
+   HOLDINGS — SUB-TAB NAV (same pure-underline pattern)
+   ═══════════════════════════════════════════════ */
+.subtab-bar{
+  display:flex;align-items:center;gap:0;height:40px;
+  border-bottom:1px solid var(--border);
+}
+.subtab-btn{
+  position:relative;display:inline-flex;align-items:center;
+  padding:0 14px;height:100%;background:none;border:none;cursor:pointer;
+  font-family:var(--font-sans);font-size:12.5px;font-weight:500;
+  color:var(--ink-3);letter-spacing:-0.005em;
+  transition: color var(--t-fast) var(--ease);
+}
+.subtab-btn:hover{color:var(--ink-2)}
+.subtab-btn::after{
+  content:"";position:absolute;bottom:-1px;left:8px;right:8px;height:2px;
+  background:transparent;border-radius:1px;
+  transform:scaleX(0);transform-origin:center;
+  transition: transform var(--t-base) var(--ease), background var(--t-base) var(--ease);
+}
+.subtab-btn.active{color:var(--ink-1);font-weight:700}
+.subtab-btn.active::after{background:var(--accent);transform:scaleX(1)}
+
+.subtab-panel{display:none;flex-direction:column;gap:24px;padding-top:20px}
+[data-subtab="portfolio"] .subtab-panel.panel-portfolio{display:flex}
+[data-subtab="segments"]  .subtab-panel.panel-segments{display:flex}
+[data-subtab="fno"]       .subtab-panel.panel-fno{display:flex}
+.subtab-placeholder{
+  background:var(--card);border:1px dashed var(--border-strong);
+  border-radius:var(--r-md);padding:80px 32px;text-align:center;
+  color:var(--ink-3);font-size:13px;line-height:1.6;
+}
+.subtab-placeholder strong{color:var(--ink-1);font-weight:600;display:block;font-size:14px;margin-bottom:6px}
+
+/* ═══════════════════════════════════════════════
+   HOLDINGS — HOLDINGS TABLE
+   ═══════════════════════════════════════════════ */
+.h-table-wrap{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);overflow:hidden;
+}
+.h-table-scroll{overflow:auto;max-height:calc(100vh - 280px)}
+.h-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.h-table thead{position:sticky;top:0;z-index:11}
+.h-table thead tr{background:var(--card)}
+.h-table thead th{
+  padding:8px 10px;text-align:right;
+  font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;
+  color:var(--ink-3);background:var(--card);
+  border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;
+  position:relative;
+}
+.h-table thead th:first-child{text-align:left}
+.h-table thead tr.thead-group th{
+  font-size:9px;font-weight:700;letter-spacing:0.12em;
+  padding:6px 10px 4px;color:var(--ink-3);background:var(--card);
+  border-bottom:none;text-align:center;cursor:default;
+}
+.h-table thead tr.thead-group th.tint-accent{color:var(--accent)}
+.h-table thead tr.thead-group th.tint-accent::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:2px;
+  height:1.5px;background:var(--accent);opacity:0.45;
+}
+.h-table thead tr.thead-group th.tint-pos{color:var(--positive)}
+.h-table thead tr.thead-group th.tint-pos::after{
+  content:"";position:absolute;left:14px;right:14px;bottom:2px;
+  height:1.5px;background:var(--positive);opacity:0.45;
+}
+.h-table tbody tr{cursor:pointer;transition: background var(--t-fast) var(--ease)}
+.h-table tbody tr:hover td{background:var(--stripe)}
+.h-table tbody td{
+  padding:11px 10px;vertical-align:middle;text-align:right;
+  font-family:var(--font-mono);font-size:12px;
+  font-variant-numeric:tabular-nums;letter-spacing:-0.01em;
+  color:var(--ink-1);border-bottom:1px solid var(--border);
+  white-space:nowrap;background:var(--card);
+}
+.h-table tbody td:first-child{text-align:left;font-family:var(--font-sans);font-variant-numeric:normal}
+.h-table tbody tr:last-child td{border-bottom:none}
+.h-stock{font-weight:600;font-size:13px;color:var(--ink-1);letter-spacing:-0.01em}
+.h-stock-sub{font-size:10px;color:var(--ink-3);margin-top:2px;letter-spacing:0.02em;text-transform:uppercase;font-weight:500}
+
+/* Heatmap cells (Day %, Day P&L, P&L, P&L%) */
+.heat-cell{position:relative}
+.heat-cell.h-pos-deep{background:var(--tier-pos-deep) !important}
+.heat-cell.h-pos-mid{background:var(--tier-pos-mid) !important}
+.heat-cell.h-pos-soft{background:var(--tier-pos-soft) !important}
+.heat-cell.h-neg-soft{background:var(--tier-neg-soft) !important}
+.heat-cell.h-neg-deep{background:var(--tier-neg-deep) !important}
+
+/* ═══════════════════════════════════════════════
+   HOLDINGS — RISK DASHBOARD
+   ═══════════════════════════════════════════════ */
+.risk-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:22px 24px;
+  position:relative;
+}
+.risk-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent);
+}
+.risk-h{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.risk-title{font-size:14px;font-weight:600;color:var(--ink-1);letter-spacing:-0.01em}
+.risk-sub{font-family:var(--font-mono);font-size:11px;color:var(--ink-3)}
+
+/* 6-tile grid */
+.risk-tiles{
+  display:grid;grid-template-columns:repeat(6, 1fr);gap:10px;
+  margin-bottom:22px;
+}
+.risk-tile{
+  background:var(--page);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:12px 14px;
+}
+.risk-tile.warn{border-color:var(--accent-line);background:var(--accent-soft)}
+.risk-tile.bad{border-color:var(--negative-line);background:var(--negative-bg)}
+.risk-tile.good{border-color:var(--positive-line);background:var(--positive-bg)}
+.risk-tile-label{
+  font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.10em;color:var(--ink-3);
+  margin-bottom:6px;
+}
+.risk-tile-value{
+  font-family:var(--font-display);font-size:18px;font-weight:500;
+  font-variant-numeric:tabular-nums;letter-spacing:-0.02em;color:var(--ink-1);line-height:1.05;
+}
+.risk-tile-value.pos{color:var(--positive)}
+.risk-tile-value.neg{color:var(--negative)}
+.risk-tile-value.warn{color:var(--accent)}
+.risk-tile-sub{
+  font-family:var(--font-mono);font-size:10px;color:var(--ink-3);
+  margin-top:5px;letter-spacing:-0.01em;
+}
+
+/* P&L Scenario 3-card grid */
+.pnl-scenarios{
+  display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;
+  margin-bottom:22px;
+}
+.pnl-card{
+  background:var(--page);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:16px 18px;
+}
+.pnl-card.bear{background:var(--negative-bg);border-color:var(--negative-line)}
+.pnl-card.bull{background:var(--positive-bg);border-color:var(--positive-line)}
+.pnl-card-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);margin-bottom:8px}
+.pnl-card-pct{
+  font-family:var(--font-display);font-size:24px;font-weight:500;
+  font-variant-numeric:tabular-nums;letter-spacing:-0.02em;line-height:1;
+}
+.pnl-card.bear .pnl-card-pct{color:var(--negative)}
+.pnl-card.base .pnl-card-pct{color:var(--ink-1)}
+.pnl-card.bull .pnl-card-pct{color:var(--positive)}
+.pnl-card-sub{font-family:var(--font-mono);font-size:11px;color:var(--ink-3);margin-top:5px;letter-spacing:-0.01em}
+
+/* Top 5 Holdings mini-table */
+.top5-h{margin-bottom:22px}
+.top5-title{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);
+  margin-bottom:8px;
+}
+.top5-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px}
+.top5-table th{
+  padding:6px 10px;text-align:right;font-size:9px;font-weight:600;
+  text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-3);
+  border-bottom:1px solid var(--border);
+}
+.top5-table th:first-child,.top5-table th:nth-child(2),.top5-table th:nth-child(3){text-align:left}
+.top5-table td{
+  padding:8px 10px;text-align:right;font-family:var(--font-mono);
+  font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink-1);
+  border-bottom:1px solid var(--border);
+}
+.top5-table td:first-child{text-align:left;font-family:var(--font-sans);color:var(--ink-3);font-size:11px;width:24px}
+.top5-table td:nth-child(2){text-align:left;font-family:var(--font-sans);font-weight:600;color:var(--ink-1)}
+.top5-table td:nth-child(3){text-align:left;font-family:var(--font-sans);color:var(--ink-2);font-size:11px}
+.cds-pill{display:inline-block;padding:1.5px 7px;border-radius:var(--r-full);font-size:9.5px;font-weight:600;font-family:var(--font-sans);letter-spacing:0.04em}
+.cds-pill.cds-1{background:var(--positive-bg);color:var(--positive)}
+.cds-pill.cds-2{background:var(--positive-bg);color:var(--positive)}
+.cds-pill.cds-3{background:var(--accent-soft);color:var(--accent)}
+.cds-pill.cds-4{background:var(--negative-bg);color:var(--negative)}
+
+/* Sector risk breakdown bar */
+.sec-risk-h{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--ink-3);
+  margin-bottom:8px;display:flex;justify-content:space-between;align-items:baseline;
+}
+.sec-risk-bar{
+  width:100%;height:24px;border-radius:var(--r-sm);overflow:hidden;
+  display:flex;background:var(--chart-grid);
+  margin-bottom:10px;
+}
+.sec-risk-slice{
+  height:100%;display:flex;align-items:center;justify-content:flex-start;
+  padding:0 8px;font-family:var(--font-sans);font-size:10px;font-weight:600;color:#FFFFFF;
+  white-space:nowrap;overflow:hidden;letter-spacing:-0.005em;
+  border-right:1px solid rgba(255,255,255,0.15);
+}
+.sec-risk-slice:last-child{border-right:none}
+.sec-risk-legend{display:flex;flex-wrap:wrap;gap:10px 16px;font-size:11px;color:var(--ink-2)}
+.sec-risk-legend > span{display:inline-flex;align-items:center;gap:6px}
+.sec-risk-legend .dot{width:8px;height:8px;border-radius:2px}
+.sec-risk-legend .pct{font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:10.5px}
+
+/* ═══════════════════════════════════════════════
+   HOLDINGS — SECTOR DONUT
+   ═══════════════════════════════════════════════ */
+.donut-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:22px 24px;
+  position:relative;display:grid;grid-template-columns:300px 1fr;gap:32px;align-items:center;
+}
+.donut-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent);
+}
+.donut-h{font-size:13.5px;font-weight:600;color:var(--ink-1);letter-spacing:-0.01em;margin-bottom:14px;grid-column:1/-1}
+.donut-svg{width:280px;height:280px;display:block;margin:0 auto}
+.donut-center-label{font-family:var(--font-sans);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.12em;fill:var(--ink-3)}
+.donut-center-value{font-family:var(--font-display);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;letter-spacing:-0.02em;fill:var(--ink-1)}
+.donut-legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:11.5px}
+.donut-legend > span{display:flex;align-items:center;gap:8px;color:var(--ink-2);letter-spacing:-0.005em}
+.donut-legend .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.donut-legend .pct{margin-left:auto;font-family:var(--font-mono);font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:10.5px}
+
+/* ═══════════════════════════════════════════════
+   PLACEHOLDER FOR COMPARISON / DECISION TABS
+   ═══════════════════════════════════════════════ */
+.coming-up{
+  font-family:var(--font-display);font-size:32px;font-weight:500;
+  letter-spacing:-0.02em;color:var(--ink-1);
+}
+.coming-up-sub{
+  font-size:13px;color:var(--ink-3);max-width:48ch;line-height:1.6;margin-top:10px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.01ms !important;transition-duration:0.01ms !important}
+}
+
+/* Responsive — graceful collapse */
+@media (max-width: 1280px){
+  .kpi-strip-h{grid-template-columns:repeat(4, 1fr)}
+  .risk-tiles{grid-template-columns:repeat(3, 1fr)}
+  .donut-card{grid-template-columns:1fr;text-align:center}
+  .donut-svg{margin:0 auto}
+}
+@media (max-width: 1100px){
+  .hero-portfolio{display:none}
+  .treemap-axes{grid-template-columns:repeat(2, max-content)}
+}
+@media (max-width: 720px){
+  .lux-tabs{overflow-x:auto}
+  .tab-controls{display:none}
+  .kpi-strip-h{grid-template-columns:repeat(2, 1fr)}
+  .risk-tiles{grid-template-columns:repeat(2, 1fr)}
+  .pnl-scenarios{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<span class="design-badge">Quiet Luxury · Octopus + Holdings</span>
+
+<!-- ═══════ GLOBAL HEADER ═══════ -->
+<header class="lux-header">
+  <div class="brand-lock">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2.6c-3.3 0-6 2.4-6 5.4 0 1.7.9 3.2 2.4 4.2L8 16.4l-1.6-.6.4 2.4-1.4.4.5 1.5 2.6-.7.5 2.4h2.5l-.4-2.6 1.5-.4 1.5.4-.4 2.6h2.5l.5-2.4 2.6.7.5-1.5-1.4-.4.4-2.4-1.6.6-.4-4.2c1.5-1 2.4-2.5 2.4-4.2 0-3-2.7-5.4-6-5.4z"/>
+      </svg>
+    </div>
+    <div class="brand-text">
+      <div class="brand-name">OctoTusk</div>
+      <div class="brand-tag">Equity Research</div>
+    </div>
+  </div>
+
+  <div class="brand-divider"></div>
+
+  <div class="hero-portfolio">
+    <div class="hero-cell">
+      <div class="hero-label">Portfolio</div>
+      <div class="hero-value serif">₹14.73 Cr</div>
+      <div class="hero-sub">32 positions · 91 modeled</div>
+    </div>
+    <div class="brand-divider"></div>
+    <div class="hero-cell">
+      <div class="hero-label">Day P&amp;L</div>
+      <div class="hero-value serif delta-pos">+₹18.3 L</div>
+      <div class="hero-sub">+1.26% today</div>
+    </div>
+    <div class="brand-divider"></div>
+    <div class="hero-cell">
+      <div class="hero-label">Unrealised</div>
+      <div class="hero-value serif delta-pos">+₹3.51 Cr</div>
+      <div class="hero-sub">+31.3% overall</div>
+    </div>
+  </div>
+
+  <div class="header-spacer"></div>
+
+  <div class="header-controls">
+    <button type="button" class="icon-btn" aria-label="Search" title="Search ⌘K">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+    </button>
+    <button type="button" class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+    <span class="profile-dot" title="JB">JB</span>
+  </div>
+</header>
+
+<!-- ═══════ TAB BAR ═══════ -->
+<nav class="lux-tabs" role="tablist">
+  <div class="tab-list">
+    <button type="button" class="tab-btn active" role="tab" data-tab="octopus">Octopus</button>
+    <button type="button" class="tab-btn" role="tab" data-tab="holdings">Holdings</button>
+    <button type="button" class="tab-btn" role="tab" data-tab="comparison">Comparison</button>
+    <button type="button" class="tab-btn" role="tab" data-tab="decision">Decision Support</button>
+  </div>
+
+  <div class="tab-controls">
+    <span class="timestamp" title="Last full data sync from OneDrive">
+      <span class="timestamp-label">Data</span>
+      <span class="timestamp-value">06:12:00</span>
+    </span>
+    <span class="tab-controls-sep"></span>
+    <span class="timestamp" title="Last live CMP fetch from Dhan">
+      <span class="timestamp-label">CMP</span>
+      <span class="timestamp-value">15:12:44</span>
+    </span>
+    <span class="live-cluster" title="Auto-refresh active">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span class="countdown">18s</span>
+    </span>
+    <span class="tab-controls-sep"></span>
+    <button type="button" class="icon-btn" aria-label="Sync data" title="Sync data from OneDrive">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 8"/><path d="M3 4v4h4"/><path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.36-2.64L21 16"/><path d="M21 20v-4h-4"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════ MAIN ═══════ -->
+<main class="lux-main" id="main" tabindex="-1">
+
+  <!-- ───────────────────────────────────────
+       OCTOPUS PAGE
+       ─────────────────────────────────────── -->
+  <section class="lux-page page-octopus" aria-labelledby="page-octopus-h">
+    <h2 id="page-octopus-h" class="lux-h" style="margin-bottom:0">Octopus model · 91 stocks</h2>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar" role="toolbar" aria-label="Filter stocks">
+      <input class="search-input" type="search" placeholder="Search company, sector, VA..." aria-label="Search stocks">
+      <select class="select" aria-label="Sector">
+        <option>All Sectors</option><option>BFSI</option><option>Capital Markets</option><option>Real Estate</option><option>Technology</option><option>Consumer</option><option>Healthcare</option><option>Industrials</option><option>Metals &amp; Mining</option>
+      </select>
+      <select class="select" aria-label="Subsector">
+        <option>All Subsectors</option>
+      </select>
+      <select class="select" aria-label="Market cap">
+        <option>All Cap</option><option>Large</option><option>Mid</option><option>Small</option><option>Micro</option>
+      </select>
+      <select class="select" aria-label="VA analyst">
+        <option>All VAs</option><option>SM</option><option>DN</option><option>NS</option><option>AA</option>
+      </select>
+      <select class="select" aria-label="Conviction">
+        <option>All Conv.</option><option>5</option><option>4</option><option>3</option>
+      </select>
+      <select class="select" aria-label="1Y upside">
+        <option>Any 1Y Upside</option><option>≥10%</option><option>≥20%</option><option>≥30%</option>
+      </select>
+      <button type="button" class="toggle-pill" aria-pressed="false">Portfolio only</button>
+      <span class="toolbar-stats">
+        <span>91 stocks</span>
+        <span class="live-pill"><span class="live-dot" style="width:5px;height:5px;background:currentColor"></span>89 live</span>
+      </span>
+      <button type="button" class="btn-clear">× Clear (2)</button>
+    </div>
+
+    <!-- WATCHLIST BAR -->
+    <div class="watch-bar">
+      <button type="button" class="watch-pill active">All Stocks <span class="ct">91</span></button>
+      <button type="button" class="watch-pill">High Conviction <span class="ct">12</span></button>
+      <button type="button" class="watch-pill">New Ideas <span class="ct">7</span></button>
+      <button type="button" class="watch-pill">Spring Watch <span class="ct">23</span></button>
+      <button type="button" class="watch-pill">Hidden <span class="ct">3</span></button>
+      <button type="button" class="watch-pill add">+ Watchlist</button>
+    </div>
+
+    <!-- STOCK TABLE -->
+    <div class="stock-table-wrap">
+      <div class="stock-table-scroll">
+        <table class="stock-table">
+          <thead>
+            <tr class="thead-group">
+              <th class="col-action"></th>
+              <th colspan="1">Position</th>
+              <th colspan="1">Live</th>
+              <th colspan="3">Scenario Prices</th>
+              <th colspan="3" class="tint-pos">Scenario Upsides</th>
+              <th colspan="2" class="tint-pos">Forward</th>
+              <th colspan="3">Multiples</th>
+              <th colspan="1">Conv</th>
+              <th colspan="2">Analysts</th>
+              <th colspan="1">MCap</th>
+              <th colspan="1">SEBI</th>
+              <th colspan="1" style="text-align:right;padding-right:14px"><span class="gear" title="Column settings">⚙</span></th>
+            </tr>
+            <tr>
+              <th class="col-action"></th>
+              <th style="text-align:left;width:240px">Company</th>
+              <th>CMP</th>
+              <th>Bear</th>
+              <th>Base</th>
+              <th>Bull</th>
+              <th class="tint-pos">↑ Bear</th>
+              <th class="tint-pos">↑ Base</th>
+              <th class="tint-pos">↑ Bull</th>
+              <th class="tint-pos">1Y ↑</th>
+              <th class="tint-pos">2Y ↑</th>
+              <th>PE</th>
+              <th>PB</th>
+              <th>EV/EBITDA</th>
+              <th>Conv</th>
+              <th>VA</th>
+              <th>SA</th>
+              <th>MCap</th>
+              <th>SEBI</th>
+              <th>Last Decision</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- HDFC Bank -->
+            <tr class="zone-buy">
+              <td><span class="act-cell">
+                <button type="button" class="act-btn" title="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn" title="Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">HDFC Bank</div><div class="co-sub">HDFCBANK · BFSI <span class="cap-tag cap-large">LARGE</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">1,847</span><span class="cmp-delta pos">▲ 0.8%</span></div></td>
+              <td>1,520</td><td class="cell-base">2,400</td><td>3,100</td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+30.0%</span><span class="mag-bar" style="width:43%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+67.8%</span><span class="mag-bar" style="width:97%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+24.5%</span><span class="mag-bar" style="width:35%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+52.1%</span><span class="mag-bar" style="width:74%"></span></td>
+              <td>18.2x</td><td>2.4x</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot"></span></span></td>
+              <td><span class="va-pill">VP</span></td><td><span class="sa-pill">SA</span></td>
+              <td>13.8 Lk Cr</td>
+              <td><span class="seg-pill lg">Large</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-04-22</span></div></td>
+            </tr>
+
+            <!-- MCX -->
+            <tr class="zone-buy">
+              <td><span class="act-cell">
+                <button type="button" class="act-btn" title="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn" title="Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">MCX</div><div class="co-sub">MCX · Capital Markets <span class="cap-tag cap-mid">MID</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">2,402</span><span class="cmp-delta pos">▲ 1.4%</span></div></td>
+              <td>2,602</td><td class="cell-base">2,953</td><td>3,305</td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+8.3%</span><span class="mag-bar" style="width:12%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+22.9%</span><span class="mag-bar" style="width:33%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+37.6%</span><span class="mag-bar" style="width:54%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+45.3%</span><span class="mag-bar" style="width:65%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+62.8%</span><span class="mag-bar" style="width:90%"></span></td>
+              <td>42.0x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+              <td>1.22 Lk Cr</td>
+              <td><span class="seg-pill md">Mid</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-04-18</span></div></td>
+            </tr>
+
+            <!-- Bajaj Finance -->
+            <tr>
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Bajaj Finance</div><div class="co-sub">BAJFINANCE · BFSI <span class="cap-tag cap-large">LARGE</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">6,920</span><span class="cmp-delta neg">▼ 0.4%</span></div></td>
+              <td>5,400</td><td class="cell-base">9,000</td><td>12,000</td>
+              <td class="upside-td tier-neg-soft"><span class="upside-pill neg">−22.0%</span><span class="mag-bar neg" style="width:31%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+30.1%</span><span class="mag-bar" style="width:43%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+73.4%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+28.6%</span><span class="mag-bar" style="width:41%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+58.2%</span><span class="mag-bar" style="width:83%"></span></td>
+              <td>26.5x</td><td>4.8x</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+              <td>4.30 Lk Cr</td>
+              <td><span class="seg-pill lg">Large</span></td>
+              <td><div class="dec-cell"><span class="dec-tag hold">HOLD</span><span class="dec-date">2026-03-12</span></div></td>
+            </tr>
+
+            <!-- Smartworks -->
+            <tr class="zone-buy">
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Smartworks</div><div class="co-sub">SMARTWORKS · Real Estate <span class="cap-tag cap-small">SMALL</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">436</span><span class="cmp-delta pos">▲ 2.1%</span></div></td>
+              <td>433</td><td class="cell-base">541</td><td>649</td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos">−0.7%</span><span class="mag-bar neg" style="width:1%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+24.1%</span><span class="mag-bar" style="width:34%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+48.8%</span><span class="mag-bar" style="width:70%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+78.0%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+115.2%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="cell-muted">—</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+              <td>4,200 Cr</td>
+              <td><span class="seg-pill sm">Small</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-04-29</span></div></td>
+            </tr>
+
+            <!-- E2E Networks -->
+            <tr class="zone-buy">
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">E2E Networks</div><div class="co-sub">E2E · Technology <span class="cap-tag cap-small">SMALL</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">2,884</span><span class="cmp-delta pos">▲ 3.7%</span></div></td>
+              <td>2,755</td><td class="cell-base">4,213</td><td>5,689</td>
+              <td class="upside-td tier-neg-soft"><span class="upside-pill neg">−4.5%</span><span class="mag-bar neg" style="width:6%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+46.1%</span><span class="mag-bar" style="width:66%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+97.3%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+77.0%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+128.4%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="cell-muted">—</td><td>14.2x</td><td>22.8x</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+              <td>4,840 Cr</td>
+              <td><span class="seg-pill sm">Small</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-05-02</span></div></td>
+            </tr>
+
+            <!-- Tips Music -->
+            <tr>
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Tips Music</div><div class="co-sub">TIPSMUSIC · Media &amp; Entmt <span class="cap-tag cap-mid">MID</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">555</span><span class="cmp-delta neg">▼ 1.1%</span></div></td>
+              <td>516</td><td class="cell-base">610</td><td>704</td>
+              <td class="upside-td tier-neg-soft"><span class="upside-pill neg">−7.0%</span><span class="mag-bar neg" style="width:10%"></span></td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos emph">+9.9%</span><span class="mag-bar" style="width:14%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+26.8%</span><span class="mag-bar" style="width:38%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+30.2%</span><span class="mag-bar" style="width:43%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+38.5%</span><span class="mag-bar" style="width:55%"></span></td>
+              <td>39.0x</td><td>8.4x</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+              <td>7,140 Cr</td>
+              <td><span class="seg-pill md">Mid</span></td>
+              <td><div class="dec-cell"><span class="dec-tag review">REVIEW</span><span class="dec-date">2026-03-28</span></div></td>
+            </tr>
+
+            <!-- Vedanta -->
+            <tr class="zone-over">
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Vedanta</div><div class="co-sub">VEDL · Metals &amp; Mining <span class="cap-tag cap-large">LARGE</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">682</span><span class="cmp-delta neg">▼ 2.3%</span></div></td>
+              <td>768</td><td class="cell-base">832</td><td>1,147</td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+22.0%</span><span class="mag-bar" style="width:31%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+68.2%</span><span class="mag-bar" style="width:97%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+46.0%</span><span class="mag-bar" style="width:66%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+72.1%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="cell-muted">—</td><td>1.2x</td><td>4.6x</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">AA</span></td><td><span class="sa-pill">VG</span></td>
+              <td>2.66 Lk Cr</td>
+              <td><span class="seg-pill lg">Large</span></td>
+              <td><div class="dec-cell"><span class="dec-tag hold">HOLD</span><span class="dec-date">2026-04-08</span></div></td>
+            </tr>
+
+            <!-- IndiGo -->
+            <tr>
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">IndiGo</div><div class="co-sub">INDIGO · Aviation <span class="cap-tag cap-large">LARGE</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">4,840</span><span class="cmp-delta pos">▲ 0.3%</span></div></td>
+              <td>6,809</td><td class="cell-base">6,923</td><td>7,037</td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+40.7%</span><span class="mag-bar" style="width:58%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos emph">+43.0%</span><span class="mag-bar" style="width:61%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+45.4%</span><span class="mag-bar" style="width:65%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+58.6%</span><span class="mag-bar" style="width:84%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+71.2%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="cell-muted">—</td><td>5.8x</td><td>8.1x</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+              <td>1.87 Lk Cr</td>
+              <td><span class="seg-pill lg">Large</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-04-15</span></div></td>
+            </tr>
+
+            <!-- Annapurna -->
+            <tr class="zone-buy">
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Annapurna Swadisht</div><div class="co-sub">ANNAPURNA · Consumer <span class="cap-tag cap-small">SMALL</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">181</span><span class="cmp-delta pos">▲ 4.2%</span></div></td>
+              <td>379</td><td class="cell-base">455</td><td>530</td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+109.4%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos emph">+151.4%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+192.8%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+200.3%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+265.5%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td>30.0x</td><td>2.1x</td><td>16.4x</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+              <td>820 Cr</td>
+              <td><span class="seg-pill sm">Small</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-04-30</span></div></td>
+            </tr>
+
+            <!-- Park Hotels -->
+            <tr>
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Park Hotels</div><div class="co-sub">PARKHOTELS · Hospitality <span class="cap-tag cap-mid">MID</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">127</span><span class="cmp-delta pos">▲ 0.6%</span></div></td>
+              <td>130</td><td class="cell-base">158</td><td>186</td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+2.4%</span><span class="mag-bar" style="width:3%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+24.4%</span><span class="mag-bar" style="width:35%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+46.5%</span><span class="mag-bar" style="width:66%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+39.8%</span><span class="mag-bar" style="width:57%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+48.0%</span><span class="mag-bar" style="width:69%"></span></td>
+              <td class="cell-muted">—</td><td>1.4x</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">SM</span></td><td><span class="sa-pill">SM</span></td>
+              <td>2,720 Cr</td>
+              <td><span class="seg-pill md">Mid</span></td>
+              <td><div class="dec-cell"><span class="dec-tag hold">HOLD</span><span class="dec-date">2026-03-19</span></div></td>
+            </tr>
+
+            <!-- Canara Robeco AMC -->
+            <tr>
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Canara Robeco AMC</div><div class="co-sub">CRAMC · Asset Mgmt <span class="cap-tag cap-mid">MID</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">259</span><span class="cmp-delta neg">▼ 0.9%</span></div></td>
+              <td>274</td><td class="cell-base">316</td><td>358</td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+5.8%</span><span class="mag-bar" style="width:8%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+22.0%</span><span class="mag-bar" style="width:31%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+38.2%</span><span class="mag-bar" style="width:55%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+47.0%</span><span class="mag-bar" style="width:67%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+62.4%</span><span class="mag-bar" style="width:89%"></span></td>
+              <td>30.0x</td><td>5.2x</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+              <td>5,180 Cr</td>
+              <td><span class="seg-pill md">Mid</span></td>
+              <td><div class="dec-cell"><span class="dec-tag hold">HOLD</span><span class="dec-date">2026-03-04</span></div></td>
+            </tr>
+
+            <!-- Motilal Oswal -->
+            <tr>
+              <td><span class="act-cell">
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+                <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+              </span></td>
+              <td><div class="co-name">Motilal Oswal Financial</div><div class="co-sub">MOTILALOFS · Capital Markets <span class="cap-tag cap-mid">MID</span></div></td>
+              <td><div class="cmp-cell"><span class="cmp-val">762</span><span class="cmp-delta pos">▲ 1.0%</span></div></td>
+              <td>774</td><td class="cell-base">959</td><td>1,145</td>
+              <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+1.6%</span><span class="mag-bar" style="width:2%"></span></td>
+              <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+25.9%</span><span class="mag-bar" style="width:37%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+50.3%</span><span class="mag-bar" style="width:72%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+58.4%</span><span class="mag-bar" style="width:83%"></span></td>
+              <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+72.5%</span><span class="mag-bar" style="width:100%"></span></td>
+              <td class="cell-muted">—</td><td>3.6x</td><td class="cell-muted">—</td>
+              <td><span class="conv-dots"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+              <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+              <td>45,460 Cr</td>
+              <td><span class="seg-pill md">Mid</span></td>
+              <td><div class="dec-cell"><span class="dec-tag buy">BUY</span><span class="dec-date">2026-04-26</span></div></td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TREEMAP CARD -->
+    <div class="treemap-card">
+      <div class="section-head" style="border-bottom:none;padding:0 0 14px">
+        <div class="section-title">Portfolio heatmap <span class="section-tag">Live</span></div>
+        <div class="section-meta">32 holdings · ₹14.73 Cr deployed</div>
+      </div>
+
+      <div class="treemap-axes">
+        <div class="axis"><span class="axis-label">Scope</span>
+          <span class="axis-pills">
+            <button type="button" class="axis-pill on">Portfolio</button>
+            <button type="button" class="axis-pill">Full universe</button>
+          </span>
+        </div>
+        <div class="axis"><span class="axis-label">Color</span>
+          <span class="axis-pills">
+            <button type="button" class="axis-pill">Day chg</button>
+            <button type="button" class="axis-pill">↑ Bear</button>
+            <button type="button" class="axis-pill on">↑ Base</button>
+            <button type="button" class="axis-pill">↑ Bull</button>
+            <button type="button" class="axis-pill">Conviction</button>
+          </span>
+        </div>
+        <div class="axis"><span class="axis-label">Size</span>
+          <span class="axis-pills">
+            <button type="button" class="axis-pill on">Holding ₹</button>
+            <button type="button" class="axis-pill">Equal</button>
+            <button type="button" class="axis-pill">Mkt cap</button>
+          </span>
+        </div>
+        <div class="axis"><span class="axis-label">Group</span>
+          <span class="axis-pills">
+            <button type="button" class="axis-pill on">Sector</button>
+            <button type="button" class="axis-pill">Subsector</button>
+            <button type="button" class="axis-pill">Flat</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="treemap-svg-wrap">
+        <svg class="treemap-svg" viewBox="0 0 1200 340" preserveAspectRatio="none" aria-label="Portfolio heatmap">
+          <!-- BFSI sector group -->
+          <rect class="tm-rect" x="2" y="2" width="436" height="200" fill="#047857"/>
+          <rect class="tm-rect" x="2" y="2" width="260" height="200" fill="#06A175"/>
+          <rect class="tm-rect" x="262" y="2" width="176" height="120" fill="#0EAA80"/>
+          <rect class="tm-rect" x="262" y="122" width="176" height="80" fill="#10B98B"/>
+          <text class="tm-label" x="14" y="24">HDFC Bank</text>
+          <text class="tm-pct" x="14" y="40">14.2%</text>
+          <text class="tm-label" x="274" y="22">Bajaj Fin</text>
+          <text class="tm-pct" x="274" y="38">8.6%</text>
+          <text class="tm-label" x="274" y="142">CRAMC</text>
+          <text class="tm-pct" x="274" y="158">3.9%</text>
+          <text class="tm-sec" x="14" y="14" style="font-size:9px">BFSI · 26.7%</text>
+
+          <!-- Capital Markets -->
+          <rect class="tm-rect" x="442" y="2" width="290" height="200" fill="#047857"/>
+          <rect class="tm-rect" x="442" y="2" width="180" height="200" fill="#0EAA80"/>
+          <rect class="tm-rect" x="622" y="2" width="110" height="200" fill="#10B98B"/>
+          <text class="tm-label" x="454" y="24">MCX</text>
+          <text class="tm-pct" x="454" y="40">11.0%</text>
+          <text class="tm-label" x="634" y="22">MOFSL</text>
+          <text class="tm-pct" x="634" y="38">6.2%</text>
+          <text class="tm-sec" x="454" y="14" style="font-size:9px">CAPITAL MARKETS · 17.2%</text>
+
+          <!-- Metals -->
+          <rect class="tm-rect" x="736" y="2" width="220" height="200" fill="#B91C1C"/>
+          <text class="tm-label" x="748" y="24">Vedanta</text>
+          <text class="tm-pct" x="748" y="40">12.5%</text>
+          <text class="tm-sec" x="748" y="14" style="font-size:9px">METALS · 12.5%</text>
+
+          <!-- Media -->
+          <rect class="tm-rect" x="960" y="2" width="238" height="200" fill="#0EAA80"/>
+          <rect class="tm-rect" x="960" y="2" width="160" height="200" fill="#10B98B"/>
+          <text class="tm-label" x="972" y="24">Tips Music</text>
+          <text class="tm-pct" x="972" y="40">9.8%</text>
+          <text class="tm-sec" x="972" y="14" style="font-size:9px">MEDIA · 9.8%</text>
+
+          <!-- Real Estate -->
+          <rect class="tm-rect" x="2" y="206" width="320" height="132" fill="#10B98B"/>
+          <rect class="tm-rect" x="2" y="206" width="200" height="132" fill="#0EAA80"/>
+          <text class="tm-label" x="14" y="226">Smartworks</text>
+          <text class="tm-pct" x="14" y="242">5.6%</text>
+          <text class="tm-label" x="214" y="226">XBOM:516</text>
+          <text class="tm-pct" x="214" y="242">3.1%</text>
+          <text class="tm-sec" x="14" y="216" style="font-size:9px">REAL ESTATE · 8.7%</text>
+
+          <!-- Hospitality -->
+          <rect class="tm-rect" x="326" y="206" width="220" height="132" fill="#10B98B"/>
+          <text class="tm-label" x="338" y="226">Park Hotels</text>
+          <text class="tm-pct" x="338" y="242">4.7%</text>
+          <text class="tm-sec" x="338" y="216" style="font-size:9px">HOSPITALITY · 4.7%</text>
+
+          <!-- Tech -->
+          <rect class="tm-rect" x="550" y="206" width="200" height="132" fill="#047857"/>
+          <text class="tm-label" x="562" y="226">E2E Networks</text>
+          <text class="tm-pct" x="562" y="242">4.2%</text>
+          <text class="tm-sec" x="562" y="216" style="font-size:9px">TECHNOLOGY · 4.2%</text>
+
+          <!-- Consumer -->
+          <rect class="tm-rect" x="754" y="206" width="220" height="132" fill="#047857"/>
+          <text class="tm-label" x="766" y="226">Annapurna</text>
+          <text class="tm-pct" x="766" y="242">4.0%</text>
+          <text class="tm-label" x="876" y="226">+5</text>
+          <text class="tm-pct" x="876" y="242">2.2%</text>
+          <text class="tm-sec" x="766" y="216" style="font-size:9px">CONSUMER · 6.2%</text>
+
+          <!-- Aviation + others -->
+          <rect class="tm-rect" x="978" y="206" width="220" height="132" fill="#10B98B"/>
+          <rect class="tm-rect" x="978" y="206" width="140" height="132" fill="#0EAA80"/>
+          <text class="tm-label" x="990" y="226">IndiGo</text>
+          <text class="tm-pct" x="990" y="242">5.0%</text>
+          <text class="tm-label" x="1130" y="226">Other</text>
+          <text class="tm-pct" x="1130" y="242">2.1%</text>
+          <text class="tm-sec" x="990" y="216" style="font-size:9px">AVIATION + · 7.1%</text>
+        </svg>
+      </div>
+
+      <div class="treemap-legend">
+        <span>↑ Base upside</span>
+        <div>
+          <div class="legend-bar"><span class="legend-tick" style="left:50%"></span></div>
+          <div class="legend-stops"><span>−25%</span><span>0%</span><span>+25%</span><span>+50%+</span></div>
+        </div>
+        <span style="margin-left:auto">32 stocks · ↑ Base mode</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────────────────────
+       HOLDINGS PAGE  (PIN-gated in production; shown unlocked here)
+       ─────────────────────────────────────── -->
+  <section class="lux-page page-holdings" aria-labelledby="page-holdings-h">
+    <h2 id="page-holdings-h" class="lux-h" style="margin-bottom:0">Holdings · Portfolio analysis</h2>
+
+    <!-- KPI STRIP (8 cards, single row) -->
+    <div class="kpi-strip-h">
+      <div class="kpi-h">
+        <div class="kpi-h-label">Portfolio Value</div>
+        <div class="kpi-h-value serif">₹14.73 Cr</div>
+        <div class="kpi-h-sub">Invested ₹11.22 Cr</div>
+      </div>
+      <div class="kpi-h">
+        <div class="kpi-h-label">Unrealised P&amp;L</div>
+        <div class="kpi-h-value serif pos">+₹3.51 Cr</div>
+        <div class="kpi-h-sub"><span class="kpi-h-pill pos">+31.3%</span></div>
+      </div>
+      <div class="kpi-h">
+        <div class="kpi-h-label">Day P&amp;L</div>
+        <div class="kpi-h-value serif pos">+₹18.3 L</div>
+        <div class="kpi-h-sub"><span class="kpi-h-pill pos">+1.26%</span></div>
+      </div>
+      <div class="kpi-h">
+        <div class="kpi-h-label">Bear Scenario</div>
+        <div class="kpi-h-value serif neg">₹9.84 Cr</div>
+        <div class="kpi-h-sub"><span class="kpi-h-pill neg">−14.2%</span></div>
+      </div>
+      <div class="kpi-h">
+        <div class="kpi-h-label">Bull Scenario</div>
+        <div class="kpi-h-value serif pos">₹22.1 Cr</div>
+        <div class="kpi-h-sub"><span class="kpi-h-pill pos">+50.2%</span></div>
+      </div>
+      <div class="kpi-h">
+        <div class="kpi-h-label">1Y Target</div>
+        <div class="kpi-h-value serif pos">₹19.8 Cr</div>
+        <div class="kpi-h-sub"><span class="kpi-h-pill pos">+34.6%</span></div>
+      </div>
+      <div class="kpi-h">
+        <div class="kpi-h-label">2Y Target</div>
+        <div class="kpi-h-value serif pos">₹26.4 Cr</div>
+        <div class="kpi-h-sub"><span class="kpi-h-pill pos">+79.3%</span></div>
+      </div>
+      <div class="kpi-h kpi-fno">
+        <div class="kpi-h-label">F&amp;O P&amp;L</div>
+        <div class="kpi-h-value serif">+₹4.2 L</div>
+        <div class="kpi-h-sub">Live · 4 positions · ₹62 L exp</div>
+      </div>
+    </div>
+
+    <!-- SUB-TAB NAV -->
+    <div class="subtab-bar" role="tablist">
+      <button type="button" class="subtab-btn active" role="tab" data-subtab="portfolio">Portfolio</button>
+      <button type="button" class="subtab-btn" role="tab" data-subtab="segments">Segments</button>
+      <button type="button" class="subtab-btn" role="tab" data-subtab="fno">F&amp;O</button>
+    </div>
+
+    <!-- ───── PORTFOLIO SUB-TAB ───── -->
+    <div class="subtab-panel panel-portfolio">
+
+      <!-- HOLDINGS TABLE -->
+      <div class="h-table-wrap">
+        <div class="section-head">
+          <div class="section-title">Holdings <span class="section-tag">32</span></div>
+          <div class="section-meta">Live since 09:15 IST · ₹14.73 Cr live value</div>
+        </div>
+        <div class="h-table-scroll">
+          <table class="h-table">
+            <thead>
+              <tr class="thead-group">
+                <th colspan="3">Position</th>
+                <th colspan="3" class="tint-accent">Live</th>
+                <th colspan="4" class="tint-accent">Investment</th>
+                <th colspan="3">Model</th>
+                <th colspan="3" class="tint-pos">Upsides</th>
+              </tr>
+              <tr>
+                <th style="text-align:left;width:240px">Stock</th>
+                <th>Qty</th><th>Avg Cost</th>
+                <th>CMP</th><th>Day %</th><th>Day P&amp;L</th>
+                <th>Invested</th><th>Value</th><th>P&amp;L</th><th>P&amp;L %</th>
+                <th>Bear</th><th>Base</th><th>Bull</th>
+                <th class="tint-pos">↑ Bear</th><th class="tint-pos">↑ Base</th><th class="tint-pos">↑ Bull</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="h-stock">Vedanta Limited</div><div class="h-stock-sub">VEDL · Metals &amp; Mining</div></td>
+                <td>26,99,023</td><td>520.20</td>
+                <td class="cell-emph">682.00</td>
+                <td class="heat-cell h-neg-soft cell-neg">−2.30%</td>
+                <td class="heat-cell h-neg-soft cell-neg">−4.24 L</td>
+                <td>14.04 Cr</td><td class="cell-emph">18.41 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+4.37 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+31.1%</td>
+                <td>768</td><td class="cell-base">832</td><td>1,147</td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+22.0%</span><span class="mag-bar" style="width:31%"></span></td>
+                <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+68.2%</span><span class="mag-bar" style="width:97%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">Kilburn Engineering</div><div class="h-stock-sub">KILBURN · Industrials</div></td>
+                <td>64,59,296</td><td>406.75</td>
+                <td class="cell-emph">512.40</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.84%</td>
+                <td class="heat-cell h-pos-mid cell-pos">+5.92 L</td>
+                <td>26.27 Cr</td><td class="cell-emph">33.10 Cr</td>
+                <td class="heat-cell h-pos-deep cell-pos">+6.83 Cr</td>
+                <td class="heat-cell h-pos-deep cell-pos">+26.0%</td>
+                <td>410</td><td class="cell-base">580</td><td>740</td>
+                <td class="upside-td tier-neg-soft"><span class="upside-pill neg">−20.0%</span><span class="mag-bar neg" style="width:29%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+13.2%</span><span class="mag-bar" style="width:19%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+44.4%</span><span class="mag-bar" style="width:63%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">Tips Music</div><div class="h-stock-sub">TIPSMUSIC · Media</div></td>
+                <td>18,19,189</td><td>624.12</td>
+                <td class="cell-emph">555.00</td>
+                <td class="heat-cell h-neg-soft cell-neg">−1.10%</td>
+                <td class="heat-cell h-neg-soft cell-neg">−1.12 L</td>
+                <td>11.35 Cr</td><td class="cell-emph">10.10 Cr</td>
+                <td class="heat-cell h-neg-soft cell-neg">−1.25 Cr</td>
+                <td class="heat-cell h-neg-soft cell-neg">−11.1%</td>
+                <td>516</td><td class="cell-base">610</td><td>704</td>
+                <td class="upside-td tier-neg-soft"><span class="upside-pill neg">−7.0%</span><span class="mag-bar neg" style="width:10%"></span></td>
+                <td class="upside-td tier-pos-soft"><span class="upside-pill pos emph">+9.9%</span><span class="mag-bar" style="width:14%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+26.8%</span><span class="mag-bar" style="width:38%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">Nexus Select Trust</div><div class="h-stock-sub">NXST · Real Estate (REIT)</div></td>
+                <td>91,90,844</td><td>130.97</td>
+                <td class="cell-emph">152.50</td>
+                <td class="heat-cell h-pos-soft cell-pos">+0.42%</td>
+                <td class="heat-cell h-pos-soft cell-pos">+58.7 K</td>
+                <td>12.04 Cr</td><td class="cell-emph">14.02 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.98 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+16.4%</td>
+                <td>140</td><td class="cell-base">175</td><td>210</td>
+                <td class="upside-td tier-neg-soft"><span class="upside-pill neg">−8.2%</span><span class="mag-bar neg" style="width:12%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+14.8%</span><span class="mag-bar" style="width:21%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+37.7%</span><span class="mag-bar" style="width:54%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">MCX</div><div class="h-stock-sub">MCX · Capital Markets</div></td>
+                <td>4,92,050</td><td>2,009.73</td>
+                <td class="cell-emph">2,402.00</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.40%</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.63 L</td>
+                <td>9.89 Cr</td><td class="cell-emph">11.82 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.93 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+19.5%</td>
+                <td>2,602</td><td class="cell-base">2,953</td><td>3,305</td>
+                <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+8.3%</span><span class="mag-bar" style="width:12%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+22.9%</span><span class="mag-bar" style="width:33%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+37.6%</span><span class="mag-bar" style="width:54%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">Smartworks</div><div class="h-stock-sub">SMARTWORKS · Real Estate</div></td>
+                <td>16,80,420</td><td>351.20</td>
+                <td class="cell-emph">436.00</td>
+                <td class="heat-cell h-pos-mid cell-pos">+2.10%</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.50 L</td>
+                <td>5.90 Cr</td><td class="cell-emph">7.33 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+1.43 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+24.2%</td>
+                <td>433</td><td class="cell-base">541</td><td>649</td>
+                <td class="upside-td tier-pos-soft"><span class="upside-pill pos">−0.7%</span><span class="mag-bar neg" style="width:1%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+24.1%</span><span class="mag-bar" style="width:34%"></span></td>
+                <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+48.8%</span><span class="mag-bar" style="width:70%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">HDFC Bank</div><div class="h-stock-sub">HDFCBANK · BFSI</div></td>
+                <td>11,372</td><td>1,640.00</td>
+                <td class="cell-emph">1,847.00</td>
+                <td class="heat-cell h-pos-soft cell-pos">+0.80%</td>
+                <td class="heat-cell h-pos-soft cell-pos">+16.7 K</td>
+                <td>1.86 Cr</td><td class="cell-emph">2.10 Cr</td>
+                <td class="heat-cell h-pos-mid cell-pos">+23.6 L</td>
+                <td class="heat-cell h-pos-mid cell-pos">+12.6%</td>
+                <td>1,520</td><td class="cell-base">2,400</td><td>3,100</td>
+                <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+30.0%</span><span class="mag-bar" style="width:43%"></span></td>
+                <td class="upside-td tier-pos-deep"><span class="upside-pill pos">+67.8%</span><span class="mag-bar" style="width:97%"></span></td>
+              </tr>
+              <tr>
+                <td><div class="h-stock">Park Hotels</div><div class="h-stock-sub">PARKHOTELS · Hospitality</div></td>
+                <td>23,60,810</td><td>134.00</td>
+                <td class="cell-emph">127.00</td>
+                <td class="heat-cell h-pos-soft cell-pos">+0.60%</td>
+                <td class="heat-cell h-pos-soft cell-pos">+18.0 K</td>
+                <td>3.16 Cr</td><td class="cell-emph">3.00 Cr</td>
+                <td class="heat-cell h-neg-soft cell-neg">−16.5 L</td>
+                <td class="heat-cell h-neg-soft cell-neg">−5.2%</td>
+                <td>130</td><td class="cell-base">158</td><td>186</td>
+                <td class="upside-td tier-pos-soft"><span class="upside-pill pos">+2.4%</span><span class="mag-bar" style="width:3%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos emph">+24.4%</span><span class="mag-bar" style="width:35%"></span></td>
+                <td class="upside-td tier-pos-mid"><span class="upside-pill pos">+46.5%</span><span class="mag-bar" style="width:66%"></span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RISK DASHBOARD -->
+      <div class="risk-card">
+        <div class="risk-h">
+          <div class="risk-title">Risk dashboard</div>
+          <div class="risk-sub">32 positions · weighted by holding share</div>
+        </div>
+
+        <div class="risk-tiles">
+          <div class="risk-tile">
+            <div class="risk-tile-label">Portfolio Beta</div>
+            <div class="risk-tile-value serif">1.08</div>
+            <div class="risk-tile-sub">28 / 32 · vs NIFTY</div>
+          </div>
+          <div class="risk-tile">
+            <div class="risk-tile-label">HHI Index</div>
+            <div class="risk-tile-value serif">0.087</div>
+            <div class="risk-tile-sub">Diversified</div>
+          </div>
+          <div class="risk-tile">
+            <div class="risk-tile-label">Top Sector</div>
+            <div class="risk-tile-value serif">26.7%</div>
+            <div class="risk-tile-sub">BFSI</div>
+          </div>
+          <div class="risk-tile warn">
+            <div class="risk-tile-label">Top 5 Conc.</div>
+            <div class="risk-tile-value serif warn">52.6%</div>
+            <div class="risk-tile-sub">Above 50% threshold</div>
+          </div>
+          <div class="risk-tile">
+            <div class="risk-tile-label">Portfolio Value</div>
+            <div class="risk-tile-value serif">₹14.7 Cr</div>
+            <div class="risk-tile-sub">32 positions</div>
+          </div>
+          <div class="risk-tile warn">
+            <div class="risk-tile-label">Above Base</div>
+            <div class="risk-tile-value serif warn">3</div>
+            <div class="risk-tile-sub">VEDL · IndiGo · KILBURN</div>
+          </div>
+        </div>
+
+        <div class="pnl-scenarios">
+          <div class="pnl-card bear">
+            <div class="pnl-card-label">Bear Scenario</div>
+            <div class="pnl-card-pct serif">−14.2%</div>
+            <div class="pnl-card-sub">Portfolio drops to ₹9.84 Cr · −₹2.09 Cr</div>
+          </div>
+          <div class="pnl-card base">
+            <div class="pnl-card-label">Base Scenario</div>
+            <div class="pnl-card-pct serif">+12.4%</div>
+            <div class="pnl-card-sub">Portfolio rises to ₹16.55 Cr · +₹1.82 Cr</div>
+          </div>
+          <div class="pnl-card bull">
+            <div class="pnl-card-label">Bull Scenario</div>
+            <div class="pnl-card-pct serif">+50.2%</div>
+            <div class="pnl-card-sub">Portfolio rises to ₹22.10 Cr · +₹7.37 Cr</div>
+          </div>
+        </div>
+
+        <div class="top5-h">
+          <div class="top5-title">Top 5 holdings · 52.6% concentration</div>
+          <table class="top5-table">
+            <thead>
+              <tr><th>#</th><th>Stock</th><th>Sector</th><th>Weight</th><th>CDS</th><th>Bear</th><th>Base</th><th>Bull</th><th>Beta</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>Kilburn Engineering</td><td>Industrials</td><td>14.7%</td><td><span class="cds-pill cds-2">B+</span></td><td class="cell-neg">−20.0%</td><td class="cell-pos">+13.2%</td><td class="cell-pos">+44.4%</td><td>1.31</td></tr>
+              <tr><td>2</td><td>HDFC Bank</td><td>BFSI</td><td>14.2%</td><td><span class="cds-pill cds-1">A</span></td><td class="cell-pos">+12.6%</td><td class="cell-pos">+30.0%</td><td class="cell-pos">+67.8%</td><td>0.95</td></tr>
+              <tr><td>3</td><td>Vedanta</td><td>Metals</td><td>12.5%</td><td><span class="cds-pill cds-3">B</span></td><td class="cell-pos">+12.6%</td><td class="cell-pos">+22.0%</td><td class="cell-pos">+68.2%</td><td>1.42</td></tr>
+              <tr><td>4</td><td>MCX</td><td>Capital Mkts</td><td>11.0%</td><td><span class="cds-pill cds-1">A</span></td><td class="cell-pos">+8.3%</td><td class="cell-pos">+22.9%</td><td class="cell-pos">+37.6%</td><td>0.84</td></tr>
+              <tr><td>5</td><td>Tips Music</td><td>Media</td><td>9.8%</td><td><span class="cds-pill cds-3">B</span></td><td class="cell-neg">−7.0%</td><td class="cell-pos">+9.9%</td><td class="cell-pos">+26.8%</td><td>1.06</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="sec-risk-h">
+          <span>Sector exposure</span>
+          <span style="font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3)">8 sectors</span>
+        </div>
+        <div class="sec-risk-bar">
+          <div class="sec-risk-slice" style="width:26.7%;background:var(--accent)">BFSI 26.7%</div>
+          <div class="sec-risk-slice" style="width:17.2%;background:#0F766E">Capital Mkts 17.2%</div>
+          <div class="sec-risk-slice" style="width:14.7%;background:#7C2D12">Industrials 14.7%</div>
+          <div class="sec-risk-slice" style="width:12.5%;background:#B91C1C">Metals 12.5%</div>
+          <div class="sec-risk-slice" style="width:9.8%;background:#1F2937">Media 9.8%</div>
+          <div class="sec-risk-slice" style="width:8.7%;background:#3F3F46">Real Estate</div>
+          <div class="sec-risk-slice" style="width:5.0%;background:#4B5563"></div>
+          <div class="sec-risk-slice" style="width:5.4%;background:#71717A"></div>
+        </div>
+        <div class="sec-risk-legend">
+          <span><span class="dot" style="background:var(--accent)"></span>BFSI <span class="pct">26.7%</span></span>
+          <span><span class="dot" style="background:#0F766E"></span>Capital Markets <span class="pct">17.2%</span></span>
+          <span><span class="dot" style="background:#7C2D12"></span>Industrials <span class="pct">14.7%</span></span>
+          <span><span class="dot" style="background:#B91C1C"></span>Metals <span class="pct">12.5%</span></span>
+          <span><span class="dot" style="background:#1F2937"></span>Media <span class="pct">9.8%</span></span>
+          <span><span class="dot" style="background:#3F3F46"></span>Real Estate <span class="pct">8.7%</span></span>
+          <span><span class="dot" style="background:#4B5563"></span>Hospitality <span class="pct">5.0%</span></span>
+          <span><span class="dot" style="background:#71717A"></span>Other <span class="pct">5.4%</span></span>
+        </div>
+      </div>
+
+      <!-- SECTOR ALLOCATION DONUT -->
+      <div class="donut-card">
+        <div class="donut-h">Sector allocation by holdings value</div>
+        <div>
+          <svg class="donut-svg" viewBox="0 0 280 280" aria-label="Sector allocation donut">
+            <!-- Donut slices using stroke-dasharray on circles, ri=85, r=125 -->
+            <g transform="translate(140 140)">
+              <!-- BFSI 26.7% — copper -->
+              <circle r="105" fill="none" stroke="#B45309" stroke-width="40" stroke-dasharray="176.1 659.7" transform="rotate(-90)"/>
+              <!-- Capital Markets 17.2% -->
+              <circle r="105" fill="none" stroke="#0F766E" stroke-width="40" stroke-dasharray="113.4 722.4" stroke-dashoffset="-176.1" transform="rotate(-90)"/>
+              <!-- Industrials 14.7% -->
+              <circle r="105" fill="none" stroke="#7C2D12" stroke-width="40" stroke-dasharray="96.9 738.9" stroke-dashoffset="-289.5" transform="rotate(-90)"/>
+              <!-- Metals 12.5% -->
+              <circle r="105" fill="none" stroke="#B91C1C" stroke-width="40" stroke-dasharray="82.4 753.4" stroke-dashoffset="-386.4" transform="rotate(-90)"/>
+              <!-- Media 9.8% -->
+              <circle r="105" fill="none" stroke="#1F2937" stroke-width="40" stroke-dasharray="64.6 771.2" stroke-dashoffset="-468.8" transform="rotate(-90)"/>
+              <!-- Real Estate 8.7% -->
+              <circle r="105" fill="none" stroke="#3F3F46" stroke-width="40" stroke-dasharray="57.4 778.4" stroke-dashoffset="-533.4" transform="rotate(-90)"/>
+              <!-- Hospitality 5.0% -->
+              <circle r="105" fill="none" stroke="#525252" stroke-width="40" stroke-dasharray="33.0 802.8" stroke-dashoffset="-590.8" transform="rotate(-90)"/>
+              <!-- Other 5.4% -->
+              <circle r="105" fill="none" stroke="#71717A" stroke-width="40" stroke-dasharray="35.6 800.2" stroke-dashoffset="-623.8" transform="rotate(-90)"/>
+
+              <!-- Center label -->
+              <text class="donut-center-label" text-anchor="middle" y="-8">Total</text>
+              <text class="donut-center-value" text-anchor="middle" y="20">₹14.73 Cr</text>
+            </g>
+          </svg>
+        </div>
+        <div class="donut-legend">
+          <span><span class="dot" style="background:#B45309"></span>BFSI <span class="pct">26.7%</span></span>
+          <span><span class="dot" style="background:#0F766E"></span>Capital Markets <span class="pct">17.2%</span></span>
+          <span><span class="dot" style="background:#7C2D12"></span>Industrials <span class="pct">14.7%</span></span>
+          <span><span class="dot" style="background:#B91C1C"></span>Metals <span class="pct">12.5%</span></span>
+          <span><span class="dot" style="background:#1F2937"></span>Media <span class="pct">9.8%</span></span>
+          <span><span class="dot" style="background:#3F3F46"></span>Real Estate <span class="pct">8.7%</span></span>
+          <span><span class="dot" style="background:#525252"></span>Hospitality <span class="pct">5.0%</span></span>
+          <span><span class="dot" style="background:#71717A"></span>Other <span class="pct">5.4%</span></span>
+        </div>
+      </div>
+
+    </div>
+    <!-- /portfolio sub-tab -->
+
+    <!-- ───── SEGMENTS SUB-TAB ───── -->
+    <div class="subtab-panel panel-segments">
+      <div class="subtab-placeholder">
+        <strong>Segments</strong>
+        Market-cap segment breakdown — large/mid/small/micro/unclassified — with allocation cards, segment-level returns, and an inline segment risk grid. Same Quiet Luxury surfaces as the Portfolio tab; not rendered in this preview.
+      </div>
+    </div>
+
+    <!-- ───── F&O SUB-TAB ───── -->
+    <div class="subtab-panel panel-fno">
+      <div class="subtab-placeholder">
+        <strong>F&amp;O</strong>
+        Futures &amp; Options sub-tab — own 4-card KPI strip (Net Exposure · Snapshot P&amp;L · Positions · Live P&amp;L) plus the F&amp;O positions table (Underlying · Type · Expiry · Strike · Dir · Qty · Avg Cost · LTP · Exposure · P&amp;L). Same Quiet Luxury system; not rendered in this preview.
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ───────────────────────────────────────
+       COMPARISON / DECISION placeholders
+       ─────────────────────────────────────── -->
+  <section class="lux-page page-other">
+    <div class="coming-up serif">Coming up.</div>
+    <div class="coming-up-sub">This tab will receive the same Quiet Luxury treatment in the React migration. Tab bar and chrome are already in place; the body specifics ship next.</div>
+  </section>
+
+</main>
+
+<script>
+/* No innerHTML used. Class-toggle interactions only. */
+(function(){
+  var THEME_KEY = 'octotusk-luxury-theme';
+  var saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+
+  // Theme toggle
+  var themeBtn = document.getElementById('themeToggle');
+  themeBtn.addEventListener('click', function(){
+    var current = document.documentElement.getAttribute('data-theme');
+    var next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+
+  // Main tab switching — flips data-page on <html>; CSS shows the matching .lux-page
+  var tabBtns = document.querySelectorAll('.tab-btn[data-tab]');
+  tabBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tab = btn.getAttribute('data-tab');
+      tabBtns.forEach(function(b){
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      document.documentElement.setAttribute('data-page', tab);
+      // Scroll to top so the new page is in view
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
+  // Holdings sub-tab switching
+  var subBtns = document.querySelectorAll('.subtab-btn[data-subtab]');
+  subBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var s = btn.getAttribute('data-subtab');
+      subBtns.forEach(function(b){
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      document.documentElement.setAttribute('data-subtab', s);
+    });
+  });
+
+  // Live countdown demo (cosmetic; production wires to real CMP refresh)
+  var cd = document.querySelector('.countdown');
+  if (cd){
+    var t = 18;
+    setInterval(function(){
+      t = t <= 0 ? 60 : t - 1;
+      cd.textContent = t + 's';
+    }, 1000);
+  }
+})();
+</script>
+
+</body>
+</html>
