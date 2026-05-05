@@ -69,27 +69,6 @@ interface Holding {
   current_value: number;
 }
 
-interface FoPosition {
-  instrument_name: string;
-  underlying: string;
-  instrument_type: "FUT" | "OPT";
-  expiry: string;
-  strike?: number;
-  option_type?: "CE" | "PE";
-  broker: string;
-  direction: "BUY" | "SELL";
-  quantity: number;
-  avg_cost: number;
-  curr_price: number;
-  exposure: number;
-  unrealised_pnl: number;
-}
-
-interface EnrichedFoPosition extends FoPosition {
-  live_price?: number;
-  live_pnl?: number;
-}
-
 interface QuoteData {
   price: number;
   change: number;
@@ -698,10 +677,6 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
   );
 };
 
-// Holdings excluded from P&L aggregates — cost basis reflects pre-demerger combined investment.
-// Remove from this list once demerged entities are added to the Excel with split cost allocations.
-const HOLDINGS_CORP_ACTION_EXCLUDED = new Set<string>(["VEDL"]);
-
 // ── Permanently removed stocks (excluded from all tabs) ──
 const REMOVED_STOCKS = [
   "monarch network", "recltd", "rec ltd", "repco",
@@ -749,7 +724,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [holdingsUnlocked, setHoldingsUnlocked] = useState(false);
   const [holdingsPin, setHoldingsPin] = useState("");
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
-  const [foPositions, setFoPositions] = useState<EnrichedFoPosition[]>([]);
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [compareSearch, setCompareSearch] = useState("");
@@ -851,7 +825,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   // Holdings table sort
   const [holdSortCol, setHoldSortCol] = useState<string>("value");
   const [holdSortDir, setHoldSortDir] = useState<"asc" | "desc">("desc");
-  const [holdingsSubTab, setHoldingsSubTab] = useState<"portfolio" | "segments" | "fo">("portfolio");
+  const [holdingsSubTab, setHoldingsSubTab] = useState<"portfolio" | "segments">("portfolio");
 
   // Treemap heatmap
   const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "upsideBear" | "upsideBull" | "pnl" | "conviction">("dayChange");
@@ -1001,7 +975,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   const handleTabSwitch = (tab: typeof activeTab) => {
     if (activeTab === "holdings" && tab !== "holdings") {
-      setHoldingsUnlocked(false); setHoldingsData([]); setFoPositions([]); setHoldingsPin(""); setHoldingsError(""); setHoldingsSubTab("portfolio");
+      setHoldingsUnlocked(false); setHoldingsData([]); setHoldingsPin(""); setHoldingsError(""); setHoldingsSubTab("portfolio");
     }
     setDetailStock(null);
     setActiveTab(tab);
@@ -1028,37 +1002,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
 
-  const foPositionsRef = useRef<EnrichedFoPosition[]>([]);
-  foPositionsRef.current = foPositions;
-
-  const fetchFoQuotes = useCallback(async () => {
-    const pos = foPositionsRef.current;
-    if (pos.length === 0) return;
-    try {
-      const res = await fetch("/api/fo-quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instruments: pos.map(p => p.instrument_name) }),
-      });
-      if (!res.ok) { console.warn("[fo-quotes] HTTP", res.status); return; }
-      const data = await res.json();
-      if (data.quotes) {
-        setFoPositions(prev => prev.map(p => {
-          const ltp = data.quotes[p.instrument_name];
-          if (typeof ltp !== "number") return p;
-          return { ...p, live_price: ltp, live_pnl: (ltp - p.avg_cost) * p.quantity };
-        }));
-      }
-    } catch (err) { console.error("[fo-quotes]", err); }
-  }, []);
-
-  useEffect(() => {
-    if (foPositions.length === 0) return;
-    if (isMarketOpen()) fetchFoQuotes();
-    const t = setInterval(() => { if (isMarketOpen()) fetchFoQuotes(); }, 60_000);
-    return () => clearInterval(t);
-  }, [foPositions.length, fetchFoQuotes]);
-
   // Countdown + auto-fetch delegated to <CountdownTimer /> to avoid 1Hz parent re-renders
 
   const [syncStatus, setSyncStatus] = useState("");
@@ -1068,7 +1011,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     // Capture holdings + ticker_map from baseline for snapshot persistence
     let snapshotHoldings: unknown[] = [];
     let snapshotTickerMap: Record<string, string> = {};
-    let snapshotFoPositions: unknown[] = [];
     try {
       // Step 1: Fetch JVB baseline + vF file list (fast)
       const baseRes = await fetch("/api/sync", {
@@ -1081,7 +1023,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
       snapshotHoldings = (baseData.holdings ?? []) as unknown[];
       snapshotTickerMap = (baseData.ticker_map ?? {}) as Record<string, string>;
-      snapshotFoPositions = (baseData.fo_positions ?? []) as unknown[];
 
       let currentStocks = baseData.stocks;
       setLiveStocks(currentStocks);
@@ -1095,7 +1036,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
           const snapRes = await fetch("/api/snapshot", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap, fo_positions: snapshotFoPositions }),
+            body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
           });
           if (!snapRes.ok) console.error("[snapshot] Save failed:", snapRes.status, await snapRes.text().catch(() => ""));
           else console.log("[snapshot] Baseline snapshot saved to Supabase");
@@ -1142,7 +1083,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         const snapRes = await fetch("/api/snapshot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap, fo_positions: snapshotFoPositions }),
+          body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap }),
         });
         if (!snapRes.ok) console.error("[snapshot] Save failed:", snapRes.status, await snapRes.text().catch(() => ""));
         else console.log("[snapshot] Snapshot saved to Supabase");
@@ -1377,11 +1318,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     try {
       const res = await fetch("/api/holdings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pin: holdingsPin }) });
       const data = await res.json();
-      if (data.unlocked) {
-        setHoldingsData(data.holdings);
-        setFoPositions(((data.fo_positions as FoPosition[]) || []).map(p => ({ ...p })));
-        setHoldingsUnlocked(true);
-      }
+      if (data.unlocked) { setHoldingsData(data.holdings); setHoldingsUnlocked(true); }
       else setHoldingsError(data.error || "Invalid PIN");
     } catch { setHoldingsError("Failed to verify"); }
     finally { setHoldingsLoading(false); }
@@ -2617,16 +2554,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             <div className="animate-fade-in">
               <div className="kpi-grid mb-4">
                 {(() => {
-                  const activeH = enrichedHoldings.filter(h => !HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr));
-                  const ti = activeH.reduce((s, h) => s + h.amt_invested, 0);
-                  const tv = activeH.reduce((s, h) => s + h.liveValue, 0);
+                  const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
+                  const tv = enrichedHoldings.reduce((s, h) => s + h.liveValue, 0);
                   const tg = tv - ti; const tp = ti > 0 ? (tg / ti) * 100 : 0;
-                  const bv = activeH.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
-                  const buv = activeH.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
-                  const dayPnlTotal = activeH.reduce((s, h) => s + h.dayPnl, 0);
+                  const bv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
+                  const buv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
+                  const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.dayPnl, 0);
                   const dayPnlPct = tv > 0 ? (dayPnlTotal / tv) * 100 : 0;
-                  const v1y = activeH.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
-                  const v2y = activeH.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
+                  const v1y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
+                  const v2y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
                   return (<>
                     <div className="kpi-card animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Total Invested</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(ti)}</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Current Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(tv)}</p></div>
@@ -2636,33 +2572,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-6"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Bull Scenario</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-positive)" }}>{fmtCr(buv)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: +{tv ? ((buv - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                     <div className={`kpi-card ${v1y >= tv ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-7`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>1Y Target Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: v1y >= tv ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(v1y)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: {tv ? (v1y >= tv ? "+" : "") + ((v1y - tv) / tv * 100).toFixed(1) : 0}%</p></div>
                     <div className={`kpi-card ${v2y >= tv ? "kpi-positive" : "kpi-negative"} animate-fade-in-up delay-8`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>2Y Target Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: v2y >= tv ? "var(--color-positive)" : "var(--color-negative)" }}>{fmtCr(v2y)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Upside: {tv ? (v2y >= tv ? "+" : "") + ((v2y - tv) / tv * 100).toFixed(1) : 0}%</p></div>
-                    {foPositions.length > 0 && (() => {
-                      const livePnl = foPositions.reduce((s, p) => s + (p.live_pnl ?? p.unrealised_pnl), 0);
-                      const netExp = foPositions.reduce((s, p) => s + p.exposure, 0);
-                      const hasLive = foPositions.some(p => p.live_price != null);
-                      return (
-                        <div className="kpi-card animate-fade-in-up delay-5" style={{ borderLeft: "2px solid var(--color-warning)", background: "rgba(217, 119, 6, 0.08)" }}>
-                          <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>F&amp;O P&amp;L</p>
-                          <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: livePnl >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
-                            {livePnl >= 0 ? "+" : ""}{fmtRupee(livePnl)}
-                          </p>
-                          <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
-                            Exp: {fmtCr(netExp)} {hasLive ? "live" : "snapshot"}
-                          </p>
-                        </div>
-                      );
-                    })()}
                   </>);
                 })()}
               </div>
-              {enrichedHoldings.some(h => HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr)) && (
-                <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "var(--space-3)" }}>
-                  * {Array.from(HOLDINGS_CORP_ACTION_EXCLUDED).filter(t => enrichedHoldings.some(h => h.tikr === t)).length} holding(s) excluded from P&L — pre-demerger cost basis, pending cost allocation to new entities
-                </p>
-              )}
               {/* Sub-tab nav: Portfolio | Segments */}
               <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: 2 }}>
-                {(["portfolio", "segments", "fo"] as const).map(st => (
+                {(["portfolio", "segments"] as const).map(st => (
                   <button
                     key={st}
                     onClick={() => setHoldingsSubTab(st)}
@@ -2670,7 +2585,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                     role="tab"
                     aria-selected={holdingsSubTab === st}
                   >
-                    {st === "portfolio" ? "Portfolio" : st === "segments" ? "Segments" : "F&O"}
+                    {st === "portfolio" ? "Portfolio" : "Segments"}
                   </button>
                 ))}
               </div>
@@ -2731,7 +2646,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   <tbody>
                     {sortedHoldings.map((h, i) => (
                       <tr key={i}>
-                        <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}{HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr) && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginLeft: 4 }}>excl.</span>}</td>
+                        <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>₹{fmt(h.livePrice, 1)}</td>
@@ -3038,90 +2953,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   enrichedHoldings={enrichedHoldings}
                   quotes={quotes}
                 />
-              )}
-
-              {holdingsSubTab === "fo" && (
-                <div className="animate-fade-in">
-                  {/* Summary KPIs */}
-                  {(() => {
-                    const livePnl = foPositions.reduce((s, p) => s + (p.live_pnl ?? p.unrealised_pnl), 0);
-                    const snapshotPnl = foPositions.reduce((s, p) => s + p.unrealised_pnl, 0);
-                    const netExp = foPositions.reduce((s, p) => s + p.exposure, 0);
-                    const futCount = foPositions.filter(p => p.instrument_type === "FUT").length;
-                    const optCount = foPositions.filter(p => p.instrument_type === "OPT").length;
-                    const hasLive = foPositions.some(p => p.live_price != null);
-                    return (
-                      <div className="kpi-grid mb-4">
-                        <div className="kpi-card"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Net Exposure</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(netExp)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Notional</p></div>
-                        <div className={`kpi-card ${snapshotPnl >= 0 ? "kpi-positive" : "kpi-negative"}`}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Snapshot P&amp;L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: snapshotPnl >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{snapshotPnl >= 0 ? "+" : ""}{fmtRupee(snapshotPnl)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>At last sync</p></div>
-                        <div className="kpi-card"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Positions</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{foPositions.length}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{futCount} Fut · {optCount} Opt</p></div>
-                        <div className={`kpi-card ${livePnl >= 0 ? "kpi-positive" : "kpi-negative"}`} style={{ borderLeft: "2px solid var(--color-warning)" }}><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>Live P&amp;L</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: livePnl >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{livePnl >= 0 ? "+" : ""}{fmtRupee(livePnl)}</p><p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{hasLive ? "Live prices" : "Market closed"}</p></div>
-                      </div>
-                    );
-                  })()}
-                  {/* Positions table */}
-                  <div className="rounded-xl table-scroll-container" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
-                    <table className="data-table w-full" role="table" aria-label="F&O positions">
-                      <thead>
-                        <tr>
-                          <th style={{ textAlign: "left", padding: "8px 12px" }}>Underlying</th>
-                          <th style={{ textAlign: "center", padding: "8px 8px" }}>Type</th>
-                          <th style={{ textAlign: "center", padding: "8px 8px" }}>Expiry</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px" }}>Strike</th>
-                          <th style={{ textAlign: "center", padding: "8px 8px" }}>Dir</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px" }}>Qty</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px" }}>Avg Cost</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px" }}>LTP</th>
-                          <th style={{ textAlign: "right", padding: "8px 8px" }}>Exposure</th>
-                          <th style={{ textAlign: "right", padding: "8px 12px" }}>P&amp;L</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {foPositions.map((p, i) => {
-                          const pnl = p.live_pnl ?? p.unrealised_pnl;
-                          const expDisplay = p.expiry.slice(5).replace("-", "/") + "/" + p.expiry.slice(2, 4);
-                          return (
-                            <tr key={p.instrument_name}>
-                              <td style={{ padding: "7px 12px", fontWeight: 500, color: "var(--color-text-primary)" }}>{p.underlying}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "center" }}>
-                                <span style={{ background: p.instrument_type === "FUT" ? "rgba(96,165,250,0.15)" : "rgba(192,132,252,0.15)", color: p.instrument_type === "FUT" ? "var(--color-accent-blue)" : "#c084fc", padding: "2px 6px", borderRadius: 3, fontSize: "var(--text-xs)", fontWeight: 500 }}>
-                                  {p.instrument_type}
-                                </span>
-                              </td>
-                              <td style={{ padding: "7px 8px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{expDisplay}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontSize: "var(--text-xs)" }}>
-                                {p.strike != null ? <>{fmt(p.strike)} <span style={{ color: p.option_type === "CE" ? "var(--color-positive)" : "var(--color-negative)", fontWeight: 600 }}>{p.option_type}</span></> : "—"}
-                              </td>
-                              <td style={{ padding: "7px 8px", textAlign: "center" }}>
-                                <span style={{ color: p.direction === "BUY" ? "var(--color-positive)" : "var(--color-negative)", fontWeight: 600, fontSize: "var(--text-xs)" }}>
-                                  {p.direction === "BUY" ? "LONG" : "SHORT"}
-                                </span>
-                              </td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(Math.abs(p.quantity))}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(p.avg_cost, 2)}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-text-primary)" : "var(--color-warning)" }}>
-                                {p.live_price != null ? fmt(p.live_price, 2) : "—"}
-                              </td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{fmtCr(p.exposure)}</td>
-                              <td style={{ padding: "7px 12px", textAlign: "right", color: pnl >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
-                                {pnl >= 0 ? "+" : ""}{fmtRupee(pnl)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{ borderTop: "1px solid var(--color-border)" }}>
-                          <td colSpan={8} style={{ padding: "8px 12px", color: "var(--color-text-muted)", fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Total</td>
-                          <td style={{ padding: "8px 8px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--color-text-primary)" }}>{fmtCr(foPositions.reduce((s, p) => s + p.exposure, 0))}</td>
-                          <td style={{ padding: "8px 12px", textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: foPositions.reduce((s, p) => s + (p.live_pnl ?? p.unrealised_pnl), 0) >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>
-                            {(() => { const t = foPositions.reduce((s, p) => s + (p.live_pnl ?? p.unrealised_pnl), 0); return `${t >= 0 ? "+" : ""}${fmtRupee(t)}`; })()}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
               )}
 
             </div>
