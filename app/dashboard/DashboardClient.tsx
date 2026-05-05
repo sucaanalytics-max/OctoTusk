@@ -321,6 +321,18 @@ function upsidePill(val: number | null | undefined): React.ReactNode {
   return <span className={`up-pill ${cls}`}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
+/** Octopus-table tiered background for upside cells. `val` is a fraction (e.g. 0.32 = +32%). */
+function upsideTierBg(val: number | null | undefined): string | undefined {
+  if (val == null || isNaN(val as number)) return undefined;
+  const pct = val * 100;
+  if (pct >= 50)  return "rgba(5, 150, 105, 0.28)";
+  if (pct >= 20)  return "rgba(5, 150, 105, 0.18)";
+  if (pct > 0)    return "rgba(5, 150, 105, 0.08)";
+  if (pct === 0)  return undefined;
+  if (pct > -20)  return "rgba(220, 38, 38, 0.08)";
+  return            "rgba(220, 38, 38, 0.22)";
+}
+
 const cleanTikr = (tikr: string | null | undefined): string => {
   if (!tikr || typeof tikr !== "string") return "";
   if (tikr.includes("(XNSE:")) { const m = tikr.match(/\(XNSE:(\w+)\)/); return m ? m[1] : tikr; }
@@ -733,6 +745,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [sortCol, setSortCol] = useState<string>("upside_1y");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [filterSector, setFilterSector] = useState<string>("all");
+  const [filterSubsector, setFilterSubsector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>("all");
   const [filterSegment, setFilterSegment] = useState<string>("all");
@@ -1267,6 +1280,27 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     return { sectors, vps, convictions };
   }, [liveStocks]);
 
+  // Cascading subsectors: scoped to whichever sector group is currently selected.
+  const subsectorOptions = useMemo(() => {
+    const pool = filterSector === "all"
+      ? liveStocks
+      : liveStocks.filter(s => {
+          const broad = SECTOR_MAP[filterSector];
+          const sec = s.sector?.toLowerCase() ?? "";
+          return broad ? broad.some(m => sec.includes(m)) : s.sector === filterSector;
+        });
+    return Array.from(new Set(
+      pool.map(s => (s.subsector && s.subsector !== "0" ? s.subsector : "")).filter(Boolean)
+    )).sort();
+  }, [liveStocks, filterSector]);
+
+  // Clear subsector when its parent sector changes and the current pick is no longer valid.
+  useEffect(() => {
+    if (filterSubsector !== "all" && !subsectorOptions.includes(filterSubsector)) {
+      setFilterSubsector("all");
+    }
+  }, [filterSubsector, subsectorOptions]);
+
   const enrichedStocks: EnrichedStock[] = useMemo(() => {
     return liveStocks.filter(s => !isRemovedStock(s)).map(s => {
       const q = s.tikr ? quotes[s.tikr] : undefined;
@@ -1347,6 +1381,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
           : s.sector === filterSector;
         if (!match) return false;
       }
+      if (filterSubsector !== "all") {
+        const sub = s.subsector && s.subsector !== "0" ? s.subsector : "";
+        if (sub !== filterSubsector) return false;
+      }
       if (filterVP !== "all" && s.vp !== filterVP) return false;
       if (filterConviction !== "all" && (s.conviction == null || (s.conviction as number) < Number(filterConviction))) return false;
       if (filterHoldingsOnly && !holdingTikrs.has(s.tikr)) return false;
@@ -1365,7 +1403,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterVP, filterConviction, filterSegment, filterHoldingsOnly, filterUpside1Y, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterSubsector, filterVP, filterConviction, filterSegment, filterHoldingsOnly, filterUpside1Y, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
   // Holdings — session + PIN gated
   const unlockHoldings = async () => {
@@ -1700,7 +1738,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   // Th moved to module scope to avoid remount on every render
 
-  const activeFilters = [filterSector, filterVP, filterConviction, filterSegment].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
+  const activeFilters = [filterSector, filterSubsector, filterVP, filterConviction, filterSegment].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
 
 
   // ── Pill toggle style helper ──
@@ -2175,6 +2213,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               <option value="Infra">Infra</option>
               <option value="Real Estate">Real Estate</option>
             </select>
+            <select value={filterSubsector} onChange={e => setFilterSubsector(e.target.value)} className="select-dark" aria-label="Filter by subsector" disabled={subsectorOptions.length === 0}>
+              <option value="all">All Subsectors</option>
+              {subsectorOptions.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+            </select>
             <select value={filterSegment} onChange={e => setFilterSegment(e.target.value)} className="select-dark" aria-label="Filter by cap">
               <option value="all">All Cap</option>
               <option value="large">Large Cap</option>
@@ -2216,7 +2258,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </span>
             {activeFilters > 0 && (
               <button
-                onClick={() => { setFilterSector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
+                onClick={() => { setFilterSector("all"); setFilterSubsector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
                 className="btn btn-ghost btn-sm"
                 style={{ color: "var(--color-warning)", whiteSpace: "nowrap" }}
                 aria-label="Clear all filters"
@@ -2356,11 +2398,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                           case "bear":    return <td key={col.id} style={monoStyle}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>;
                           case "base":    return <td key={col.id} style={monoStyle}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>;
                           case "bull":    return <td key={col.id} style={monoStyle}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>;
-                          case "uBear":   return <td key={col.id} className="text-center">{upsidePill(s.upsideBearCalc)}</td>;
-                          case "uBase":   return <td key={col.id} className="text-center" style={{ fontWeight: 600 }}>{upsidePill(s.upsideBaseCalc)}</td>;
-                          case "uBull":   return <td key={col.id} className="text-center">{upsidePill(s.upsideBullCalc)}</td>;
-                          case "up1y":    return <td key={col.id} className="text-center">{upsidePill(s.upside1YCalc)}</td>;
-                          case "up2y":    return <td key={col.id} className="text-center">{upsidePill(s.upside2YCalc)}</td>;
+                          case "uBear":   return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upsideBearCalc) }}>{upsidePill(s.upsideBearCalc)}</td>;
+                          case "uBase":   return <td key={col.id} className="text-center" style={{ fontWeight: 600, background: upsideTierBg(s.upsideBaseCalc) }}>{upsidePill(s.upsideBaseCalc)}</td>;
+                          case "uBull":   return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upsideBullCalc) }}>{upsidePill(s.upsideBullCalc)}</td>;
+                          case "up1y":    return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upside1YCalc) }}>{upsidePill(s.upside1YCalc)}</td>;
+                          case "up2y":    return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upside2YCalc) }}>{upsidePill(s.upside2YCalc)}</td>;
                           case "pe":      return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>;
                           case "pb":      return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>;
                           case "evebitda":return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>;
