@@ -754,6 +754,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [holdingsPin, setHoldingsPin] = useState("");
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
   const [foPositions, setFoPositions] = useState<EnrichedFoPosition[]>([]);
+  const [eqDhanQuotes, setEqDhanQuotes] = useState<Record<string, number>>({});
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [compareSearch, setCompareSearch] = useState("");
@@ -1015,10 +1016,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     setQuotesLoading(true);
     try {
       const res = await fetch("/api/quotes", { cache: "no-store" });
-      if (!res.ok) { console.error(`[quotes] HTTP ${res.status}`); return; }
+      if (!res.ok) {
+        console.error(`[quotes] HTTP ${res.status}`);
+        if (res.status === 401) window.location.reload();
+        return;
+      }
       const data = await res.json();
-      if (data.quotes) {
-        setQuotes(data.quotes);
+      if (data.quotes && Object.keys(data.quotes).length > 0) {
+        setQuotes(prev => ({ ...prev, ...data.quotes }));
         setLastFetched(data.fetchedAt);
       }
       if (data.failedTikrs?.length > 0) {
@@ -1067,6 +1072,34 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     const t = setInterval(() => { if (isMarketOpen()) fetchFoQuotes(); }, 60_000);
     return () => clearInterval(t);
   }, [foPositions.length, fetchFoQuotes]);
+
+  // Dhan equity LTP for holdings not matched to Yahoo Finance (e.g. SME-listed stocks)
+  const holdingsDataRef = useRef<Holding[]>([]);
+  holdingsDataRef.current = holdingsData;
+
+  const fetchEqDhanQuotes = useCallback(async () => {
+    const holdings = holdingsDataRef.current;
+    if (holdings.length === 0) return;
+    try {
+      const res = await fetch("/api/eq-quotes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruments: holdings.map(h => h.asset_name) }),
+      });
+      if (!res.ok) { console.warn("[eq-quotes] HTTP", res.status); return; }
+      const data = await res.json();
+      if (data.quotes && Object.keys(data.quotes).length > 0) {
+        setEqDhanQuotes(prev => ({ ...prev, ...data.quotes }));
+      }
+    } catch (err) { console.error("[eq-quotes]", err); }
+  }, []);
+
+  useEffect(() => {
+    if (holdingsData.length === 0) return;
+    if (isMarketOpen()) fetchEqDhanQuotes();
+    const t = setInterval(() => { if (isMarketOpen()) fetchEqDhanQuotes(); }, 60_000);
+    return () => clearInterval(t);
+  }, [holdingsData.length, fetchEqDhanQuotes]);
 
   // Countdown + auto-fetch delegated to <CountdownTimer /> to avoid 1Hz parent re-renders
 
@@ -1419,6 +1452,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       "Bank Of India": "BANKINDIA", "Bank of India": "BANKINDIA",
       "Bank Of Baroda": "BANKBARODA", "Bank of Baroda": "BANKBARODA",
       "Punjab National Bank": "PNB",
+      "Digikore Studios": "DIGIKORE", "Skipper": "SKIPPER",
     };
     // Fuzzy fallback: match holdings asset_name against stock official_name (best-ratio wins)
     const fuzzyMatch = (name: string): { tikr: string; officialName: string; ratio: number } | null => {
@@ -1449,7 +1483,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         }
       }
       const stockData = tikr ? enrichedStocks.find(s => s.tikr === tikr) : null;
-      const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : h.current_price;
+      const eqDhanLtp = eqDhanQuotes[h.asset_name];
+      const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : (eqDhanLtp ?? h.current_price);
       const liveChange = tikr && quotes[tikr] ? quotes[tikr].change || 0 : 0;
       const liveChangePct = tikr && quotes[tikr] ? quotes[tikr].changePct || 0 : 0;
       const liveValue = livePrice * h.quantity;
@@ -1472,7 +1507,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       console.warn("[Holdings] Unmatched holdings (no stock data):", unmatched);
     }
     return items;
-  }, [holdingsData, initialHoldings, quotes, enrichedStocks]);
+  }, [holdingsData, initialHoldings, quotes, enrichedStocks, eqDhanQuotes]);
 
   // Holdings filtered for P&L calculations — excludes corp-action-pending positions (e.g. demerged VEDL)
   const pnlHoldings = useMemo(
@@ -3114,8 +3149,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                               </td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(Math.abs(p.quantity))}</td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(p.avg_cost, 2)}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-text-primary)" : "var(--color-warning)" }}>
-                                {p.live_price != null ? fmt(p.live_price, 2) : "—"}
+                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-text-primary)" : p.curr_price ? "var(--color-text-muted)" : "var(--color-warning)" }}>
+                                {p.live_price != null ? fmt(p.live_price, 2) : p.curr_price ? fmt(p.curr_price, 2) : "—"}
                               </td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{fmtCr(p.exposure)}</td>
                               <td style={{ padding: "7px 12px", textAlign: "right", color: pnl >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
