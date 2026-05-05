@@ -245,8 +245,8 @@ const CountdownTimer = ({ active, onTick }: { active: boolean; onTick: () => voi
   }, [active]);
 
   if (!active) return null;
-  if (!mktOpen) return <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Mkt closed</span>;
-  return <span className="font-mono font-bold min-w-[28px] text-center" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>{countdown}s</span>;
+  if (!mktOpen) return <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontFamily: "var(--font-mono)", letterSpacing: "-0.01em" }}>Mkt closed</span>;
+  return <span className="font-mono min-w-[28px] text-right" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}>{countdown}s</span>;
 };
 
 // ── Utilities ──
@@ -2176,7 +2176,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     <div className="max-w-[1600px] mx-auto px-3 md:px-5 py-3 md:py-4 dash-wrapper">
 
       {/* ── TAB NAVIGATION ── */}
-      <div className="flex items-center gap-1 mb-4 rounded-xl px-2 tab-bar" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
+      <div className="flex items-center gap-1 mb-4 tab-bar">
         <nav className="flex gap-1" role="tablist" aria-label="Dashboard sections">
           {([
             { key: "octopus" as const, label: "Octopus" },
@@ -2184,31 +2184,61 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             { key: "comparison" as const, label: "Comparison" },
             { key: "decisions" as const, label: "Decision Support" },
           ]).map(tab => (
-            <button key={tab.key} onClick={() => handleTabSwitch(tab.key)} role="tab" aria-selected={activeTab === tab.key} aria-controls={`panel-${tab.key}`} tabIndex={activeTab === tab.key ? 0 : -1} className={`tab-btn ${activeTab === tab.key ? "tab-active" : ""}`}>
+            <button key={tab.key} type="button" onClick={() => handleTabSwitch(tab.key)} role="tab" aria-selected={activeTab === tab.key} aria-controls={`panel-${tab.key}`} tabIndex={activeTab === tab.key ? 0 : -1} className={`tab-btn ${activeTab === tab.key ? "tab-active" : ""}`}>
               {tab.label}
             </button>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-2 pr-2 py-2 tab-controls">
-          {dataLastRefreshed && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Data: {new Date(dataLastRefreshed).toLocaleTimeString("en-IN")}</span>}
-          <button onClick={refreshData} disabled={dataRefreshing} className="btn btn-primary btn-sm" aria-label="Sync data from OneDrive">
-            {dataRefreshing ? (syncStatus || "Syncing...") : "⟳ Sync Data"}
+        <div className="ml-auto flex items-center gap-3 pr-2 py-2 tab-controls">
+          {dataLastRefreshed && (
+            <span className="lux-timestamp" title={`Last data sync: ${new Date(dataLastRefreshed).toLocaleString("en-IN")}`}>
+              <span className="lux-timestamp-label">Data</span>
+              <span className="lux-timestamp-value">{new Date(dataLastRefreshed).toLocaleTimeString("en-IN", { hour12: false })}</span>
+            </span>
+          )}
+          <button type="button" onClick={refreshData} disabled={dataRefreshing} className="lux-icon-btn" aria-label="Sync data from OneDrive" title={dataRefreshing ? (syncStatus || "Syncing…") : "Sync data from OneDrive"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 8"/>
+              <path d="M3 4v4h4"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.36-2.64L21 16"/>
+              <path d="M21 20v-4h-4"/>
+            </svg>
           </button>
-          <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
-          {lastFetched && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CMP: {new Date(lastFetched).toLocaleTimeString("en-IN")}{failedTikrs.length > 0 && <span style={{ color: "var(--color-warning)", marginLeft: 6 }} title={`Stale CMP: ${failedTikrs.join(", ")}`}>({failedTikrs.length} stale)</span>}</span>}
+          <span style={{ width: 1, height: 18, background: "var(--color-border)" }} />
+          {lastFetched && (
+            <span className="lux-timestamp" title={`Last CMP fetch: ${new Date(lastFetched).toLocaleString("en-IN")}`}>
+              <span className="lux-timestamp-label">CMP</span>
+              <span className="lux-timestamp-value">{new Date(lastFetched).toLocaleTimeString("en-IN", { hour12: false })}</span>
+              {failedTikrs.length > 0 && (
+                <span className="lux-timestamp-stale" title={`Stale CMP: ${failedTikrs.join(", ")}`}>
+                  ({failedTikrs.length} stale)
+                </span>
+              )}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`lux-live-dot${autoRefresh ? "" : " paused"}`}
+            aria-label={`Auto refresh is ${autoRefresh ? "on" : "off"}. Click to ${autoRefresh ? "pause" : "enable"}.`}
+            aria-pressed={autoRefresh}
+            title={autoRefresh ? "Auto-refresh ON · click to pause" : "Auto-refresh OFF · click to enable"}
+          />
           <CountdownTimer active={autoRefresh} onTick={fetchQuotes} />
-          <button onClick={fetchQuotes} disabled={quotesLoading} className="btn btn-ghost btn-sm" aria-label="Refresh market prices">
-            {quotesLoading ? "Fetching..." : "Refresh CMP"}
+          <button type="button" onClick={fetchQuotes} disabled={quotesLoading} className="lux-icon-btn" aria-label="Refresh market prices now" title={quotesLoading ? "Fetching…" : "Refresh CMP now"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M23 4v6h-6"/>
+              <path d="M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/>
+              <path d="M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
           </button>
-          <button onClick={() => setAutoRefresh(!autoRefresh)} className={`btn btn-sm ${autoRefresh ? "btn-success" : "btn-ghost"}`} aria-label={`Auto refresh is ${autoRefresh ? "on" : "off"}`} aria-pressed={autoRefresh}>
-            {autoRefresh ? "Auto: ON" : "Auto: OFF"}
-          </button>
-          <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 4px" }} />
-          <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="btn btn-ghost btn-sm" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+          <span style={{ width: 1, height: 18, background: "var(--color-border)" }} />
+          <button type="button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="lux-icon-btn" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
             {theme === "dark" ? (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
             ) : (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
             )}
           </button>
         </div>

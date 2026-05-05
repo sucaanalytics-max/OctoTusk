@@ -389,31 +389,201 @@ body {
 }
 
 /* ═══════════════════════════════════════════════
-   TAB STYLES
+   TAB STYLES — pure-underline pattern
+   Active = weight 700 ink + 2px copper underline (no fill wash)
+   Inactive = medium-grey, weight 500
+   Container loses rounded card; flat horizontal nav with bottom hairline
    ═══════════════════════════════════════════════ */
+
+/* Tab bar container override: replace rounded-xl + full border with a flat bottom-hairline */
+.tab-bar {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  border-radius: 0 !important;
+  padding: 0 var(--space-3) !important;
+}
+
 .tab-btn {
-  padding: var(--space-3) var(--space-5);
+  position: relative;
+  padding: var(--space-3) var(--space-4);
   font-size: var(--text-sm);
   font-weight: 500;
-  color: var(--color-text-muted);
-  border-bottom: 2px solid transparent;
-  transition: all var(--transition-fast);
+  color: var(--color-text-secondary);
+  letter-spacing: -0.005em;
+  transition: color var(--transition-fast);
   cursor: pointer;
   background: none;
-  border-top: none;
-  border-left: none;
-  border-right: none;
+  border: none;
   white-space: nowrap;
 }
 
+/* Underline pseudo — sits on the container's bottom border */
+.tab-btn::after {
+  content: "";
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--transition-normal), background var(--transition-normal);
+  pointer-events: none;
+}
+
 .tab-btn:hover {
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
+}
+.tab-btn:hover::after {
+  background: var(--color-warning);
+  opacity: 0.5;
+  transform: scaleX(0.6);
 }
 
 .tab-active {
-  color: var(--color-warning) !important;
-  border-bottom: 2px solid var(--color-warning) !important;
-  font-weight: 700;
+  color: var(--color-text-primary) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+.tab-active::after {
+  background: var(--color-warning);
+  opacity: 1;
+  transform: scaleX(1);
+}
+.tab-active:hover::after {
+  background: var(--color-warning);
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+/* ═══════════════════════════════════════════════
+   CHROME HELPERS — ghost icon button, live dot, timestamp cell
+   ═══════════════════════════════════════════════ */
+
+/* Ghost icon button — replaces saturated Sync Data / Refresh CMP buttons */
+.lux-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.lux-icon-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+.lux-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lux-icon-btn:disabled:hover {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: transparent;
+}
+.lux-icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Pulsing live dot — replaces saturated green Auto: ON pill.
+   Button is a 20x20 hit target; visible dot is a 6px ::after pseudo. */
+.lux-live-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.lux-live-dot::after {
+  content: "";
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-positive);
+  z-index: 2;
+}
+.lux-live-dot::before {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-positive);
+  opacity: 0.4;
+  animation: lux-pulse 1.6s cubic-bezier(0.32, 0.72, 0, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+.lux-live-dot.paused::after {
+  background: var(--color-text-muted);
+}
+.lux-live-dot.paused::before {
+  animation: none;
+  opacity: 0;
+}
+.lux-live-dot:hover::after {
+  transform: scale(1.15);
+}
+.lux-live-dot:focus-visible {
+  outline: 2px solid var(--color-warning);
+  outline-offset: 2px;
+}
+
+@keyframes lux-pulse {
+  0%   { transform: scale(0.6); opacity: 0.5; }
+  70%  { transform: scale(3.4); opacity: 0; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-live-dot::before { animation: none; opacity: 0.3; }
+}
+
+/* Micro-cap timestamp pattern — DATA 14:05:39 */
+.lux-timestamp {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.lux-timestamp-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--color-text-muted);
+}
+.lux-timestamp-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "lnum";
+  color: var(--color-text-secondary);
+  letter-spacing: -0.01em;
+}
+.lux-timestamp-stale {
+  color: var(--color-warning);
+  font-size: 10px;
+  margin-left: 4px;
 }
 
 /* ═══════════════════════════════════════════════
