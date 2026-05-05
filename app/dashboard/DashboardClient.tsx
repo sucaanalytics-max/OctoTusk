@@ -292,12 +292,12 @@ const pctBgStyle = (n: number | undefined | null): Record<string, string | numbe
   return { color: "var(--color-negative)", background: `rgba(220, 38, 38, ${alpha.toFixed(2)})`, fontWeight: 600 };
 };
 
-/** Scenario upside pill badge — 4-tier coloring for bear/base/bull/1Y/2Y upside cells */
 function upsidePill(val: number | null | undefined): React.ReactNode {
-  if (val == null || isNaN(val as number)) return <span className="up-pill up-neu">—</span>;
+  if (val == null || isNaN(val as number)) return <span style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>—</span>;
   const pct = val * 100;
-  const cls = pct > 25 ? "up-strong" : pct > 3 ? "up-pos" : pct > -3 ? "up-neu" : "up-neg";
-  return <span className={`up-pill ${cls}`}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
+  const color = pct > -3 && pct <= 3 ? "var(--color-text-muted)" : pct > 0 ? "var(--color-positive)" : "var(--color-negative)";
+  const weight = pct > 25 ? 600 : 400;
+  return <span style={{ color, fontWeight: weight, fontFamily: "var(--font-mono)" }}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
 const cleanTikr = (tikr: string | null | undefined): string => {
@@ -676,6 +676,10 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
     </div>
   );
 };
+
+// Holdings excluded from all P&L / segment calculations — cost basis reflects pre-demerger combined investment.
+// Remove from this set once demerged entities are added to the Excel with split cost allocations.
+const HOLDINGS_CORP_ACTION_EXCLUDED = new Set<string>(["VEDL"]);
 
 // ── Permanently removed stocks (excluded from all tabs) ──
 const REMOVED_STOCKS = [
@@ -1400,6 +1404,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     }
     return items;
   }, [holdingsData, initialHoldings, quotes, enrichedStocks]);
+
+  // Holdings filtered for P&L calculations — excludes corp-action-pending positions (e.g. demerged VEDL)
+  const pnlHoldings = useMemo(
+    () => enrichedHoldings.filter(h => !HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr)),
+    [enrichedHoldings]
+  );
 
   // Comparison
   const comparedStocks = useMemo(() => selectedCompare.map(t => enrichedStocks.find(s => s.tikr === t)).filter(Boolean) as EnrichedStock[], [selectedCompare, enrichedStocks]);
@@ -2554,15 +2564,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             <div className="animate-fade-in">
               <div className="kpi-grid mb-4">
                 {(() => {
-                  const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
-                  const tv = enrichedHoldings.reduce((s, h) => s + h.liveValue, 0);
+                  const ti = pnlHoldings.reduce((s, h) => s + h.amt_invested, 0);
+                  const tv = pnlHoldings.reduce((s, h) => s + h.liveValue, 0);
                   const tg = tv - ti; const tp = ti > 0 ? (tg / ti) * 100 : 0;
-                  const bv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
-                  const buv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
-                  const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.dayPnl, 0);
+                  const bv = pnlHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
+                  const buv = pnlHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
+                  const dayPnlTotal = pnlHoldings.reduce((s, h) => s + h.dayPnl, 0);
                   const dayPnlPct = tv > 0 ? (dayPnlTotal / tv) * 100 : 0;
-                  const v1y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
-                  const v2y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
+                  const v1y = pnlHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
+                  const v2y = pnlHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
                   return (<>
                     <div className="kpi-card animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Total Invested</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(ti)}</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Current Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(tv)}</p></div>
@@ -2575,6 +2585,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   </>);
                 })()}
               </div>
+              {enrichedHoldings.some(h => HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr)) && (
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "var(--space-3)" }}>
+                  * {Array.from(HOLDINGS_CORP_ACTION_EXCLUDED).filter(t => enrichedHoldings.some(h => h.tikr === t)).length} holding(s) excluded from P&L &amp; segments — pre-demerger cost basis, pending cost allocation to new entities
+                </p>
+              )}
               {/* Sub-tab nav: Portfolio | Segments */}
               <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: 2 }}>
                 {(["portfolio", "segments"] as const).map(st => (
@@ -2646,7 +2661,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   <tbody>
                     {sortedHoldings.map((h, i) => (
                       <tr key={i}>
-                        <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
+                        <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}{HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr) && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginLeft: 4 }}>excl.</span>}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>₹{fmt(h.livePrice, 1)}</td>
@@ -2888,10 +2903,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
               {/* ── Sector Pie Chart by Holdings % ── */}
               {(() => {
-                // Aggregate sector holdings from enrichedHoldings
+                // Aggregate sector holdings from pnlHoldings (corp-action-excluded positions omitted)
                 const sectorMap: Record<string, number> = {};
                 let totalVal = 0;
-                enrichedHoldings.forEach(h => {
+                pnlHoldings.forEach(h => {
                   const sec = h.stockData?.sector || "Other";
                   sectorMap[sec] = (sectorMap[sec] || 0) + h.liveValue;
                   totalVal += h.liveValue;
@@ -2950,7 +2965,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               {holdingsSubTab === "segments" && (
                 <SegmentsTab
                   enrichedStocks={enrichedStocks}
-                  enrichedHoldings={enrichedHoldings}
+                  enrichedHoldings={pnlHoldings}
                   quotes={quotes}
                 />
               )}
