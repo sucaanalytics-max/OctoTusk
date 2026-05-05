@@ -573,11 +573,17 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
 
       const broker = String(row[ci.broker] ?? "").trim();
       const dirRaw = String(row[ci.direction] ?? "").trim().toUpperCase();
-      const direction = dirRaw === "SELL" ? "SELL" : "BUY";
+      const rawExposure = Number(row[ci.exposure]) || 0;
+      // Dhan exports "LONG"/"SHORT"; some other brokers use "BUY"/"SELL".
+      // Fallback: negative exposure signals a short (sold) position.
+      const direction: "BUY" | "SELL" =
+        (dirRaw === "SELL" || dirRaw === "SHORT") ? "SELL" :
+        (dirRaw === "BUY"  || dirRaw === "LONG")  ? "BUY"  :
+        rawExposure < 0 ? "SELL" : "BUY";
       const quantity = Number(row[ci.quantity]) || 0;
       const avg_cost = Number(row[ci.avgCost]) || 0;
       const curr_price = Number(row[ci.currPrice]) || 0;
-      const exposure = Number(row[ci.exposure]) || 0;
+      const exposure = Math.abs(rawExposure);  // always positive; direction captures long/short
       const rawPnl = Number(row[ci.unrealisedPnl]) || 0;
       // Some brokers compute (curr_price - avg_cost) × qty regardless of direction.
       // For SELL, profit means curr_price < avg_cost → priceDiff > 0 → rawPnl should be > 0.
