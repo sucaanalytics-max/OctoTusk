@@ -232,18 +232,14 @@ const CountdownTimer = ({ active, onTick }: { active: boolean; onTick: () => voi
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
 
-  const countRef = useRef(CMP_REFRESH_INTERVAL);
   useEffect(() => {
     if (!active) return;
     const t = setInterval(() => {
-      const open = isMarketOpen();
-      setMktOpen(open);
-      countRef.current -= 1;
-      if (countRef.current <= 0) {
-        countRef.current = CMP_REFRESH_INTERVAL;
-        if (open) onTickRef.current();
-      }
-      setCountdown(countRef.current);
+      setMktOpen(isMarketOpen());
+      setCountdown(p => {
+        if (p <= 1) { if (isMarketOpen()) onTickRef.current(); return CMP_REFRESH_INTERVAL; }
+        return p - 1;
+      });
     }, 1000);
     return () => clearInterval(t);
   }, [active]);
@@ -317,12 +313,12 @@ const pctBgStyle = (n: number | undefined | null): Record<string, string | numbe
   return { color: "var(--color-negative)", background: `rgba(220, 38, 38, ${alpha.toFixed(2)})`, fontWeight: 600 };
 };
 
+/** Scenario upside pill badge — 4-tier coloring for bear/base/bull/1Y/2Y upside cells */
 function upsidePill(val: number | null | undefined): React.ReactNode {
-  if (val == null || isNaN(val as number)) return <span style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>—</span>;
+  if (val == null || isNaN(val as number)) return <span className="up-pill up-neu">—</span>;
   const pct = val * 100;
-  const color = pct > -3 && pct <= 3 ? "var(--color-text-muted)" : pct > 0 ? "var(--color-positive)" : "var(--color-negative)";
-  const weight = pct > 25 ? 600 : 400;
-  return <span style={{ color, fontWeight: weight, fontFamily: "var(--font-mono)" }}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
+  const cls = pct > 25 ? "up-strong" : pct > 3 ? "up-pos" : pct > -3 ? "up-neu" : "up-neg";
+  return <span className={`up-pill ${cls}`}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>;
 }
 
 const cleanTikr = (tikr: string | null | undefined): string => {
@@ -702,10 +698,6 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
   );
 };
 
-// Holdings excluded from all P&L / segment calculations — cost basis reflects pre-demerger combined investment.
-// Remove from this set once demerged entities are added to the Excel with split cost allocations.
-const HOLDINGS_CORP_ACTION_EXCLUDED = new Set<string>(["VEDL"]);
-
 // ── Permanently removed stocks (excluded from all tabs) ──
 const REMOVED_STOCKS = [
   "monarch network", "recltd", "rec ltd", "repco",
@@ -754,7 +746,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [holdingsPin, setHoldingsPin] = useState("");
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
   const [foPositions, setFoPositions] = useState<EnrichedFoPosition[]>([]);
-  const [eqDhanQuotes, setEqDhanQuotes] = useState<Record<string, number>>({});
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
   const [compareSearch, setCompareSearch] = useState("");
@@ -1015,15 +1006,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const fetchQuotes = useCallback(async () => {
     setQuotesLoading(true);
     try {
-      const res = await fetch("/api/quotes", { cache: "no-store" });
-      if (!res.ok) {
-        console.error(`[quotes] HTTP ${res.status}`);
-        if (res.status === 401) window.location.reload();
-        return;
-      }
+      const res = await fetch("/api/quotes");
       const data = await res.json();
-      if (data.quotes && Object.keys(data.quotes).length > 0) {
-        setQuotes(prev => ({ ...prev, ...data.quotes }));
+      if (data.quotes) {
+        setQuotes(data.quotes);
         setLastFetched(data.fetchedAt);
       }
       if (data.failedTikrs?.length > 0) {
@@ -1056,11 +1042,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         setFoPositions(prev => prev.map(p => {
           const ltp = data.quotes[p.instrument_name];
           if (typeof ltp !== "number") return p;
-          const absQty = Math.abs(p.quantity);
-          const live_pnl = p.direction === "BUY"
-            ? (ltp - p.avg_cost) * absQty
-            : (p.avg_cost - ltp) * absQty;
-          return { ...p, live_price: ltp, live_pnl };
+          return { ...p, live_price: ltp, live_pnl: (ltp - p.avg_cost) * p.quantity };
         }));
       }
     } catch (err) { console.error("[fo-quotes]", err); }
@@ -1072,34 +1054,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     const t = setInterval(() => { if (isMarketOpen()) fetchFoQuotes(); }, 60_000);
     return () => clearInterval(t);
   }, [foPositions.length, fetchFoQuotes]);
-
-  // Dhan equity LTP for holdings not matched to Yahoo Finance (e.g. SME-listed stocks)
-  const holdingsDataRef = useRef<Holding[]>([]);
-  holdingsDataRef.current = holdingsData;
-
-  const fetchEqDhanQuotes = useCallback(async () => {
-    const holdings = holdingsDataRef.current;
-    if (holdings.length === 0) return;
-    try {
-      const res = await fetch("/api/eq-quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instruments: holdings.map(h => h.asset_name) }),
-      });
-      if (!res.ok) { console.warn("[eq-quotes] HTTP", res.status); return; }
-      const data = await res.json();
-      if (data.quotes && Object.keys(data.quotes).length > 0) {
-        setEqDhanQuotes(prev => ({ ...prev, ...data.quotes }));
-      }
-    } catch (err) { console.error("[eq-quotes]", err); }
-  }, []);
-
-  useEffect(() => {
-    if (holdingsData.length === 0) return;
-    if (isMarketOpen()) fetchEqDhanQuotes();
-    const t = setInterval(() => { if (isMarketOpen()) fetchEqDhanQuotes(); }, 60_000);
-    return () => clearInterval(t);
-  }, [holdingsData.length, fetchEqDhanQuotes]);
 
   // Countdown + auto-fetch delegated to <CountdownTimer /> to avoid 1Hz parent re-renders
 
@@ -1452,7 +1406,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       "Bank Of India": "BANKINDIA", "Bank of India": "BANKINDIA",
       "Bank Of Baroda": "BANKBARODA", "Bank of Baroda": "BANKBARODA",
       "Punjab National Bank": "PNB",
-      "Digikore Studios": "DIGIKORE", "Skipper": "SKIPPER",
     };
     // Fuzzy fallback: match holdings asset_name against stock official_name (best-ratio wins)
     const fuzzyMatch = (name: string): { tikr: string; officialName: string; ratio: number } | null => {
@@ -1483,16 +1436,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         }
       }
       const stockData = tikr ? enrichedStocks.find(s => s.tikr === tikr) : null;
-      const eqDhanLtp = eqDhanQuotes[h.asset_name];
-      const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : (eqDhanLtp ?? h.current_price);
+      const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : h.current_price;
       const liveChange = tikr && quotes[tikr] ? quotes[tikr].change || 0 : 0;
       const liveChangePct = tikr && quotes[tikr] ? quotes[tikr].changePct || 0 : 0;
       const liveValue = livePrice * h.quantity;
       const liveGain = liveValue - h.amt_invested;
       const liveGainPct = h.amt_invested > 0 ? (liveGain / h.amt_invested) * 100 : 0;
       const dayPnl = liveChange * h.quantity;
-      // Use liveValue (not amt_invested) so dayPnlPct == liveChangePct — consistent heatmap intensity
-      const dayPnlPct = liveValue > 0 ? (dayPnl / liveValue) * 100 : 0;
+      const dayPnlPct = h.amt_invested > 0 ? (dayPnl / h.amt_invested) * 100 : 0;
       return { ...h, tikr, stockData, livePrice, liveChange, liveChangePct, liveValue, liveGain, liveGainPct, dayPnl, dayPnlPct,
         upsideToBear: stockData?.bear_current && livePrice ? ((stockData.bear_current - livePrice) / livePrice) * 100 : null,
         upsideToBase: stockData?.base_current && livePrice ? ((stockData.base_current - livePrice) / livePrice) * 100 : null,
@@ -1507,13 +1458,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       console.warn("[Holdings] Unmatched holdings (no stock data):", unmatched);
     }
     return items;
-  }, [holdingsData, initialHoldings, quotes, enrichedStocks, eqDhanQuotes]);
-
-  // Holdings filtered for P&L calculations — excludes corp-action-pending positions (e.g. demerged VEDL)
-  const pnlHoldings = useMemo(
-    () => enrichedHoldings.filter(h => !HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr)),
-    [enrichedHoldings]
-  );
+  }, [holdingsData, initialHoldings, quotes, enrichedStocks]);
 
   // Comparison
   const comparedStocks = useMemo(() => selectedCompare.map(t => enrichedStocks.find(s => s.tikr === t)).filter(Boolean) as EnrichedStock[], [selectedCompare, enrichedStocks]);
@@ -2668,15 +2613,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             <div className="animate-fade-in">
               <div className="kpi-grid mb-4">
                 {(() => {
-                  const ti = pnlHoldings.reduce((s, h) => s + h.amt_invested, 0);
-                  const tv = pnlHoldings.reduce((s, h) => s + h.liveValue, 0);
+                  const ti = enrichedHoldings.reduce((s, h) => s + h.amt_invested, 0);
+                  const tv = enrichedHoldings.reduce((s, h) => s + h.liveValue, 0);
                   const tg = tv - ti; const tp = ti > 0 ? (tg / ti) * 100 : 0;
-                  const bv = pnlHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
-                  const buv = pnlHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
-                  const dayPnlTotal = pnlHoldings.reduce((s, h) => s + h.dayPnl, 0);
+                  const bv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bear_current || h.livePrice) * h.quantity, 0);
+                  const buv = enrichedHoldings.reduce((s, h) => s + (h.stockData?.bull_current || h.livePrice) * h.quantity, 0);
+                  const dayPnlTotal = enrichedHoldings.reduce((s, h) => s + h.dayPnl, 0);
                   const dayPnlPct = tv > 0 ? (dayPnlTotal / tv) * 100 : 0;
-                  const v1y = pnlHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
-                  const v2y = pnlHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
+                  const v1y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_1y || h.livePrice) * h.quantity, 0);
+                  const v2y = enrichedHoldings.reduce((s, h) => s + (h.stockData?.target_2y || h.livePrice) * h.quantity, 0);
                   return (<>
                     <div className="kpi-card animate-fade-in-up delay-1"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Total Invested</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(ti)}</p></div>
                     <div className="kpi-card kpi-positive animate-fade-in-up delay-2"><p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Current Value</p><p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{fmtCr(tv)}</p></div>
@@ -2705,11 +2650,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   </>);
                 })()}
               </div>
-              {enrichedHoldings.some(h => HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr)) && (
-                <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: "var(--space-3)" }}>
-                  * {Array.from(HOLDINGS_CORP_ACTION_EXCLUDED).filter(t => enrichedHoldings.some(h => h.tikr === t)).length} holding(s) excluded from P&L &amp; segments — pre-demerger cost basis, pending cost allocation to new entities
-                </p>
-              )}
               {/* Sub-tab nav: Portfolio | Segments */}
               <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: 2 }}>
                 {(["portfolio", "segments", "fo"] as const).map(st => (
@@ -2781,7 +2721,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   <tbody>
                     {sortedHoldings.map((h, i) => (
                       <tr key={i}>
-                        <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}{HOLDINGS_CORP_ACTION_EXCLUDED.has(h.tikr) && <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginLeft: 4 }}>excl.</span>}</td>
+                        <td className="font-semibold" style={{ color: "var(--color-text-primary)" }}>{h.asset_name}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>{fmt(h.quantity)}</td>
                         <td style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-secondary)" }}>₹{fmt(h.avg_price, 1)}</td>
                         <td className="font-semibold" style={{ fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>₹{fmt(h.livePrice, 1)}</td>
@@ -3023,10 +2963,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
               {/* ── Sector Pie Chart by Holdings % ── */}
               {(() => {
-                // Aggregate sector holdings from pnlHoldings (corp-action-excluded positions omitted)
+                // Aggregate sector holdings from enrichedHoldings
                 const sectorMap: Record<string, number> = {};
                 let totalVal = 0;
-                pnlHoldings.forEach(h => {
+                enrichedHoldings.forEach(h => {
                   const sec = h.stockData?.sector || "Other";
                   sectorMap[sec] = (sectorMap[sec] || 0) + h.liveValue;
                   totalVal += h.liveValue;
@@ -3085,7 +3025,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               {holdingsSubTab === "segments" && (
                 <SegmentsTab
                   enrichedStocks={enrichedStocks}
-                  enrichedHoldings={pnlHoldings}
+                  enrichedHoldings={enrichedHoldings}
                   quotes={quotes}
                 />
               )}
@@ -3149,8 +3089,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                               </td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(Math.abs(p.quantity))}</td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>{fmt(p.avg_cost, 2)}</td>
-                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-text-primary)" : p.curr_price ? "var(--color-text-muted)" : "var(--color-warning)" }}>
-                                {p.live_price != null ? fmt(p.live_price, 2) : p.curr_price ? fmt(p.curr_price, 2) : "—"}
+                              <td style={{ padding: "7px 8px", textAlign: "right", fontFamily: "var(--font-mono)", color: p.live_price != null ? "var(--color-text-primary)" : "var(--color-warning)" }}>
+                                {p.live_price != null ? fmt(p.live_price, 2) : "—"}
                               </td>
                               <td style={{ padding: "7px 8px", textAlign: "right", color: "var(--color-text-secondary)", fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{fmtCr(p.exposure)}</td>
                               <td style={{ padding: "7px 12px", textAlign: "right", color: pnl >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
