@@ -1451,7 +1451,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       const liveGain = liveValue - h.amt_invested;
       const liveGainPct = h.amt_invested > 0 ? (liveGain / h.amt_invested) * 100 : 0;
       const dayPnl = liveChange * h.quantity;
-      const dayPnlPct = h.amt_invested > 0 ? (dayPnl / h.amt_invested) * 100 : 0;
+      // Use liveValue (not amt_invested) so dayPnlPct == liveChangePct — consistent heatmap intensity
+      const dayPnlPct = liveValue > 0 ? (dayPnl / liveValue) * 100 : 0;
       return { ...h, tikr, stockData, livePrice, liveChange, liveChangePct, liveValue, liveGain, liveGainPct, dayPnl, dayPnlPct,
         upsideToBear: stockData?.bear_current && livePrice ? ((stockData.bear_current - livePrice) / livePrice) * 100 : null,
         upsideToBase: stockData?.base_current && livePrice ? ((stockData.base_current - livePrice) / livePrice) * 100 : null,
