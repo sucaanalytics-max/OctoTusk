@@ -333,6 +333,30 @@ function upsideTierBg(val: number | null | undefined): string | undefined {
   return            "rgba(220, 38, 38, 0.22)";
 }
 
+/** Inline magnitude bar for upside cells: 3px tall, anchored at cell midpoint, width ∝ |val|. */
+function UpsideMagBar({ val }: { val: number | null | undefined }) {
+  if (val == null || isNaN(val as number)) return null;
+  const pct = val * 100;
+  if (pct === 0) return null;
+  const widthPct = Math.min(Math.abs(pct) / 70, 1) * 50; // up to 50% of cell width
+  const isPos = pct > 0;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        bottom: 2,
+        height: 3,
+        borderRadius: 1.5,
+        width: `${widthPct}%`,
+        ...(isPos ? { left: "50%" } : { right: "50%" }),
+        background: isPos ? "var(--color-positive)" : "var(--color-negative)",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
 const cleanTikr = (tikr: string | null | undefined): string => {
   if (!tikr || typeof tikr !== "string") return "";
   if (tikr.includes("(XNSE:")) { const m = tikr.match(/\(XNSE:(\w+)\)/); return m ? m[1] : tikr; }
@@ -2398,11 +2422,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                           case "bear":    return <td key={col.id} style={monoStyle}>{s.bear_current ? `₹${fmt(s.bear_current, 0)}` : "—"}</td>;
                           case "base":    return <td key={col.id} style={monoStyle}>{s.base_current ? `₹${fmt(s.base_current, 0)}` : "—"}</td>;
                           case "bull":    return <td key={col.id} style={monoStyle}>{s.bull_current ? `₹${fmt(s.bull_current, 0)}` : "—"}</td>;
-                          case "uBear":   return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upsideBearCalc) }}>{upsidePill(s.upsideBearCalc)}</td>;
-                          case "uBase":   return <td key={col.id} className="text-center" style={{ fontWeight: 600, background: upsideTierBg(s.upsideBaseCalc) }}>{upsidePill(s.upsideBaseCalc)}</td>;
-                          case "uBull":   return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upsideBullCalc) }}>{upsidePill(s.upsideBullCalc)}</td>;
-                          case "up1y":    return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upside1YCalc) }}>{upsidePill(s.upside1YCalc)}</td>;
-                          case "up2y":    return <td key={col.id} className="text-center" style={{ background: upsideTierBg(s.upside2YCalc) }}>{upsidePill(s.upside2YCalc)}</td>;
+                          case "uBear":   return <td key={col.id} className="text-center" style={{ position: "relative", background: upsideTierBg(s.upsideBearCalc) }}>{upsidePill(s.upsideBearCalc)}<UpsideMagBar val={s.upsideBearCalc} /></td>;
+                          case "uBase":   return <td key={col.id} className="text-center" style={{ position: "relative", fontWeight: 600, background: upsideTierBg(s.upsideBaseCalc) }}>{upsidePill(s.upsideBaseCalc)}<UpsideMagBar val={s.upsideBaseCalc} /></td>;
+                          case "uBull":   return <td key={col.id} className="text-center" style={{ position: "relative", background: upsideTierBg(s.upsideBullCalc) }}>{upsidePill(s.upsideBullCalc)}<UpsideMagBar val={s.upsideBullCalc} /></td>;
+                          case "up1y":    return <td key={col.id} className="text-center" style={{ position: "relative", background: upsideTierBg(s.upside1YCalc) }}>{upsidePill(s.upside1YCalc)}<UpsideMagBar val={s.upside1YCalc} /></td>;
+                          case "up2y":    return <td key={col.id} className="text-center" style={{ position: "relative", background: upsideTierBg(s.upside2YCalc) }}>{upsidePill(s.upside2YCalc)}<UpsideMagBar val={s.upside2YCalc} /></td>;
                           case "pe":      return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_pe ? `${s.base_pe.toFixed(1)}x` : "—"}</td>;
                           case "pb":      return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_pb ? `${s.base_pb.toFixed(1)}x` : "—"}</td>;
                           case "evebitda":return <td key={col.id} className={tdAlign} style={mutedMono}>{s.base_evebitda ? `${s.base_evebitda.toFixed(1)}x` : "—"}</td>;
