@@ -232,14 +232,18 @@ const CountdownTimer = ({ active, onTick }: { active: boolean; onTick: () => voi
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
 
+  const countRef = useRef(CMP_REFRESH_INTERVAL);
   useEffect(() => {
     if (!active) return;
     const t = setInterval(() => {
-      setMktOpen(isMarketOpen());
-      setCountdown(p => {
-        if (p <= 1) { if (isMarketOpen()) onTickRef.current(); return CMP_REFRESH_INTERVAL; }
-        return p - 1;
-      });
+      const open = isMarketOpen();
+      setMktOpen(open);
+      countRef.current -= 1;
+      if (countRef.current <= 0) {
+        countRef.current = CMP_REFRESH_INTERVAL;
+        if (open) onTickRef.current();
+      }
+      setCountdown(countRef.current);
     }, 1000);
     return () => clearInterval(t);
   }, [active]);
@@ -1010,7 +1014,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const fetchQuotes = useCallback(async () => {
     setQuotesLoading(true);
     try {
-      const res = await fetch("/api/quotes");
+      const res = await fetch("/api/quotes", { cache: "no-store" });
+      if (!res.ok) { console.error(`[quotes] HTTP ${res.status}`); return; }
       const data = await res.json();
       if (data.quotes) {
         setQuotes(data.quotes);
