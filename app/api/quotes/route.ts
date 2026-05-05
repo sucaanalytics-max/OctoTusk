@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { unstable_noStore as noStore } from "next/cache";
 import { auth } from "@/auth";
 import { reportError, reportSuccess } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-// yahoo-finance2 v3 requires constructor
-const yf = new (YahooFinance as any)({ suppressNotices: ["yahooSurvey"] });
+// cache: "no-store" ensures yahoo-finance2's globalThis.fetch calls bypass Next.js Data Cache
+const yf = new (YahooFinance as any)({
+  suppressNotices: ["yahooSurvey"],
+  fetchOptions: { cache: "no-store" },
+});
 
 export async function GET() {
+  noStore(); // Belt-and-suspenders: opt this request out of all Next.js caching
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
