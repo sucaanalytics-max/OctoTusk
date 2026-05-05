@@ -179,9 +179,6 @@ export interface EnrichedStock extends Stock {
   upside2YCalc?: number;
   displayTikr: string;
   companyShort: string;
-  // Tier 1A: Composite Decision Score (0-100)
-  cds?: number;
-  cdsBreakdown?: { val: number; tech: number; qual: number; pos: number };
   // Tier 1B: Derived fields from unused data
   forwardPE_fy27?: number;
   forwardPE_fy28?: number;
@@ -893,6 +890,13 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [hmScope, setHmScope] = useState<"portfolio" | "all">("all");
   const [dsScope, setDsScope] = useState<"all" | "holdings">("all");
   const [sectorGroupBy, setSectorGroupBy] = useState<"sector" | "subsector">("sector");
+
+  // Decision Support: cockpit (the stock displayed in the center column)
+  const [cockpitTikr, setCockpitTikr] = useState<string | null>(null);
+  const [tapeSubTab, setTapeSubTab] = useState<"buy" | "profit" | "over" | "catalyst" | "stale">("buy");
+  const [tapeFilter, setTapeFilter] = useState("");
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [hmHover, setHmHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
 
   // VP/SA expandable rows
@@ -910,7 +914,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [simCmpOverrides, setSimCmpOverrides] = useState<Record<string, number>>({});
 
   // Tier 3A: Decision Journal
-  interface JournalEntry { id: number; tikr: string; event_type: string; zone_name: string | null; annotation: string | null; cmp_at_event: number | null; upside_bear: number | null; upside_base: number | null; upside_bull: number | null; cds_at_event: number | null; user_email: string | null; created_at: string; }
+  interface JournalEntry { id: number; tikr: string; event_type: string; zone_name: string | null; annotation: string | null; cmp_at_event: number | null; upside_bear: number | null; upside_base: number | null; upside_bull: number | null; user_email: string | null; created_at: string; }
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [journalLoading, setJournalLoading] = useState(false);
   const [journalFilter, setJournalFilter] = useState<"all" | "transitions" | "annotations">("all");
@@ -1250,7 +1254,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     setJournalLoading(false);
   }, []);
 
-  const postJournalEntry = useCallback(async (entry: { tikr: string; event_type: string; zone_name?: string; annotation?: string; cmp_at_event?: number; upside_bear?: number; upside_base?: number; upside_bull?: number; cds_at_event?: number }) => {
+  const postJournalEntry = useCallback(async (entry: { tikr: string; event_type: string; zone_name?: string; annotation?: string; cmp_at_event?: number; upside_bear?: number; upside_base?: number; upside_bull?: number }) => {
     try {
       await fetch("/api/journal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(entry) });
     } catch { /* silent */ }
@@ -1336,22 +1340,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       let u1Y: number | undefined, u2Y: number | undefined;
       if (liveCmp && s.target_1y) u1Y = (s.target_1y - liveCmp) / liveCmp;
       if (liveCmp && s.target_2y) u2Y = (s.target_2y - liveCmp) / liveCmp;
-      // ── Tier 1A: Composite Decision Score (CDS) 0–100 ──
-      // Valuation (40%): normalize upsideBaseCalc from [-50%, +50%] → [0, 40]
-      const valScore = uBa != null ? Math.max(0, Math.min(40, (uBa + 0.5) * 40)) : 0;
-      // Technical (25%): Golden=25, Above50=15, Above200only=8, Death=0, no data=12
-      const cmpVal = liveCmp || 0;
-      const techScore = (q?.fiftyDayAverage && q?.twoHundredDayAverage && cmpVal)
-        ? (cmpVal > q.fiftyDayAverage && cmpVal > q.twoHundredDayAverage ? 25
-          : cmpVal > q.fiftyDayAverage ? 15 : cmpVal > q.twoHundredDayAverage ? 8 : 0) : 12;
-      // Quality (20%): conviction * 4 (conviction is 1-5)
-      const qualScore = Math.min(20, (s.conviction || 0) * 4);
-      // 52-Week Position (15%): closer to low = higher score
-      const hi52 = q?.fiftyTwoWeekHigh, lo52 = q?.fiftyTwoWeekLow;
-      const posScore = (hi52 && lo52 && hi52 > lo52 && cmpVal)
-        ? (1 - Math.max(0, Math.min(1, (cmpVal - lo52) / (hi52 - lo52)))) * 15 : 7.5;
-      const cds = Math.round(valScore + techScore + qualScore + posScore);
-      const cdsBreakdown = { val: Math.round(valScore), tech: Math.round(techScore), qual: Math.round(qualScore), pos: Math.round(posScore) };
 
       // ── Tier 1B: Derived fields from unused data ──
       // Forward PE using exp_profit_fy27/28 and market cap
@@ -1364,7 +1352,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       const qualityScore = (s.conviction != null && s.understanding != null)
         ? (s.conviction + s.understanding) / 2 : undefined;
 
-      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, upside1YCalc: u1Y, upside2YCalc: u2Y, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), cds, cdsBreakdown, forwardPE_fy27, forwardPE_fy28, qualityScore, sebiSegment: getSebiSegment(q?.marketCap ?? null) };
+      return { ...s, liveCmp, liveChange: q?.change, liveChangePct: q?.changePct, liveVolume: q?.volume, upsideBearCalc: uB, upsideBaseCalc: uBa, upsideBullCalc: uBu, upside1YCalc: u1Y, upside2YCalc: u2Y, displayTikr: cleanTikr(s.tikr), companyShort: getCompanyShort(s), forwardPE_fy27, forwardPE_fy28, qualityScore, sebiSegment: getSebiSegment(q?.marketCap ?? null) };
     });
   }, [liveStocks, quotes, simCmpOverrides]);
 
@@ -1733,7 +1721,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       // Build transitions for journal logging
       const transitions = newAlerts.map(a => {
         const stock = enrichedStocks.find(s => a.msg.includes(s.companyShort || "___"));
-        return { tikr: stock?.tikr || "", event_type: a.type === "exit" ? "zone_exit" : "zone_enter", zone_name: a.type === "exit" ? "" : a.type, cmp: stock?.liveCmp, upsideBear: stock?.upsideBearCalc ? Math.round(stock.upsideBearCalc * 10000) / 100 : undefined, upsideBase: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, upsideBull: stock?.upsideBullCalc ? Math.round(stock.upsideBullCalc * 10000) / 100 : undefined, cds: stock?.cds };
+        return { tikr: stock?.tikr || "", event_type: a.type === "exit" ? "zone_exit" : "zone_enter", zone_name: a.type === "exit" ? "" : a.type, cmp: stock?.liveCmp, upsideBear: stock?.upsideBearCalc ? Math.round(stock.upsideBearCalc * 10000) / 100 : undefined, upsideBase: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, upsideBull: stock?.upsideBullCalc ? Math.round(stock.upsideBullCalc * 10000) / 100 : undefined };
       }).filter(t => t.tikr);
       // Persist zones + log transitions to journal
       fetch("/api/zones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zones: currentZones, transitions }) }).catch(() => {});
@@ -1970,12 +1958,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       <span className="font-bold" style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", color: simUpside >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{simUpside >= 0 ? "+" : ""}{(simUpside * 100).toFixed(1)}%</span>
                     </div>
                   )}
-                  {simActive && s.cds != null && (
-                    <div className="flex items-center gap-2">
-                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CDS:</span>
-                      <span className="font-bold" style={{ fontSize: "var(--text-sm)", fontFamily: "var(--font-mono)", color: s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444" }}>{s.cds}</span>
-                    </div>
-                  )}
                 </div>
                 {!simActive && <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>Drag the slider to simulate a different CMP. All scores auto-recalculate.</p>}
               </div>
@@ -1996,7 +1978,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                 <div className="flex items-center gap-2 mb-2">
                   <input value={journalTikr === s.tikr ? journalAnnotation : ""} onFocus={() => setJournalTikr(s.tikr)} onChange={e => { setJournalTikr(s.tikr); setJournalAnnotation(e.target.value); }} placeholder="Add a note about this stock..." style={{ flex: 1, padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-xs)", background: "var(--color-bg-secondary)", color: "var(--color-text-primary)" }} />
                   <button disabled={journalTikr !== s.tikr || !journalAnnotation.trim()} onClick={async () => {
-                    await postJournalEntry({ tikr: s.tikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: s.liveCmp, upside_base: s.upsideBaseCalc ? Math.round(s.upsideBaseCalc * 10000) / 100 : undefined, cds_at_event: s.cds });
+                    await postJournalEntry({ tikr: s.tikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: s.liveCmp, upside_base: s.upsideBaseCalc ? Math.round(s.upsideBaseCalc * 10000) / 100 : undefined });
                     setJournalAnnotation(""); fetchJournal();
                   }} className="btn btn-sm" style={{ background: "#8B5CF6", color: "#fff", fontSize: "var(--text-xs)", opacity: (journalTikr !== s.tikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
                 </div>
@@ -2041,13 +2023,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         </div>
 
         {/* ── Tier 1: Decision Signals ── */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
-          {/* CDS Badge */}
-          <div className="metric-card animate-fade-in-up delay-5">
-            <div className="uppercase tracking-wide" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>CDS Score</div>
-            <div className="font-bold mt-1" style={{ fontSize: "var(--text-2xl)", fontFamily: "var(--font-mono)", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}<span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>/100</span></div>
-            {s.cdsBreakdown && <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginTop: 4 }}>V:{s.cdsBreakdown.val} T:{s.cdsBreakdown.tech} Q:{s.cdsBreakdown.qual} P:{s.cdsBreakdown.pos}</div>}
-          </div>
+        <div className="grid grid-cols-3 gap-4 mb-4">
           {/* Quality Score */}
           <div className="metric-card animate-fade-in-up delay-5">
             <div className="uppercase tracking-wide" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Quality</div>
@@ -2961,7 +2937,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                       <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
                     </div>
                     <div className="overflow-auto table-scroll-container">
-                    <table className="data-table w-full"><thead><tr><th>#</th><th>Stock</th><th>Sector</th><th>Weight</th><th>CDS</th><th>Bear</th><th>Base</th><th>Bull</th><th>Beta</th></tr></thead>
+                    <table className="data-table w-full"><thead><tr><th>#</th><th>Stock</th><th>Sector</th><th>Weight</th><th>Bear</th><th>Base</th><th>Bull</th><th>Beta</th></tr></thead>
                       <tbody>{top5.map((s, i) => {
                         const e = s.tikr ? enrichmentCache[s.tikr] : undefined;
                         return (
@@ -2970,7 +2946,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                             <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
                             <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td>
                             <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600 }}>{s.holding_pct ? `${((s.holding_pct / totalWeight) * 100).toFixed(1)}%` : "—"}</td>
-                            <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: 10, fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
                             <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>{s.upsideBearCalc != null ? `${(s.upsideBearCalc * 100).toFixed(1)}%` : "—"}</td>
                             <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600, color: s.upsideBaseCalc != null ? (s.upsideBaseCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)") : "var(--color-text-muted)" }}>{s.upsideBaseCalc != null ? `${(s.upsideBaseCalc * 100).toFixed(1)}%` : "—"}</td>
                             <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>{s.upsideBullCalc != null ? `${(s.upsideBullCalc * 100).toFixed(1)}%` : "—"}</td>
@@ -3279,7 +3254,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               ]},
               { title: "Fundamentals", rows: [
                 { label: "Conviction", render: (s) => <span className="font-semibold">{s.conviction ?? "—"}</span> },
-                { label: "CDS", render: (s) => <span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span> },
                 { label: "Quality", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.qualityScore != null ? s.qualityScore.toFixed(1) : "—"}</span> },
                 { label: "Fwd PE FY27", render: (s) => <span style={{ fontFamily: "var(--font-mono)" }}>{s.forwardPE_fy27 ? `${s.forwardPE_fy27.toFixed(1)}x` : "—"}</span> },
                 { label: "Score", render: (s) => <span className="font-semibold" style={{ fontFamily: "var(--font-mono)" }}>{s.score ?? "—"}</span> },
@@ -3337,15 +3311,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                         <div style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: "var(--text-xl)", color: "var(--color-text-primary)", marginBottom: 8 }}>
                           {s.liveCmp ? `₹${fmt(s.liveCmp, 1)}` : "—"}
                         </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 8px", marginBottom: 10 }}>
-                          <div>
-                            <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Conv</div>
-                            <div className="font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.conviction ?? "—"}</div>
-                          </div>
-                          <div>
-                            <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>CDS</div>
-                            <div className="font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.cds ?? "—"}</div>
-                          </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: "0.6rem", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Conviction</div>
+                          <div className="font-semibold" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.conviction ?? "—"}</div>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                           {upsidePill(s.upsideBearCalc)}
@@ -3400,31 +3368,58 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       {activeTab === "decisions" && (
         <div id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions" className="space-y-4 animate-fade-in">
 
-          {/* 1. Control Bar */}
+          {/* ── Page Header: title + Search + Holdings/Universe + Thresholds ── */}
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              {(["all", "holdings"] as const).map(v => (
-                <button key={v} className="scatter-pill" style={pillStyle(dsScope === v)} onClick={() => setDsScope(v)}>
-                  {v === "holdings" ? "Holdings Only" : "Full Universe"}
-                </button>
-              ))}
-              {dsScope === "holdings" && (
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
-                  {holdingTikrs.size} holdings
-                </span>
-              )}
+            <div className="flex items-center gap-3">
+              <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 700, letterSpacing: "-0.015em", color: "var(--color-text-primary)" }}>Decision Support</h2>
+              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{decisionData.totalWithCmp} of {enrichedStocks.length} stocks tracked</span>
             </div>
-            <div className="flex items-center gap-2">
-              <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
-                Buy: {buyZoneLow}%–{buyZoneHigh}% · Base: {baseZoneLow}%–{baseZoneHigh}% · Sell: {sellZoneLow}%–{sellZoneHigh}%
-              </span>
+            <div className="flex items-center gap-3">
+              {/* Global stock search */}
+              <div style={{ position: "relative" }}>
+                <input
+                  value={globalSearchQuery}
+                  onChange={e => setGlobalSearchQuery(e.target.value)}
+                  onFocus={() => setGlobalSearchOpen(true)}
+                  onBlur={() => setTimeout(() => setGlobalSearchOpen(false), 150)}
+                  placeholder={`🔍 Search ${enrichedStocks.length} stocks…`}
+                  style={{ width: 220, padding: "6px 12px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", background: "var(--color-bg-card)", color: "var(--color-text-primary)" }}
+                />
+                {globalSearchOpen && globalSearchQuery.length >= 2 && (() => {
+                  const q = globalSearchQuery.toLowerCase();
+                  const matches = enrichedStocks.filter(s => (s.companyShort || "").toLowerCase().includes(q) || (s.tikr || "").toLowerCase().includes(q)).slice(0, 12);
+                  return (
+                    <div style={{ position: "absolute", top: "calc(100% + 4px)", right: 0, width: 280, maxHeight: 320, overflowY: "auto", background: "var(--color-bg-card)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-elevated)", zIndex: 30 }}>
+                      {matches.length === 0 ? (
+                        <div style={{ padding: 12, fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No matches</div>
+                      ) : matches.map(s => (
+                        <button key={s.tikr} onMouseDown={e => { e.preventDefault(); setCockpitTikr(s.tikr); setGlobalSearchQuery(""); setGlobalSearchOpen(false); }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%", padding: "8px 12px", border: "none", background: "transparent", cursor: "pointer", borderBottom: "1px solid var(--color-border-subtle)", textAlign: "left" }} onMouseEnter={e => e.currentTarget.style.background = "var(--color-bg-hover)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.companyShort}</div>
+                            <div style={{ fontSize: 10, color: "var(--color-text-muted)" }}>{s.sector || "—"}</div>
+                          </div>
+                          {s.liveCmp != null && <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>₹{fmt(s.liveCmp, 0)}</div>}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* Holdings/Universe toggle */}
+              <div className="flex items-center gap-2">
+                {(["all", "holdings"] as const).map(v => (
+                  <button key={v} className="scatter-pill" style={pillStyle(dsScope === v)} onClick={() => setDsScope(v)}>
+                    {v === "holdings" ? `Holdings · ${holdingTikrs.size}` : "Full Universe"}
+                  </button>
+                ))}
+              </div>
               <button className="scatter-pill" style={pillStyle(showThresholdSettings)} onClick={() => setShowThresholdSettings(p => !p)}>
                 ⚙ Thresholds
               </button>
             </div>
           </div>
 
-          {/* 2. Threshold Panel */}
+          {/* Threshold Panel (preserved, collapsible) */}
           {showThresholdSettings && (
             <div className="metric-card animate-fade-in-up">
               <h3 style={{ marginBottom: 14, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Zone Thresholds</h3>
@@ -3466,138 +3461,433 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </div>
           )}
 
-          {/* 3. KPI Summary Strip */}
-          <div className="kpi-grid">
-            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-positive)" }}>
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-positive)" }}>Buy Zone</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.buyZone.length}</p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>near bear case</p>
-            </div>
-            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-accent-blue)" }}>Near Base</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.cmpNearBase.length}</p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>at fair value</p>
-            </div>
-            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-warning)" }}>
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>Take Profit</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.sellZone.length}</p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>near bull case</p>
-            </div>
-            <div className="kpi-card" style={{ borderTop: "3px solid var(--color-negative)" }}>
-              <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-negative)" }}>Overvalued</p>
-              <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{decisionData.overvalued.length}</p>
-              <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>above bull case</p>
-            </div>
-            {(() => {
-              const now = new Date();
-              const cutoff = now.getTime() + 28 * 86400000;
-              const count = Object.values(enrichmentCache).reduce((n, data) => {
-                const d = data.earningsDate ? new Date(data.earningsDate).getTime() : 0;
-                return n + (d > now.getTime() && d < cutoff ? 1 : 0);
-              }, 0);
-              return (
-                <div className="kpi-card kpi-warning">
-                  <p className="uppercase tracking-wide font-medium" style={{ fontSize: "var(--text-xs)", color: "var(--color-warning)" }}>Catalysts</p>
-                  <p className="font-bold mt-1" style={{ fontSize: "var(--text-xl)", fontFamily: "var(--font-mono)", color: "var(--color-text-primary)" }}>{count}</p>
-                  <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>earnings next 28d</p>
+          {/* ════════════════════════════════════════════════════════════════
+              ABOVE-THE-FOLD HERO — 3-column: Action Tape · Stock Cockpit · Pulse
+              ════════════════════════════════════════════════════════════════ */}
+          {(() => {
+            // Compute tape items per active sub-tab
+            const dsNow = new Date();
+            const dsCutoff28 = dsNow.getTime() + 28 * 86400000;
+            const inScope = (s: EnrichedStock) => dsScope === "holdings" ? holdingTikrs.has(s.tikr) : true;
+
+            const catalystStocks = enrichedStocks
+              .filter(s => {
+                if (!inScope(s)) return false;
+                const data = enrichmentCache[s.tikr];
+                if (!data?.earningsDate) return false;
+                const t = new Date(data.earningsDate).getTime();
+                return t > dsNow.getTime() && t < dsCutoff28;
+              })
+              .sort((a, b) => {
+                const ta = new Date(enrichmentCache[a.tikr]!.earningsDate!).getTime();
+                const tb = new Date(enrichmentCache[b.tikr]!.earningsDate!).getTime();
+                return ta - tb;
+              });
+            const staleStocks = enrichedStocks
+              .filter(s => {
+                if (!inScope(s)) return false;
+                if (!s.last_updated) return true;
+                const d = new Date(s.last_updated);
+                return (dsNow.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) > 60;
+              })
+              .sort((a, b) => {
+                const da = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+                const db = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+                return da - db;
+              });
+
+            const tapeMap: Record<string, EnrichedStock[]> = {
+              buy: decisionData.buyZone,
+              profit: decisionData.sellZone,
+              over: decisionData.overvalued,
+              catalyst: catalystStocks,
+              stale: staleStocks,
+            };
+            const baseList = tapeMap[tapeSubTab] || [];
+            const filteredTapeList = tapeFilter
+              ? baseList.filter(s => (s.companyShort || "").toLowerCase().includes(tapeFilter.toLowerCase()) || (s.tikr || "").toLowerCase().includes(tapeFilter.toLowerCase()))
+              : baseList;
+
+            // Cockpit stock — selected, or first of current sub-tab, or first overall
+            const effectiveCockpitTikr = cockpitTikr || baseList[0]?.tikr || enrichedStocks[0]?.tikr;
+            const cockpitStock = enrichedStocks.find(s => s.tikr === effectiveCockpitTikr);
+
+            // Tape sub-tab metadata
+            const tapeTabs: { id: typeof tapeSubTab; label: string; count: number; accent: string }[] = [
+              { id: "buy",      label: "Buy",         count: decisionData.buyZone.length,    accent: "var(--color-positive)" },
+              { id: "profit",   label: "Take Profit", count: decisionData.sellZone.length,   accent: "var(--color-warning)" },
+              { id: "over",     label: "Overvalued",  count: decisionData.overvalued.length, accent: "var(--color-negative)" },
+              { id: "catalyst", label: "Catalyst",    count: catalystStocks.length,           accent: "var(--color-accent-blue)" },
+              { id: "stale",    label: "Stale",       count: staleStocks.length,              accent: "var(--color-text-muted)" },
+            ];
+            const subTabAccent = tapeTabs.find(t => t.id === tapeSubTab)?.accent || "var(--color-positive)";
+
+            // Pulse: holdings-only sector exposure (regardless of toggle)
+            const pulseStocks = enrichedStocks.filter(s => holdingTikrs.has(s.tikr));
+            const pulseSectorMap: Record<string, number> = {};
+            let pulseSectorTotal = 0;
+            pulseStocks.forEach(s => {
+              const sec = s.sector || "Other";
+              pulseSectorMap[sec] = (pulseSectorMap[sec] || 0) + (s.holding_cash_lakhs || 0);
+              pulseSectorTotal += s.holding_cash_lakhs || 0;
+            });
+            const pulseSectorRows = Object.entries(pulseSectorMap)
+              .map(([sec, val]) => ({ sec, val, pct: pulseSectorTotal > 0 ? (val / pulseSectorTotal) * 100 : 0 }))
+              .sort((a, b) => b.pct - a.pct)
+              .slice(0, 7);
+
+            const convMap: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+            pulseStocks.forEach(s => {
+              const c = s.conviction || 0;
+              if (convMap[c] != null) convMap[c] += s.holding_cash_lakhs || 0;
+            });
+            const totalConvCash = Object.values(convMap).reduce((sum, v) => sum + v, 0);
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "320px 1fr 360px", gap: 14 }}>
+
+                {/* ① ACTION TAPE */}
+                <div className="metric-card" style={{ padding: 0, display: "flex", flexDirection: "column", maxHeight: 760, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+                    <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--color-text-muted)" }}>
+                      Action Tape <span style={{ color: "var(--color-text-secondary)", fontWeight: 500, marginLeft: 8, letterSpacing: "0.06em" }}>ranked by urgency</span>
+                    </h3>
+                  </div>
+                  <div style={{ display: "flex", gap: 2, padding: "8px 12px 0", borderBottom: "1px solid var(--color-border-subtle)", flexWrap: "wrap" }}>
+                    {tapeTabs.map(t => (
+                      <button key={t.id} onClick={() => setTapeSubTab(t.id)} style={{ background: "none", border: "none", padding: "6px 10px", fontSize: 10, fontWeight: 600, color: tapeSubTab === t.id ? "var(--color-text-primary)" : "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer", position: "relative", borderBottom: tapeSubTab === t.id ? `2px solid ${t.accent}` : "2px solid transparent", marginBottom: -1 }}>
+                        {t.label} <span style={{ marginLeft: 4, padding: "1px 6px", borderRadius: "var(--radius-full)", background: "var(--color-bg-hover)", color: "var(--color-text-secondary)", fontSize: 9, fontWeight: 600 }}>{t.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+                    <input value={tapeFilter} onChange={e => setTapeFilter(e.target.value)} placeholder="Filter…" style={{ width: "100%", padding: "5px 10px", fontSize: 11, border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "var(--color-bg-card)", color: "var(--color-text-primary)" }} />
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto" }}>
+                    {filteredTapeList.length === 0 ? (
+                      <div style={{ padding: "24px 16px", textAlign: "center", fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No stocks {tapeFilter ? "match this filter" : "in this zone at current thresholds"}.</div>
+                    ) : filteredTapeList.map(s => {
+                      const isSelected = effectiveCockpitTikr === s.tikr;
+                      const upside = tapeSubTab === "buy" ? s.upsideBearCalc : (tapeSubTab === "profit" || tapeSubTab === "over") ? s.upsideBullCalc : (tapeSubTab === "stale" || tapeSubTab === "catalyst") ? null : s.upsideBaseCalc;
+                      const refTarget = tapeSubTab === "buy" ? s.bear_current : (tapeSubTab === "profit" || tapeSubTab === "over") ? s.bull_current : s.base_current;
+                      const refLabel = tapeSubTab === "buy" ? "bear" : (tapeSubTab === "profit" || tapeSubTab === "over") ? "bull" : "base";
+                      const ageDays = s.last_updated ? Math.ceil((dsNow.getTime() - new Date(s.last_updated).getTime()) / (1000 * 60 * 60 * 24)) : null;
+                      return (
+                        <div key={s.tikr} role="button" tabIndex={0} onClick={() => setCockpitTikr(s.tikr)} onKeyDown={e => e.key === "Enter" && setCockpitTikr(s.tikr)} style={{ padding: "11px 16px", borderBottom: "1px solid var(--color-border-subtle)", cursor: "pointer", borderLeft: `${isSelected ? 4 : 3}px solid ${subTabAccent}`, background: isSelected ? "var(--color-bg-elevated)" : "transparent", transition: "background 0.15s" }} onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--color-bg-hover)"; }} onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}>
+                          <div className="flex items-baseline justify-between" style={{ marginBottom: 4 }}>
+                            <span style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text-primary)", letterSpacing: "-0.005em" }}>{s.companyShort}</span>
+                            {tapeSubTab === "stale" && ageDays != null ? (
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>{ageDays}d ago</span>
+                            ) : tapeSubTab === "catalyst" ? (
+                              (() => {
+                                const data = enrichmentCache[s.tikr];
+                                if (!data?.earningsDate) return null;
+                                const days = Math.ceil((new Date(data.earningsDate).getTime() - dsNow.getTime()) / (1000 * 60 * 60 * 24));
+                                return <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: "var(--color-warning)", fontWeight: 600 }}>{days}d</span>;
+                              })()
+                            ) : upside != null ? (
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", fontWeight: 600, color: upside >= 0 ? "var(--color-positive)" : "var(--color-warning)" }}>{upside >= 0 ? "↑ +" : "↓ "}{(upside * 100).toFixed(0)}%</span>
+                            ) : null}
+                          </div>
+                          <div className="flex items-center gap-2" style={{ fontSize: 10, color: "var(--color-text-muted)" }}>
+                            {s.sector && <span style={{ padding: "1px 7px", borderRadius: "var(--radius-full)", background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{s.sector}</span>}
+                            <ConvictionDots level={s.conviction ?? 0} />
+                          </div>
+                          {s.liveCmp && refTarget && tapeSubTab !== "stale" && tapeSubTab !== "catalyst" && (
+                            <div style={{ marginTop: 5, fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>₹{fmt(s.liveCmp, 0)}</span>
+                              <span style={{ color: "var(--color-text-muted)" }}>→</span>
+                              <span>₹{fmt(refTarget, 0)}</span>
+                              <span style={{ color: "var(--color-text-muted)", textTransform: "lowercase" }}>{refLabel}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })()}
-          </div>
 
-          {/* 4. Unified Zone Alert Tables */}
-          <div className="metric-card animate-fade-in-up">
-            <h3 style={{ marginBottom: 14, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Action Zones</h3>
-            <div style={{ overflowX: "auto" }}>
-              <table className="data-table w-full" role="table">
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: 140 }}>Company</th>
-                    <th>Sector</th>
-                    <th>CMP</th>
-                    <th>Reference</th>
-                    <th>Signal</th>
-                    <th>↑ Base</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td colSpan={6} style={{ background: "rgba(5,150,105,0.10)", color: "var(--color-positive)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Buy Zone — CMP Near Bear · {decisionData.buyZone.length} stock{decisionData.buyZone.length !== 1 ? "s" : ""}</td></tr>
-                  {decisionData.buyZone.length === 0
-                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
-                    : sortZoneData("buy", decisionData.buyZone).map((s, i) => (
-                      <tr key={i} className="row-buy-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
-                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBearCalc)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
-                      </tr>
-                    ))
-                  }
-                  <tr><td colSpan={6} style={{ background: "rgba(59,130,246,0.10)", color: "var(--color-accent-blue)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Near Base — CMP at Fair Value · {decisionData.cmpNearBase.length} stock{decisionData.cmpNearBase.length !== 1 ? "s" : ""}</td></tr>
-                  {decisionData.cmpNearBase.length === 0
-                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
-                    : sortZoneData("nearBase", decisionData.cmpNearBase).map((s, i) => (
-                      <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
-                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.base_current, 0)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
-                      </tr>
-                    ))
-                  }
-                  <tr><td colSpan={6} style={{ background: "rgba(217,119,6,0.10)", color: "var(--color-warning)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Take Profit — CMP Near Bull · {decisionData.sellZone.length} stock{decisionData.sellZone.length !== 1 ? "s" : ""}</td></tr>
-                  {decisionData.sellZone.length === 0
-                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
-                    : sortZoneData("sell", decisionData.sellZone).map((s, i) => (
-                      <tr key={i} className="row-sell-zone cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
-                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBullCalc)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
-                      </tr>
-                    ))
-                  }
-                  <tr><td colSpan={6} style={{ background: "rgba(220,38,38,0.10)", color: "var(--color-negative)", fontWeight: 700, fontSize: "var(--text-xs)", textTransform: "uppercase", letterSpacing: "0.06em", padding: "6px 8px", borderTop: "2px solid var(--color-border)" }}>Overvalued — CMP Above Bull · {decisionData.overvalued.length} stock{decisionData.overvalued.length !== 1 ? "s" : ""}</td></tr>
-                  {decisionData.overvalued.length === 0
-                    ? <tr><td colSpan={6} style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)", padding: "8px" }}>None in range</td></tr>
-                    : sortZoneData("overvalued", decisionData.overvalued).map((s, i) => (
-                      <tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}>
-                        <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
-                        <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td>
-                        <td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bull_current, 0)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBullCalc)}</td>
-                        <td className="text-center">{upsidePill(s.upsideBaseCalc)}</td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
+                {/* ② STOCK COCKPIT */}
+                <div className="metric-card" style={{ padding: 0, display: "flex", flexDirection: "column", maxHeight: 760, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-subtle)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--color-text-muted)" }}>
+                      Stock Cockpit <span style={{ color: "var(--color-text-secondary)", fontWeight: 500, marginLeft: 8, letterSpacing: "0.06em" }}>← click any tape row</span>
+                    </h3>
+                  </div>
+                  {!cockpitStock ? (
+                    <div style={{ padding: 36, textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-sm)" }}>Select a stock from the Action Tape or search above.</div>
+                  ) : (() => {
+                    const cs = cockpitStock;
+                    const cq = quotes[cs.tikr];
+                    const cenr = enrichmentCache[cs.tikr];
+                    let markerPct = 50;
+                    if (cs.liveCmp != null && cs.bear_current != null && cs.bull_current != null && cs.bull_current > cs.bear_current) {
+                      markerPct = Math.max(0, Math.min(100, ((cs.liveCmp - cs.bear_current) / (cs.bull_current - cs.bear_current)) * 100));
+                    }
+                    const hi52 = cq?.fiftyTwoWeekHigh, lo52 = cq?.fiftyTwoWeekLow;
+                    const range52pct = (hi52 && lo52 && hi52 > lo52 && cs.liveCmp) ? ((cs.liveCmp - lo52) / (hi52 - lo52)) * 100 : null;
+                    const ma50 = cq?.fiftyDayAverage;
+                    const ma200 = cq?.twoHundredDayAverage;
+                    const above50 = ma50 && cs.liveCmp ? cs.liveCmp > ma50 : null;
+                    const above200 = ma200 && cs.liveCmp ? cs.liveCmp > ma200 : null;
+                    const ma50pct = ma50 && cs.liveCmp ? ((cs.liveCmp - ma50) / ma50) * 100 : null;
+                    const ma200pct = ma200 && cs.liveCmp ? ((cs.liveCmp - ma200) / ma200) * 100 : null;
+                    const goldenCross = above50 === true && above200 === true;
+                    const deathCross = above50 === false && above200 === false;
+                    const earningsD = cenr?.earningsDate ? new Date(cenr.earningsDate) : null;
+                    const earningsDays = earningsD ? Math.ceil((earningsD.getTime() - dsNow.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                    const exDivD = cenr?.exDividendDate ? new Date(cenr.exDividendDate) : null;
+                    const exDivDays = exDivD ? Math.ceil((exDivD.getTime() - dsNow.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                    const recentJournal = journalEntries.filter(e => e.tikr === cs.tikr).slice(0, 3);
+                    const totalJournalForStock = journalEntries.filter(e => e.tikr === cs.tikr).length;
 
-          {/* 5. Top 10 Rankings */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="metric-card animate-fade-in-up delay-3" style={{ borderTop: "3px solid var(--color-accent-blue)" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Top 10 — Highest Upside to Base</h3>
-              <div className="overflow-auto max-h-[340px]"><table className="data-table w-full"><thead><tr><th>#</th><Th sortCol={zoneSorts.bestUp?.col || ""} sortDir={zoneSorts.bestUp?.dir || "desc"} onSort={c => toggleZoneSort("bestUp", c)} col="companyShort" label="Company" /><Th sortCol={zoneSorts.bestUp?.col || ""} sortDir={zoneSorts.bestUp?.dir || "desc"} onSort={c => toggleZoneSort("bestUp", c)} col="sector" label="Sector" /><Th sortCol={zoneSorts.bestUp?.col || ""} sortDir={zoneSorts.bestUp?.dir || "desc"} onSort={c => toggleZoneSort("bestUp", c)} col="liveCmp" label="CMP" /><Th sortCol={zoneSorts.bestUp?.col || ""} sortDir={zoneSorts.bestUp?.dir || "desc"} onSort={c => toggleZoneSort("bestUp", c)} col="base_current" label="Base" /><Th sortCol={zoneSorts.bestUp?.col || ""} sortDir={zoneSorts.bestUp?.dir || "desc"} onSort={c => toggleZoneSort("bestUp", c)} col="upsideBaseCalc" label="Upside" /></tr></thead>
-                <tbody>{sortZoneData("bestUp", decisionData.bestUpside).map((s, i) => (<tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.base_current, 0)}</td><td><UpsideBar value={(s.upsideBaseCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
-            </div>
-            <div className="metric-card animate-fade-in-up delay-4" style={{ borderTop: "3px solid var(--color-warning)" }}>
-              <h3 className="font-bold mb-3" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>Top 10 — Largest Downside to Bear</h3>
-              <div className="overflow-auto max-h-[340px]"><table className="data-table w-full"><thead><tr><th>#</th><Th sortCol={zoneSorts.worstDown?.col || ""} sortDir={zoneSorts.worstDown?.dir || "desc"} onSort={c => toggleZoneSort("worstDown", c)} col="companyShort" label="Company" /><Th sortCol={zoneSorts.worstDown?.col || ""} sortDir={zoneSorts.worstDown?.dir || "desc"} onSort={c => toggleZoneSort("worstDown", c)} col="sector" label="Sector" /><Th sortCol={zoneSorts.worstDown?.col || ""} sortDir={zoneSorts.worstDown?.dir || "desc"} onSort={c => toggleZoneSort("worstDown", c)} col="liveCmp" label="CMP" /><Th sortCol={zoneSorts.worstDown?.col || ""} sortDir={zoneSorts.worstDown?.dir || "desc"} onSort={c => toggleZoneSort("worstDown", c)} col="bear_current" label="Bear" /><Th sortCol={zoneSorts.worstDown?.col || ""} sortDir={zoneSorts.worstDown?.dir || "desc"} onSort={c => toggleZoneSort("worstDown", c)} col="upsideBearCalc" label="Downside" /></tr></thead>
-                <tbody>{sortZoneData("worstDown", decisionData.worstDownside).map((s, i) => (<tr key={i} className="cursor-pointer" onClick={() => setDetailStock(s)} tabIndex={0} onKeyDown={e => e.key === "Enter" && setDetailStock(s)}><td style={{ color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>{i + 1}</td><td className="font-semibold" style={{ whiteSpace: "normal", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }}>{s.companyShort}</td><td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.liveCmp, 0)}</td><td style={{ fontFamily: "var(--font-mono)" }}>₹{fmt(s.bear_current, 0)}</td><td><UpsideBar value={(s.upsideBearCalc || 0) * 100} /></td></tr>))}</tbody></table></div>
-            </div>
-          </div>
+                    return (
+                      <div style={{ flex: 1, overflowY: "auto", padding: "18px 22px" }}>
+                        {/* Header row */}
+                        <div className="flex items-start justify-between" style={{ marginBottom: 14 }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: "var(--text-2xl)", fontWeight: 700, letterSpacing: "-0.02em", color: "var(--color-text-primary)" }}>{cs.companyShort}</div>
+                            <div className="flex items-center gap-2" style={{ marginTop: 4, flexWrap: "wrap" }}>
+                              {cs.sector && <span style={{ padding: "2px 9px", borderRadius: "var(--radius-full)", background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{cs.sector}</span>}
+                              <ConvictionDots level={cs.conviction ?? 0} />
+                              {(cs.vp || cs.sa) && <span style={{ fontSize: 10, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{cs.vp && `vp · ${cs.vp}`}{cs.vp && cs.sa && " · "}{cs.sa && `sa · ${cs.sa}`}</span>}
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right", marginLeft: 12 }}>
+                            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>CMP · LIVE</div>
+                            <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-3xl)", fontWeight: 600, letterSpacing: "-0.02em", color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{cs.liveCmp ? `₹${fmt(cs.liveCmp, 0)}` : "—"}</div>
+                            {cs.liveChangePct != null && <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: 600, color: cs.liveChangePct >= 0 ? "var(--color-positive)" : "var(--color-negative)" }}>{cs.liveChangePct >= 0 ? "+" : ""}{cs.liveChangePct.toFixed(2)}% today</div>}
+                          </div>
+                        </div>
+
+                        {/* Bear / Base / Bull band */}
+                        {(cs.bear_current && cs.base_current && cs.bull_current) && (
+                          <div style={{ background: "var(--color-bg-elevated)", borderRadius: "var(--radius-md)", padding: "18px 20px 14px", marginBottom: 14, position: "relative" }}>
+                            <div style={{ position: "relative", height: 8, borderRadius: "var(--radius-full)", background: "linear-gradient(90deg, var(--color-positive) 0%, var(--color-positive) 33%, var(--color-accent-blue) 33%, var(--color-accent-blue) 66%, var(--color-warning) 66%, var(--color-warning) 100%)", opacity: 0.85 }}>
+                              <div style={{ position: "absolute", top: -8, bottom: -8, width: 3, background: "var(--color-text-primary)", borderRadius: 2, left: `${markerPct}%`, transform: "translateX(-1.5px)", boxShadow: "0 0 0 3px rgba(255,255,255,0.95), 0 1px 4px rgba(0,0,0,0.2)" }} />
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", marginTop: 12, gap: 8 }}>
+                              <div>
+                                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Bear</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text-primary)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>₹{fmt(cs.bear_current, 0)}</div>
+                                {cs.upsideBearCalc != null && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, marginTop: 1, color: cs.upsideBearCalc >= 0 ? "var(--color-positive)" : "var(--color-text-muted)", fontWeight: 600 }}>{cs.upsideBearCalc >= 0 ? `↑ +${(cs.upsideBearCalc * 100).toFixed(1)}%` : `already +${(-cs.upsideBearCalc * 100).toFixed(1)}%`}</div>}
+                              </div>
+                              <div style={{ textAlign: "center" }}>
+                                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Base</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text-primary)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>₹{fmt(cs.base_current, 0)}</div>
+                                {cs.upsideBaseCalc != null && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, marginTop: 1, color: cs.upsideBaseCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontWeight: 600 }}>{cs.upsideBaseCalc >= 0 ? "↑ +" : "↓ "}{(cs.upsideBaseCalc * 100).toFixed(1)}%</div>}
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Bull</div>
+                                <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text-primary)", marginTop: 2, fontVariantNumeric: "tabular-nums" }}>₹{fmt(cs.bull_current, 0)}</div>
+                                {cs.upsideBullCalc != null && <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, marginTop: 1, color: cs.upsideBullCalc >= 0 ? "var(--color-positive)" : "var(--color-warning)", fontWeight: 600 }}>{cs.upsideBullCalc >= 0 ? "↑ +" : "↓ "}{(cs.upsideBullCalc * 100).toFixed(1)}%</div>}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Forward Targets row */}
+                        {(cs.target_1y || cs.target_2y) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", alignItems: "center", gap: 14, padding: "10px 0", borderTop: "1px solid var(--color-border-subtle)" }}>
+                            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Forward Targets</div>
+                            <div style={{ display: "flex", gap: 18, fontSize: "var(--text-sm)", flexWrap: "wrap" }}>
+                              {cs.target_1y != null && (
+                                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                                  <span style={{ fontSize: 10, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>1y</span>
+                                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>₹{fmt(cs.target_1y, 0)}</span>
+                                  {cs.upside1YCalc != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: cs.upside1YCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontWeight: 600 }}>{cs.upside1YCalc >= 0 ? "↑ +" : "↓ "}{(cs.upside1YCalc * 100).toFixed(1)}%</span>}
+                                </div>
+                              )}
+                              {cs.target_2y != null && (
+                                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                                  <span style={{ fontSize: 10, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>2y</span>
+                                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>₹{fmt(cs.target_2y, 0)}</span>
+                                  {cs.upside2YCalc != null && <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: cs.upside2YCalc >= 0 ? "var(--color-positive)" : "var(--color-negative)", fontWeight: 600 }}>{cs.upside2YCalc >= 0 ? "↑ +" : "↓ "}{(cs.upside2YCalc * 100).toFixed(1)}%</span>}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Multiples row */}
+                        {(cs.base_pe != null || cs.base_pb != null || cs.base_evebitda != null) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", alignItems: "center", gap: 14, padding: "10px 0", borderTop: "1px solid var(--color-border-subtle)" }}>
+                            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Multiples</div>
+                            <div style={{ display: "flex", gap: 20, fontSize: "var(--text-sm)", flexWrap: "wrap" }}>
+                              {cs.base_pe != null && <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}><span style={{ fontSize: 10, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>PE</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{cs.base_pe.toFixed(1)}×</span></div>}
+                              {cs.base_pb != null && <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}><span style={{ fontSize: 10, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>PB</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{cs.base_pb.toFixed(1)}×</span></div>}
+                              {cs.base_evebitda != null && <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}><span style={{ fontSize: 10, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>EV/EBITDA</span><span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{cs.base_evebitda.toFixed(1)}×</span></div>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 52-week range */}
+                        {range52pct != null && hi52 && lo52 && (
+                          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", alignItems: "center", gap: 14, padding: "10px 0", borderTop: "1px solid var(--color-border-subtle)" }}>
+                            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>52-Week</div>
+                            <div className="flex items-center gap-3">
+                              <div className="range-bar-track flex-1" style={{ minWidth: 180 }}>
+                                <div className="range-bar-fill" style={{ width: "100%", background: range52pct < 15 ? "var(--color-positive)" : range52pct > 85 ? "var(--color-warning)" : "var(--color-accent-blue)", opacity: 0.5 }} />
+                                <div className="range-bar-marker" style={{ left: `${Math.max(2, Math.min(98, range52pct))}%` }} />
+                              </div>
+                              <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>₹{fmt(lo52, 0)} · <strong>{range52pct.toFixed(0)}%</strong> · ₹{fmt(hi52, 0)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Moving averages */}
+                        {(ma50pct != null || ma200pct != null) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", alignItems: "center", gap: 14, padding: "10px 0", borderTop: "1px solid var(--color-border-subtle)" }}>
+                            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Moving Avg</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {ma50pct != null && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: "var(--radius-sm)", background: above50 ? "var(--color-positive-bg)" : "var(--color-warning-bg)", color: above50 ? "var(--color-positive)" : "var(--color-warning)", border: `1px solid ${above50 ? "var(--color-positive-border)" : "var(--color-warning-border)"}`, fontSize: 10, fontWeight: 600 }}>50 DMA <span style={{ fontFamily: "var(--font-mono)" }}>{ma50pct >= 0 ? "+" : ""}{ma50pct.toFixed(1)}%</span></span>}
+                              {ma200pct != null && <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: "var(--radius-sm)", background: above200 ? "var(--color-positive-bg)" : "var(--color-warning-bg)", color: above200 ? "var(--color-positive)" : "var(--color-warning)", border: `1px solid ${above200 ? "var(--color-positive-border)" : "var(--color-warning-border)"}`, fontSize: 10, fontWeight: 600 }}>200 DMA <span style={{ fontFamily: "var(--font-mono)" }}>{ma200pct >= 0 ? "+" : ""}{ma200pct.toFixed(1)}%</span></span>}
+                              {goldenCross && <span style={{ fontSize: 10, color: "var(--color-positive)", fontWeight: 600 }}>Golden cross</span>}
+                              {deathCross && <span style={{ fontSize: 10, color: "var(--color-negative)", fontWeight: 600 }}>Death cross</span>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Catalysts */}
+                        {(earningsDays != null || exDivDays != null) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", alignItems: "center", gap: 14, padding: "10px 0", borderTop: "1px solid var(--color-border-subtle)" }}>
+                            <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 600 }}>Catalysts</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {earningsDays != null && earningsD && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: "var(--radius-sm)", background: "var(--color-info-bg)", color: "var(--color-accent-blue)", border: "1px solid rgba(37,99,235,0.2)", fontSize: 10, fontWeight: 600 }}>▣ Earnings <strong style={{ fontFamily: "var(--font-mono)" }}>{earningsD.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</strong> · {earningsDays >= 0 ? `${earningsDays}d` : `${Math.abs(earningsDays)}d ago`}</span>}
+                              {exDivDays != null && exDivD && <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: "var(--radius-sm)", background: "var(--color-positive-bg)", color: "var(--color-positive)", border: "1px solid var(--color-positive-border)", fontSize: 10, fontWeight: 600 }}>◆ Ex-Div <strong style={{ fontFamily: "var(--font-mono)" }}>{exDivD.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</strong> · {exDivDays >= 0 ? `${exDivDays}d` : `${Math.abs(exDivDays)}d ago`}</span>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Recent journal + Add note */}
+                        <div style={{ marginTop: 14, background: "var(--color-bg-elevated)", borderRadius: "var(--radius-md)", padding: "14px 16px" }}>
+                          <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+                            <span style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 700 }}>Recent journal · {recentJournal.length}</span>
+                            {totalJournalForStock > 3 && <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>{totalJournalForStock} total</span>}
+                          </div>
+                          {recentJournal.length === 0 ? (
+                            <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: "4px 0" }}>No journal entries for this stock yet.</div>
+                          ) : recentJournal.map(e => {
+                            const isEnter = e.event_type === "zone_enter";
+                            const isExit = e.event_type === "zone_exit";
+                            const isNote = e.event_type === "annotation";
+                            const icon = isEnter ? "→" : isExit ? "←" : "✎";
+                            const iconColor = isEnter ? "var(--color-positive)" : isExit ? "var(--color-text-muted)" : "#8B5CF6";
+                            const dateStr = new Date(e.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+                            const zoneLabel = e.zone_name === "buy" ? "Buy Zone" : e.zone_name === "sell" ? "Take Profit" : e.zone_name === "overvalued" ? "Overvalued" : e.zone_name || "";
+                            return (
+                              <div key={e.id} style={{ display: "flex", gap: 10, padding: "5px 0", fontSize: "var(--text-xs)", alignItems: "flex-start" }}>
+                                <span style={{ fontSize: 11, color: iconColor, width: 16, textAlign: "center", flexShrink: 0 }}>{icon}</span>
+                                <span style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)", fontSize: 10, minWidth: 50 }}>{dateStr}</span>
+                                <span style={{ color: "var(--color-text-primary)", flex: 1 }}>
+                                  {isEnter && <><strong>Entered {zoneLabel}</strong>{e.cmp_at_event != null && <> — CMP ₹{fmt(e.cmp_at_event, 0)}</>}</>}
+                                  {isExit && <><strong>Exited {zoneLabel}</strong>{e.cmp_at_event != null && <> — CMP ₹{fmt(e.cmp_at_event, 0)}</>}</>}
+                                  {isNote && (e.annotation || "—")}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          <div style={{ display: "flex", gap: 8, marginTop: 10, padding: 8, background: "var(--color-bg-card)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)" }}>
+                            <input value={journalTikr === cs.tikr ? journalAnnotation : ""} onFocus={() => setJournalTikr(cs.tikr)} onChange={e => { setJournalTikr(cs.tikr); setJournalAnnotation(e.target.value); }} placeholder={`Add a note about ${cs.companyShort}…`} style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: "var(--text-sm)", color: "var(--color-text-primary)" }} />
+                            <button disabled={journalTikr !== cs.tikr || !journalAnnotation.trim()} onClick={async () => {
+                              await postJournalEntry({ tikr: cs.tikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: cs.liveCmp, upside_base: cs.upsideBaseCalc ? Math.round(cs.upsideBaseCalc * 10000) / 100 : undefined });
+                              setJournalAnnotation(""); fetchJournal();
+                            }} style={{ padding: "4px 12px", background: "#8B5CF6", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", fontSize: "var(--text-xs)", fontWeight: 600, cursor: "pointer", opacity: (journalTikr !== cs.tikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* ③ PORTFOLIO PULSE */}
+                <div className="metric-card" style={{ padding: 0, display: "flex", flexDirection: "column", maxHeight: 760, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+                    <h3 style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--color-text-muted)" }}>
+                      Portfolio Pulse <span style={{ color: "var(--color-text-secondary)", fontWeight: 500, marginLeft: 8, letterSpacing: "0.06em" }}>holdings</span>
+                    </h3>
+                  </div>
+                  <div style={{ flex: 1, overflowY: "auto" }}>
+                    <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 700, marginBottom: 10 }}>Sector Exposure</div>
+                      {pulseSectorRows.length === 0 ? (
+                        <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>No holdings data.</div>
+                      ) : pulseSectorRows.map(({ sec, pct }) => {
+                        const color = sectorColors[sec] || "#6B7280";
+                        return (
+                          <div key={sec} style={{ display: "grid", gridTemplateColumns: "78px 1fr 36px", alignItems: "center", gap: 10, padding: "4px 0", fontSize: "var(--text-xs)" }}>
+                            <span style={{ color: "var(--color-text-secondary)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={sec}>{sec}</span>
+                            <div style={{ height: 8, background: "var(--color-bg-hover)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
+                              <div style={{ height: "100%", borderRadius: "var(--radius-full)", background: color, width: `${Math.min(100, pct * 2.5)}%` }} />
+                            </div>
+                            <span style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(0)}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 700, marginBottom: 10 }}>Conviction × Weight</div>
+                      {[5, 4, 3, 2, 1].map(c => {
+                        const pct = totalConvCash > 0 ? (convMap[c] / totalConvCash) * 100 : 0;
+                        const targetMiss = (c === 5 && pct < 40) || (c === 1 && pct > 10);
+                        return (
+                          <div key={c} style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10, padding: "4px 0", fontSize: "var(--text-xs)" }}>
+                            <ConvictionDots level={c} />
+                            <span style={{ fontSize: 9, color: targetMiss ? "var(--color-warning)" : "var(--color-text-muted)", fontFamily: "var(--font-mono)", fontWeight: targetMiss ? 600 : 500 }}>{c === 5 ? "target ≥ 40%" : c === 1 ? "target ≤ 10%" : ""}</span>
+                            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, fontWeight: 600, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{pct.toFixed(0)}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-border-subtle)" }}>
+                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 700, marginBottom: 10 }}>Health</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <button onClick={() => setTapeSubTab("stale")} style={{ textAlign: "left", padding: "8px 10px", background: "var(--color-bg-elevated)", borderRadius: "var(--radius-sm)", borderLeft: "3px solid var(--color-warning)", border: "none", cursor: "pointer" }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xl)", fontWeight: 600, lineHeight: 1, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{staleStocks.length}</div>
+                          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 2 }}>stale &gt; 60d</div>
+                        </button>
+                        <button onClick={() => setTapeSubTab("catalyst")} style={{ textAlign: "left", padding: "8px 10px", background: "var(--color-bg-elevated)", borderRadius: "var(--radius-sm)", borderLeft: "3px solid var(--color-accent-blue)", border: "none", cursor: "pointer" }}>
+                          <div style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xl)", fontWeight: 600, lineHeight: 1, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums" }}>{catalystStocks.length}</div>
+                          <div style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 2 }}>catalysts ≤ 28d</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "14px 16px" }}>
+                      <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 700, marginBottom: 8 }}>Risk × Reward (full ↓)</div>
+                      <svg viewBox="0 0 320 110" preserveAspectRatio="none" style={{ width: "100%", height: 110, cursor: "pointer" }} onClick={() => { const el = document.getElementById("rr-scatter-anchor"); el?.scrollIntoView({ behavior: "smooth", block: "start" }); }}>
+                        <line x1="0" y1="55" x2="320" y2="55" stroke="var(--color-border-subtle)" strokeWidth="1" strokeDasharray="3,3" />
+                        <line x1="160" y1="0" x2="160" y2="110" stroke="var(--color-border-subtle)" strokeWidth="1" strokeDasharray="3,3" />
+                        {(() => {
+                          const pts = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBearCalc != null && s.liveCmp);
+                          if (pts.length === 0) return null;
+                          const xVals = pts.map(s => (s.upsideBaseCalc || 0) * 100);
+                          const yVals = pts.map(s => (s.upsideBearCalc || 0) * 100);
+                          const xMin = Math.min(-10, ...xVals) - 5, xMax = Math.max(10, ...xVals) + 5;
+                          const yMin = Math.min(-50, ...yVals) - 5, yMax = Math.max(10, ...yVals) + 5;
+                          return pts.map(s => {
+                            const cx = ((((s.upsideBaseCalc || 0) * 100) - xMin) / (xMax - xMin)) * 320;
+                            const cy = 110 - ((((s.upsideBearCalc || 0) * 100) - yMin) / (yMax - yMin)) * 110;
+                            const r = Math.max(2, Math.min(7, (s.conviction || 1) * 1.4));
+                            const color = sectorColors[s.sector || "Other"] || "#6B7280";
+                            const isSelected = s.tikr === effectiveCockpitTikr;
+                            return <circle key={s.tikr} cx={cx} cy={cy} r={isSelected ? r + 2 : r} fill={color} fillOpacity={isSelected ? 0.95 : 0.7} stroke={isSelected ? "var(--color-text-primary)" : "none"} strokeWidth={isSelected ? 1.5 : 0} />;
+                          });
+                        })()}
+                      </svg>
+                      <div style={{ marginTop: 4, fontSize: 9, color: "var(--color-text-muted)", textAlign: "center" }}>click to scroll to full scatter ↓</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            );
+          })()}
 
           {/* 6. Risk/Reward Scatter */}
-          <div className="metric-card animate-fade-in-up">
+          <div id="rr-scatter-anchor" className="metric-card animate-fade-in-up">
             <h3 style={{ marginBottom: 12, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Risk / Reward Scatter — Base Upside vs Bear Downside</h3>
             {/* Sector filter pills */}
             <div className="flex flex-wrap gap-1 mb-2">
@@ -3774,7 +4064,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                         <span className="pill pill-amber" style={{ marginLeft: 4 }}>{staleStocks.length}</span>
                       </div>
                       <div className="overflow-auto max-h-[240px]">
-                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>Sector</th><th>Last Updated</th><th>Age</th><th>Conv.</th><th>CDS</th></tr></thead>
+                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>Sector</th><th>Last Updated</th><th>Age</th><th>Conv.</th></tr></thead>
                           <tbody>{staleStocks.slice(0, 20).map(s => {
                             const d = s.last_updated ? new Date(s.last_updated) : null;
                             const age = d ? Math.ceil((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)) : null;
@@ -3785,7 +4075,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                                 <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{d ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "Never"}</td>
                                 <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: age && age > 90 ? "#EF4444" : "#D97706", fontWeight: 600 }}>{age ? `${age}d` : "∞"}</td>
                                 <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
-                                <td className="text-center"><span className="inline-block px-1.5 py-0.5 rounded font-bold" style={{ fontSize: "var(--text-xs)", fontFamily: "var(--font-mono)", background: s.cds != null ? (s.cds >= 80 ? "rgba(5,150,105,0.2)" : s.cds >= 60 ? "rgba(52,211,153,0.15)" : s.cds >= 40 ? "rgba(251,191,36,0.15)" : "rgba(248,113,113,0.15)") : "transparent", color: s.cds != null ? (s.cds >= 80 ? "#059669" : s.cds >= 60 ? "#10B981" : s.cds >= 40 ? "#D97706" : "#EF4444") : "var(--color-text-muted)" }}>{s.cds ?? "—"}</span></td>
                               </tr>
                             );
                           })}</tbody></table>
@@ -3827,7 +4116,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   <input value={journalAnnotation} onChange={e => setJournalAnnotation(e.target.value)} placeholder="Add your note or thesis update..." style={{ flex: 1, padding: "6px 8px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", fontSize: "var(--text-sm)", background: "var(--color-bg-primary)", color: "var(--color-text-primary)" }} />
                   <button disabled={!journalTikr || !journalAnnotation.trim()} onClick={async () => {
                     const stock = enrichedStocks.find(s => s.tikr === journalTikr);
-                    await postJournalEntry({ tikr: journalTikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: stock?.liveCmp, upside_base: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined, cds_at_event: stock?.cds });
+                    await postJournalEntry({ tikr: journalTikr, event_type: "annotation", annotation: journalAnnotation.trim(), cmp_at_event: stock?.liveCmp, upside_base: stock?.upsideBaseCalc ? Math.round(stock.upsideBaseCalc * 10000) / 100 : undefined });
                     setJournalAnnotation(""); setShowJournalForm(false);
                     fetchJournal();
                   }} className="btn btn-primary btn-sm" style={{ background: "#8B5CF6", opacity: (!journalTikr || !journalAnnotation.trim()) ? 0.4 : 1 }}>Save</button>
@@ -3887,7 +4176,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                                 {time}
                                 {e.cmp_at_event != null && <span> · CMP ₹{fmt(e.cmp_at_event, 0)}</span>}
                                 {e.upside_base != null && <span> · Base {e.upside_base > 0 ? "+" : ""}{fmt(e.upside_base, 1)}%</span>}
-                                {e.cds_at_event != null && <span> · CDS {e.cds_at_event}</span>}
                               </div>
                             </div>
                           </div>
