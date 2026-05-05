@@ -1,0 +1,406 @@
+{
+  "505192": {
+    "securityId": 3387,
+    "exchange": "NSE_EQ"
+  },
+  "538734": {
+    "securityId": 761037,
+    "exchange": "NSE_EQ"
+  },
+  "Smartworks": {
+    "securityId": 757965,
+    "exchange": "NSE_EQ"
+  },
+  "XBOM:590108": {
+    "securityId": 15032,
+    "exchange": "NSE_EQ"
+  },
+  "MCX": {
+    "securityId": 31181,
+    "exchange": "NSE_EQ"
+  },
+  "ANNAPURNA": {
+    "securityId": 11198,
+    "exchange": "NSE_EQ"
+  },
+  "XBOM:516003": {
+    "securityId": 516003,
+    "exchange": "BSE_EQ"
+  },
+  "E2E": {
+    "securityId": 8940,
+    "exchange": "NSE_EQ"
+  },
+  "MOTILALOFS": {
+    "securityId": 14947,
+    "exchange": "NSE_EQ"
+  },
+  "PARKHOTELS": {
+    "securityId": 22649,
+    "exchange": "NSE_EQ"
+  },
+  "JMFINANCIL": {
+    "securityId": 13637,
+    "exchange": "NSE_EQ"
+  },
+  "SPMLINFRA": {
+    "securityId": 3321,
+    "exchange": "NSE_EQ"
+  },
+  "GPTINFRA": {
+    "securityId": 17685,
+    "exchange": "NSE_EQ"
+  },
+  "TIPSMUSIC": {
+    "securityId": 9117,
+    "exchange": "NSE_EQ"
+  },
+  "VEDL": {
+    "securityId": 3063,
+    "exchange": "NSE_EQ"
+  },
+  "CRAMC": {
+    "securityId": 759311,
+    "exchange": "NSE_EQ"
+  },
+  "INDIGO": {
+    "securityId": 11195,
+    "exchange": "NSE_EQ"
+  },
+  "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)": {
+    "securityId": 543597,
+    "exchange": "BSE_EQ"
+  },
+  "KFINTECH": {
+    "securityId": 13359,
+    "exchange": "NSE_EQ"
+  },
+  "PFC": {
+    "securityId": 14299,
+    "exchange": "NSE_EQ"
+  },
+  "SURAKSHA": {
+    "securityId": 27334,
+    "exchange": "NSE_EQ"
+  },
+  "INTERARCH": {
+    "securityId": 24909,
+    "exchange": "NSE_EQ"
+  },
+  "BAJAJFINSV": {
+    "securityId": 16675,
+    "exchange": "NSE_EQ"
+  },
+  "MANAPPURAM": {
+    "securityId": 19061,
+    "exchange": "NSE_EQ"
+  },
+  "RECLTD": {
+    "securityId": 15355,
+    "exchange": "NSE_EQ"
+  },
+  "INDIASHLTR": {
+    "securityId": 20556,
+    "exchange": "NSE_EQ"
+  },
+  "BSE": {
+    "securityId": 19585,
+    "exchange": "NSE_EQ"
+  },
+  "BAJFINANCE": {
+    "securityId": 317,
+    "exchange": "NSE_EQ"
+  },
+  "MANORAMA": {
+    "securityId": 10227,
+    "exchange": "NSE_EQ"
+  },
+  "COFORGE": {
+    "securityId": 11543,
+    "exchange": "NSE_EQ"
+  },
+  "OIL": {
+    "securityId": 17438,
+    "exchange": "NSE_EQ"
+  },
+  "BANKINDIA": {
+    "securityId": 4745,
+    "exchange": "NSE_EQ"
+  },
+  "ACMESOLAR": {
+    "securityId": 27061,
+    "exchange": "NSE_EQ"
+  },
+  "EPACK DURABLE LIMITED (XNSE:EPACK)": {
+    "securityId": 22463,
+    "exchange": "NSE_EQ"
+  },
+  "ADANIGREEN": {
+    "securityId": 3563,
+    "exchange": "NSE_EQ"
+  },
+  "FSL": {
+    "securityId": 14304,
+    "exchange": "NSE_EQ"
+  },
+  "ADANIPORTS": {
+    "securityId": 15083,
+    "exchange": "NSE_EQ"
+  },
+  "GPTHEALTH": {
+    "securityId": 22846,
+    "exchange": "NSE_EQ"
+  },
+  "Wework": {
+    "securityId": 759434,
+    "exchange": "NSE_EQ"
+  },
+  "PNB": {
+    "securityId": 10666,
+    "exchange": "NSE_EQ"
+  },
+  "TMB": {
+    "securityId": 10945,
+    "exchange": "NSE_EQ"
+  },
+  "ABSLAMC": {
+    "securityId": 6018,
+    "exchange": "NSE_EQ"
+  },
+  "BANKBARODA": {
+    "securityId": 4668,
+    "exchange": "NSE_EQ"
+  },
+  "BPCL": {
+    "securityId": 526,
+    "exchange": "NSE_EQ"
+  },
+  "PNBHOUSING": {
+    "securityId": 18908,
+    "exchange": "NSE_EQ"
+  },
+  "HDFCBANK": {
+    "securityId": 1333,
+    "exchange": "NSE_EQ"
+  },
+  "IIFLCAPS": {
+    "securityId": 13072,
+    "exchange": "NSE_EQ"
+  },
+  "CDSL": {
+    "securityId": 21174,
+    "exchange": "NSE_EQ"
+  },
+  "CESC": {
+    "securityId": 628,
+    "exchange": "NSE_EQ"
+  },
+  "CAMS": {
+    "securityId": 342,
+    "exchange": "NSE_EQ"
+  },
+  "XBOM:522101": {
+    "securityId": 522101,
+    "exchange": "BSE_EQ"
+  },
+  "CYIENT": {
+    "securityId": 5748,
+    "exchange": "NSE_EQ"
+  },
+  "EDELWEISS": {
+    "securityId": 15119,
+    "exchange": "NSE_EQ"
+  },
+  "VBL": {
+    "securityId": 18921,
+    "exchange": "NSE_EQ"
+  },
+  "LICHSGFIN": {
+    "securityId": 1997,
+    "exchange": "NSE_EQ"
+  },
+  "unionbank": {
+    "securityId": 10753,
+    "exchange": "NSE_EQ"
+  },
+  "FIVESTAR": {
+    "securityId": 12032,
+    "exchange": "NSE_EQ"
+  },
+  "GRASIM": {
+    "securityId": 1232,
+    "exchange": "NSE_EQ"
+  },
+  "HDFCAMC": {
+    "securityId": 4244,
+    "exchange": "NSE_EQ"
+  },
+  "Hindpetro": {
+    "securityId": 1406,
+    "exchange": "NSE_EQ"
+  },
+  "SBIN": {
+    "securityId": 3045,
+    "exchange": "NSE_EQ"
+  },
+  "AXISBANK": {
+    "securityId": 5900,
+    "exchange": "NSE_EQ"
+  },
+  "NXST": {
+    "securityId": 543913,
+    "exchange": "BSE_EQ"
+  },
+  "IOC": {
+    "securityId": 1624,
+    "exchange": "NSE_EQ"
+  },
+  "Inoxwind": {
+    "securityId": 7852,
+    "exchange": "NSE_EQ"
+  },
+  "CANFINHOME": {
+    "securityId": 583,
+    "exchange": "NSE_EQ"
+  },
+  "NTPC": {
+    "securityId": 11630,
+    "exchange": "NSE_EQ"
+  },
+  "CanBK": {
+    "securityId": 10794,
+    "exchange": "NSE_EQ"
+  },
+  "BIRET": {
+    "securityId": 543261,
+    "exchange": "BSE_EQ"
+  },
+  "GPIL": {
+    "securityId": 13409,
+    "exchange": "NSE_EQ"
+  },
+  "HUDCO": {
+    "securityId": 20825,
+    "exchange": "NSE_EQ"
+  },
+  "Embassy": {
+    "securityId": 542602,
+    "exchange": "BSE_EQ"
+  },
+  "NAM-INDIA": {
+    "securityId": 357,
+    "exchange": "NSE_EQ"
+  },
+  "OFSS": {
+    "securityId": 10738,
+    "exchange": "NSE_EQ"
+  },
+  "PCBL": {
+    "securityId": 2649,
+    "exchange": "NSE_EQ"
+  },
+  "IndianB": {
+    "securityId": 14309,
+    "exchange": "NSE_EQ"
+  },
+  "SHRIRAMFIN": {
+    "securityId": 4306,
+    "exchange": "NSE_EQ"
+  },
+  "ABCAPITAL": {
+    "securityId": 21614,
+    "exchange": "NSE_EQ"
+  },
+  "ICICIBANK": {
+    "securityId": 4963,
+    "exchange": "NSE_EQ"
+  },
+  "CSBBANK": {
+    "securityId": 14966,
+    "exchange": "NSE_EQ"
+  },
+  "SBICARD": {
+    "securityId": 17971,
+    "exchange": "NSE_EQ"
+  },
+  "PHOENIXLTD": {
+    "securityId": 14552,
+    "exchange": "NSE_EQ"
+  },
+  "IIFL": {
+    "securityId": 11809,
+    "exchange": "NSE_EQ"
+  },
+  "FEDFINA": {
+    "securityId": 20322,
+    "exchange": "NSE_EQ"
+  },
+  "TATAELXSI": {
+    "securityId": 3411,
+    "exchange": "NSE_EQ"
+  },
+  "MUTHOOTFIN": {
+    "securityId": 23650,
+    "exchange": "NSE_EQ"
+  },
+  "IDFCFIRSTB": {
+    "securityId": 11184,
+    "exchange": "NSE_EQ"
+  },
+  "FEDERALBNK": {
+    "securityId": 1023,
+    "exchange": "NSE_EQ"
+  },
+  "MINDSPACE": {
+    "securityId": 543217,
+    "exchange": "BSE_EQ"
+  },
+  "XNSE:TRIVENI": {
+    "securityId": 13081,
+    "exchange": "NSE_EQ"
+  },
+  "IEX": {
+    "securityId": 220,
+    "exchange": "NSE_EQ"
+  },
+  "LTF": {
+    "securityId": 24948,
+    "exchange": "NSE_EQ"
+  },
+  "ICICIAMC": {
+    "securityId": 760407,
+    "exchange": "NSE_EQ"
+  },
+  "APTUS": {
+    "securityId": 5435,
+    "exchange": "NSE_EQ"
+  },
+  "ITC HOTELS LIMITED (XNSE:ITCHOTELS)": {
+    "securityId": 29251,
+    "exchange": "NSE_EQ"
+  },
+  "BAJAJHFL": {
+    "securityId": 25270,
+    "exchange": "NSE_EQ"
+  },
+  "HOMEFIRST": {
+    "securityId": 2056,
+    "exchange": "NSE_EQ"
+  },
+  "GROWW": {
+    "securityId": 759806,
+    "exchange": "NSE_EQ"
+  },
+  "ANGELONE": {
+    "securityId": 324,
+    "exchange": "NSE_EQ"
+  },
+  "DIGIKORE": {
+    "securityId": 19138,
+    "exchange": "NSE_EQ"
+  },
+  "SKIPPER": {
+    "securityId": 9428,
+    "exchange": "NSE_EQ"
+  }
+}
