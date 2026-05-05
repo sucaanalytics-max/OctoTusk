@@ -631,12 +631,16 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
       const broker = String(row[ci.broker] ?? "").trim();
       const dirRaw = String(row[ci.direction] ?? "").trim().toUpperCase();
       const rawExposure = Number(row[ci.exposure]) || 0;
-      // Dhan exports "LONG"/"SHORT"; some other brokers use "BUY"/"SELL".
-      // Fallback: negative exposure signals a short (sold) position.
+      // Dhan exports "LONG"/"SHORT"; some brokers use "BUY"/"SELL".
+      // Exposure-sign fallback uses option delta logic:
+      //   Short CALL / Short FUT → negative delta → negative exposure → SELL
+      //   Short PUT              → positive delta → positive exposure → SELL (inverted!)
       const direction: "BUY" | "SELL" =
         (dirRaw === "SELL" || dirRaw === "SHORT") ? "SELL" :
         (dirRaw === "BUY"  || dirRaw === "LONG")  ? "BUY"  :
-        rawExposure < 0 ? "SELL" : "BUY";
+        (instrument_type === "OPT" && option_type === "PE")
+          ? (rawExposure > 0 ? "SELL" : "BUY")   // short put → positive exposure
+          : (rawExposure < 0 ? "SELL" : "BUY");  // short call / future → negative exposure
       const quantity = Number(row[ci.quantity]) || 0;
       const avg_cost = Number(row[ci.avgCost]) || 0;
       const curr_price = Number(row[ci.currPrice]) || 0;
