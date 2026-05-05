@@ -762,9 +762,186 @@
   </table>
 </section>
 
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- ALT 7 — Hybrid: Alt 3 spread bar + Alt 5 inline bars, NO cell tinting    -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<section>
+  <h2>Alt 7 — Hybrid: spread bar (Bear→Bull) + inline bars (1Y/2Y), no tint</h2>
+  <p class="lens-line"><strong>Information-dense × restrained.</strong>
+    Best of Alt 3 + Alt 5. Bear/Base/Bull collapse into one anchored range chart (asymmetry visible at a glance);
+    1Y/2Y stay as separate cells with thin inline magnitude bars (lossless precision). No background tinting
+    anywhere — color appears only where it carries meaning (the dot/diamond markers and the bars themselves).
+    Cleanest read at 85 rows; hardest-working pixels per row.</p>
+  <table>
+    <thead><tr>
+      <th class="l">Company</th>
+      <th class="l" style="padding-left:12px;">Bear ─ Base ─ Bull (anchored at CMP 0%)</th>
+      <th>1Y Up</th>
+      <th>2Y Up</th>
+    </tr></thead>
+    <tbody>
+
+      <!-- Width=260, Range -40..+100. x(v) = ((v-(-40))/140)*260. zero=74.3 -->
+
+      <tr class="sb-row"><td class="name">The Bank of Baroda<div class="sector">Banks &amp; NBFC</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="135" y1="14" x2="203" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="135" cy="14" r="4.5" fill="#059669"/>
+            <circle cx="203" cy="14" r="4.5" fill="#059669"/>
+            <rect x="166.5" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 170.5 14)"/>
+            <text x="135" y="27" font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+32.7%</text>
+            <text x="203" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+69.9%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+68.2%<div class="mag-bar pos" style="width:49%"></div></td>
+        <td class="mag-cell pos">+87.3%<div class="mag-bar pos" style="width:50%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">Bank of India<div class="sector">Banks &amp; NBFC</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="124.6" y1="14" x2="201.2" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="124.6" cy="14" r="4.5" fill="#059669"/>
+            <circle cx="201.2" cy="14" r="4.5" fill="#059669"/>
+            <rect x="166.6" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 170.6 14)"/>
+            <text x="124.6" y="27" font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+27.1%</text>
+            <text x="201.2" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+68.3%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+68.1%<div class="mag-bar pos" style="width:49%"></div></td>
+        <td class="mag-cell pos">+85.7%<div class="mag-bar pos" style="width:50%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">Wework India Management<div class="sector">Real Estate</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="74.1" y1="14" x2="148.2" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="74.1"  cy="14" r="4.5" fill="#DC2626"/>
+            <circle cx="148.2" cy="14" r="4.5" fill="#059669"/>
+            <rect x="111.2" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 115.2 14)"/>
+            <text x="74.1"  y="27" font-size="9" text-anchor="middle" fill="#DC2626" font-family="ui-monospace,monospace">-0.1%</text>
+            <text x="148.2" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+39.8%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+49.6%<div class="mag-bar pos" style="width:35%"></div></td>
+        <td class="mag-cell pos">+86.6%<div class="mag-bar pos" style="width:50%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">Punjab National Bank<div class="sector">Banks &amp; NBFC</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="113.7" y1="14" x2="158.6" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="113.7" cy="14" r="4.5" fill="#059669"/>
+            <circle cx="158.6" cy="14" r="4.5" fill="#059669"/>
+            <rect x="135.9" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 139.9 14)"/>
+            <text x="113.7" y="27" font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+21.2%</text>
+            <text x="158.6" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+45.4%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+49.4%<div class="mag-bar pos" style="width:35%"></div></td>
+        <td class="mag-cell pos">+67.7%<div class="mag-bar pos" style="width:48%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">LIC Housing Finance<div class="sector">Banks &amp; NBFC</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="90.5" y1="14" x2="166.7" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="90.5"  cy="14" r="4.5" fill="#059669"/>
+            <circle cx="166.7" cy="14" r="4.5" fill="#059669"/>
+            <rect x="124.4" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 128.4 14)"/>
+            <text x="90.5"  y="27" font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+8.7%</text>
+            <text x="166.7" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+49.8%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+46.1%<div class="mag-bar pos" style="width:33%"></div></td>
+        <td class="mag-cell pos">+61.7%<div class="mag-bar pos" style="width:44%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">Axis Bank<div class="sector">Banks &amp; NBFC</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="106.3" y1="14" x2="142.2" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="106.3" cy="14" r="4.5" fill="#059669"/>
+            <circle cx="142.2" cy="14" r="4.5" fill="#059669"/>
+            <rect x="124.3" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 128.3 14)"/>
+            <text x="106.3" y="27" font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+17.2%</text>
+            <text x="142.2" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+36.5%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+45.3%<div class="mag-bar pos" style="width:32%"></div></td>
+        <td class="mag-cell pos">+66.3%<div class="mag-bar pos" style="width:47%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">Motilal Oswal Financial Services<div class="sector">BFSI</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="58.7" y1="14" x2="136.9" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="58.7"  cy="14" r="4.5" fill="#DC2626"/>
+            <circle cx="136.9" cy="14" r="4.5" fill="#059669"/>
+            <rect x="97.7" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 101.7 14)"/>
+            <text x="58.7"  y="27" font-size="9" text-anchor="middle" fill="#DC2626" font-family="ui-monospace,monospace">-8.4%</text>
+            <text x="136.9" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+33.7%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+43.3%<div class="mag-bar pos" style="width:31%"></div></td>
+        <td class="mag-cell pos">+82.3%<div class="mag-bar pos" style="width:50%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">GPT Infraprojects<div class="sector">Infrastructure</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="57.9" y1="14" x2="154.8" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="57.9"  cy="14" r="4.5" fill="#DC2626"/>
+            <circle cx="154.8" cy="14" r="4.5" fill="#059669"/>
+            <rect x="106.3" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 110.3 14)"/>
+            <text x="57.9"  y="27" font-size="9" text-anchor="middle" fill="#DC2626" font-family="ui-monospace,monospace">-8.8%</text>
+            <text x="154.8" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+43.3%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+41.7%<div class="mag-bar pos" style="width:30%"></div></td>
+        <td class="mag-cell pos">+67.4%<div class="mag-bar pos" style="width:48%"></div></td>
+      </tr>
+
+      <tr class="sb-row"><td class="name">Virtuoso Optoelectronics<div class="sector">Consumer</div></td>
+        <td class="sb">
+          <svg class="spread" width="260" height="28" viewBox="0 0 260 28">
+            <line x1="0" y1="14" x2="260" y2="14" stroke="#D9DCE3" stroke-width="1"/>
+            <line x1="74.3" y1="4" x2="74.3" y2="24" stroke="#6B7280" stroke-width="1" stroke-dasharray="2 2"/>
+            <line x1="29" y1="14" x2="99.4" y2="14" stroke="#374151" stroke-width="2"/>
+            <circle cx="29"   cy="14" r="4.5" fill="#DC2626"/>
+            <circle cx="99.4" cy="14" r="4.5" fill="#059669"/>
+            <rect x="64.2" y="10" width="8" height="8" fill="#D97706" transform="rotate(45 68.2 14)"/>
+            <text x="29"   y="27" font-size="9" text-anchor="middle" fill="#DC2626" font-family="ui-monospace,monospace">-24.4%</text>
+            <text x="99.4" y="9"  font-size="9" text-anchor="middle" fill="#059669" font-family="ui-monospace,monospace">+13.5%</text>
+          </svg>
+        </td>
+        <td class="mag-cell pos">+18.6%<div class="mag-bar pos" style="width:13%"></div></td>
+        <td class="mag-cell pos">+41.1%<div class="mag-bar pos" style="width:29%"></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+</section>
+
 <p class="footer">
-  Six options now: Control / Alt 1 (Quantile) / Alt 2 (Conviction) / Alt 3 (Spread bar) / Alt 4 (E[Ret] + R:R) / Alt 5 (Inline bars) / Alt 6 (Thesis Grade).
-  Hybrids welcome (e.g. Alt 1 hue × Alt 2 opacity, or Alt 5 bars + Alt 6 grade column).
+  Seven options now: Control / Alt 1 (Quantile) / Alt 2 (Conviction) / Alt 3 (Spread bar) / Alt 4 (E[Ret] + R:R) / Alt 5 (Inline bars) / Alt 6 (Thesis Grade) / Alt 7 (Spread + Inline hybrid).
 </p>
 
 </div>
