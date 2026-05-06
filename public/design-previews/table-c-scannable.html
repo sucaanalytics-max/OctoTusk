@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OctoTusk — Table Option C · Scannable</title>
+<meta name="description" content="Octopus table treatment — Option C: Functional improvements only — sticky company column, faint zebra, whole-row hover, decimal alignment.">
+<meta name="theme-color" content="#F8F9FB" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1117" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ═══════════════════════════════════════════════
+   TOKENS — match live app/globals.css verbatim
+   ═══════════════════════════════════════════════ */
+:root{
+  --color-bg-primary: #F8F9FB;
+  --color-bg-secondary: #FFFFFF;
+  --color-bg-card: #FFFFFF;
+  --color-bg-hover: #EEF0F4;
+  --color-bg-elevated: #F0F2F5;
+  --color-bg-stripe: #FCFCFA;
+  --color-border: #D9DCE3;
+  --color-border-subtle: #E5E7EB;
+  --color-border-hover: #B0B5C0;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4B5563;
+  --color-text-muted: #6B6E76;  /* AA-bumped for header use */
+  --color-positive: #059669;
+  --color-positive-bg: rgba(5, 150, 105, 0.08);
+  --color-positive-border: rgba(5, 150, 105, 0.2);
+  --color-negative: #DC2626;
+  --color-negative-bg: rgba(220, 38, 38, 0.06);
+  --color-negative-border: rgba(220, 38, 38, 0.2);
+  --color-warning: #D97706;
+  --color-warning-bg: rgba(217, 119, 6, 0.08);
+  --color-accent-blue: #2563EB;
+
+  /* Tier-color upside backgrounds (Alt 8 hybrid) */
+  --tier-pos-deep: rgba(5, 150, 105, 0.16);
+  --tier-pos-mid:  rgba(5, 150, 105, 0.10);
+  --tier-pos-soft: rgba(5, 150, 105, 0.05);
+  --tier-neg-soft: rgba(220, 38, 38, 0.05);
+  --tier-neg-deep: rgba(220, 38, 38, 0.14);
+
+  --r-sm: 4px; --r-md: 8px; --r-full: 9999px;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-fast: 120ms; --t-base: 200ms;
+}
+[data-theme="dark"]{
+  --color-bg-primary: #0F1117;
+  --color-bg-secondary: #161820;
+  --color-bg-card: #1A1D27;
+  --color-bg-hover: #252836;
+  --color-bg-elevated: #222638;
+  --color-bg-stripe: #161820;
+  --color-border: #2A2D3E;
+  --color-border-subtle: #22253A;
+  --color-border-hover: #3A3E52;
+  --color-text-primary: #EAEAEA;
+  --color-text-secondary: #A0A4B8;
+  --color-text-muted: #898C94;
+  --color-positive: #10B981;
+  --color-positive-bg: rgba(16, 185, 129, 0.10);
+  --color-negative: #F87171;
+  --color-negative-bg: rgba(248, 113, 113, 0.10);
+  --color-warning: #FFB800;
+  --color-accent-blue: #4F8EF7;
+  --tier-pos-deep: rgba(16, 185, 129, 0.22);
+  --tier-pos-mid:  rgba(16, 185, 129, 0.14);
+  --tier-pos-soft: rgba(16, 185, 129, 0.06);
+  --tier-neg-soft: rgba(248, 113, 113, 0.06);
+  --tier-neg-deep: rgba(248, 113, 113, 0.20);
+}
+
+html,body{height:100%}
+body{
+  background:var(--color-bg-primary);
+  color:var(--color-text-primary);
+  font-family:var(--font-sans);
+  font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  transition: background 300ms var(--ease), color 300ms var(--ease);
+}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--color-warning); outline-offset:2px; border-radius:4px}
+.skip-link{position:absolute; top:-40px; left:8px; background:var(--color-text-primary); color:var(--color-bg-card); padding:8px 14px; border-radius:4px; font-size:12px; font-weight:600; text-decoration:none; z-index:1001; transition: top 120ms var(--ease)}
+.skip-link:focus{top:8px}
+::-webkit-scrollbar{width:6px; height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--color-border); border-radius:3px}
+
+.design-badge{
+  position:fixed; top:14px; right:14px;
+  background:var(--color-text-primary); color:var(--color-bg-card);
+  font-size:10px; font-weight:600; letter-spacing:0.12em; text-transform:uppercase;
+  padding:6px 12px; border-radius:var(--r-full); z-index:1000;
+}
+
+/* ═══════════════════════════════════════════════
+   PAGE CHROME — minimal, focused on the table
+   ═══════════════════════════════════════════════ */
+.page-head{
+  background:var(--color-bg-card);
+  border-bottom:1px solid var(--color-border);
+  height:56px;
+  display:flex; align-items:center; padding:0 24px;
+  position:sticky; top:0; z-index:50;
+}
+.brand-lock{display:flex; align-items:center; gap:10px; min-width:200px}
+.brand-mark{
+  width:26px; height:26px; border-radius:6px;
+  background:var(--color-text-primary);
+  display:flex; align-items:center; justify-content:center;
+}
+.brand-mark svg{width:14px; height:14px; fill:var(--color-bg-card)}
+.brand-text{font-size:13px; font-weight:700; letter-spacing:-0.01em}
+.brand-divider{width:1px; height:22px; background:var(--color-border); margin:0 18px}
+.page-title{
+  font-size:13px; font-weight:600; color:var(--color-text-primary);
+  display:flex; align-items:center; gap:10px;
+}
+.page-title-tag{
+  font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.10em;
+  color:var(--color-warning);
+  padding:2px 8px; border-radius:var(--r-full);
+  background:var(--color-warning-bg);
+}
+.page-actions{margin-left:auto; display:flex; align-items:center; gap:6px}
+.icon-btn{
+  width:30px; height:30px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:transparent; border:1px solid transparent;
+  border-radius:6px; color:var(--color-text-secondary);
+  cursor:pointer;
+  transition: all 120ms var(--ease);
+}
+.icon-btn:hover{background:var(--color-bg-hover); color:var(--color-text-primary); border-color:var(--color-border)}
+.icon-btn svg{width:14px; height:14px}
+.theme-moon, .theme-sun{transition: opacity 120ms var(--ease)}
+[data-theme="light"] .theme-sun{display:none}
+[data-theme="dark"] .theme-moon{display:none}
+
+/* Compare bar at top of main */
+.compare-bar{
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:18px; padding:12px 18px;
+  background:var(--color-bg-card); border:1px solid var(--color-border);
+  border-radius:var(--r-md); font-size:12px; color:var(--color-text-secondary);
+  flex-wrap:wrap;
+}
+.compare-bar a{
+  color:var(--color-text-primary); text-decoration:none; font-weight:600;
+  padding:4px 10px; border-radius:var(--r-sm); border:1px solid var(--color-border);
+  transition: all 120ms var(--ease);
+}
+.compare-bar a:hover{border-color:var(--color-warning); color:var(--color-warning)}
+.compare-bar a.current{background:var(--color-text-primary); color:var(--color-bg-card); border-color:var(--color-text-primary)}
+
+main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
+
+/* ═══════════════════════════════════════════════
+   OPTION C — TABLE: SCANNABLE
+   Header unchanged from current production (dark slate)
+   Sticky COMPANY column on horizontal scroll
+   Ultra-faint zebra (rgba 0.015) for horizontal eye-tracking
+   Whole-row hover background (not just cell)
+   Magnitude bars 4px tall, left-anchored, full-width — actually visible
+   ═══════════════════════════════════════════════ */
+.tbl-card{
+  background:var(--color-bg-card);
+  border:1px solid var(--color-border);
+  border-radius:var(--r-md);
+  overflow:hidden;
+}
+.tbl-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; border-bottom:1px solid var(--color-border);
+}
+.tbl-title{font-size:13px; font-weight:600; color:var(--color-text-primary); display:flex; gap:10px; align-items:center}
+.tbl-title-tag{
+  font-size:10px; font-weight:600; padding:2px 8px;
+  background:var(--color-warning-bg); color:var(--color-warning);
+  border-radius:var(--r-full); letter-spacing:0.02em;
+}
+.tbl-meta{font-family:var(--font-mono); font-size:11px; color:var(--color-text-muted)}
+
+.tbl-scroll{overflow:auto; max-height:calc(100vh - 220px)}
+
+.tbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px}
+.tbl thead{position:sticky; top:0; z-index:11}
+
+/* GROUP HEADER ROW — current dark slate (unchanged from prod) */
+.tbl thead tr.thead-group th{
+  background:#1E293B;
+  color:#94A3B8;
+  font-size:10px; font-weight:600;
+  text-transform:uppercase; letter-spacing:0.06em;
+  padding:4px 8px;
+  text-align:center;
+  border-bottom:1px solid #334155;
+  white-space:nowrap;
+  cursor:default;
+}
+.tbl thead tr.thead-group th.g-pos{ background:#152318; color:#86EFAC; }
+.tbl thead tr.thead-group th.g-accent{ background:#261A0C; color:#FCD34D; }
+
+/* COLUMN HEADER ROW — current dark slate (unchanged from prod) */
+.tbl thead tr.thead-col th{
+  background:#293548;
+  color:#CBD5E1;
+  font-size:10px; font-weight:600;
+  text-transform:uppercase; letter-spacing:0.06em;
+  padding:8px 10px;
+  border-bottom:1px solid #334155;
+  text-align:right;
+  white-space:nowrap;
+  cursor:pointer;
+  position:relative;
+}
+.tbl thead tr.thead-col th:first-child,
+.tbl thead tr.thead-col th:nth-child(2){text-align:left}
+.tbl thead tr.thead-col th.c-pos{ background:#243B2E; color:#86EFAC; }
+.tbl thead tr.thead-col th.c-accent{ background:#3B2E1A; color:#FCD34D; }
+.tbl thead tr.thead-col th:hover{ color:#F1F5F9; }
+
+/* Sort cursor only when actually sortable AND being hovered (calmer than always-pointer) */
+.tbl thead tr.thead-col th{ cursor:pointer; }
+
+/* No vertical hairlines in C (the dark header itself defines structure) */
+.bd-l{ /* no-op for C */ }
+
+/* Gear cell at end of group row */
+.tbl thead tr.thead-group th.gear-cell{ position:relative; }
+.tbl thead tr.thead-group th.gear-cell::after{
+  content:"⚙"; position:absolute; right:8px; top:50%; transform:translateY(-50%);
+  color:#94A3B8; font-size:13px; cursor:pointer;
+}
+
+/* C — STICKY COMPANY COLUMN on horizontal scroll */
+.tbl thead tr.thead-group th:nth-child(1),
+.tbl thead tr.thead-group th:nth-child(2),
+.tbl thead tr.thead-col th:nth-child(1),
+.tbl thead tr.thead-col th:nth-child(2),
+.tbl tbody td:nth-child(1),
+.tbl tbody td:nth-child(2){
+  position:sticky;
+  z-index:5;
+}
+.tbl thead tr.thead-group th:nth-child(1),
+.tbl thead tr.thead-col th:nth-child(1),
+.tbl tbody td:nth-child(1){ left:0; }
+.tbl thead tr.thead-group th:nth-child(2),
+.tbl thead tr.thead-col th:nth-child(2),
+.tbl tbody td:nth-child(2){ left:60px; }
+.tbl thead tr.thead-group th:nth-child(1),
+.tbl thead tr.thead-group th:nth-child(2),
+.tbl thead tr.thead-col th:nth-child(1),
+.tbl thead tr.thead-col th:nth-child(2){ z-index:12; }
+/* Subtle right-edge shadow on the sticky column when content scrolls behind it */
+.tbl tbody td:nth-child(2){
+  box-shadow: 1px 0 0 var(--color-border-subtle);
+}
+
+/* BODY ROWS — whole-row hover */
+.tbl tbody tr{
+  cursor:pointer;
+  transition: background var(--t-fast) var(--ease);
+}
+/* C — whole-row hover background (not just cell) */
+.tbl tbody tr:hover td{ background:var(--color-bg-hover) !important; }
+/* C — ultra-faint zebra for horizontal eye-tracking */
+.tbl tbody tr:nth-child(even) td{ background:rgba(10,10,11,0.012); }
+[data-theme="dark"] .tbl tbody tr:nth-child(even) td{ background:rgba(255,255,255,0.018); }
+
+.tbl tbody td{
+  padding:12px 10px;  /* slight bump from 11 → 12 for breathing */
+  vertical-align:middle;
+  text-align:right;
+  font-family:var(--font-mono);
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-0.01em;
+  color:var(--color-text-primary);
+  border-bottom:1px solid var(--color-border-subtle);
+  white-space:nowrap;
+  background:var(--color-bg-card);
+}
+.tbl tbody td:first-child,
+.tbl tbody td.col-company{
+  text-align:left; font-family:var(--font-sans); font-variant-numeric:normal;
+}
+.tbl tbody tr:last-child td{border-bottom:none}
+
+/* Zone-color row signals */
+.tbl tbody tr.zone-buy td:first-child{box-shadow:inset 3px 0 0 var(--color-positive)}
+.tbl tbody tr.zone-hold td:first-child{box-shadow:inset 3px 0 0 var(--color-accent-blue)}
+.tbl tbody tr.zone-over td:first-child{box-shadow:inset 3px 0 0 var(--color-negative)}
+
+.col-action{width:60px}
+.act-cell{display:inline-flex; gap:2px}
+.act-btn{
+  width:22px; height:22px; border-radius:var(--r-sm);
+  background:transparent; border:none; color:var(--color-text-muted);
+  cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition: all var(--t-fast) var(--ease);
+}
+.act-btn:hover{background:var(--color-bg-hover); color:var(--color-text-primary)}
+.act-btn svg{width:12px; height:12px}
+
+.co-name{font-weight:600; font-size:13px; color:var(--color-text-primary); letter-spacing:-0.01em}
+.co-sub{
+  font-size:10px; color:var(--color-text-muted); margin-top:2px;
+  letter-spacing:0.02em; text-transform:uppercase; font-weight:500;
+  display:flex; align-items:center; gap:6px;
+}
+.cap-tag{
+  font-size:9px; font-weight:600; padding:1px 5px; border-radius:3px;
+  text-transform:uppercase; letter-spacing:0.06em; font-family:var(--font-sans);
+}
+.cap-large{background:var(--color-warning-bg); color:var(--color-warning)}
+.cap-mid{background:rgba(75,79,87,0.12); color:var(--color-text-secondary)}
+.cap-small{background:var(--color-positive-bg); color:var(--color-positive)}
+
+.cmp-cell{display:inline-flex; flex-direction:column; align-items:flex-end; gap:1px; line-height:1.1}
+.cmp-val{font-weight:600; color:var(--color-text-primary)}
+.cmp-delta{font-size:10.5px; display:inline-flex; align-items:center; gap:2px}
+.cmp-delta.pos{color:var(--color-positive)}
+.cmp-delta.neg{color:var(--color-negative)}
+.cmp-delta.zero{ display:none; }  /* C — hide arrow at exactly 0% */
+
+.cell-pos{color:var(--color-positive)}
+.cell-neg{color:var(--color-negative)}
+.cell-emph{font-weight:600; color:var(--color-text-primary)}
+.cell-muted{color:var(--color-text-muted)}
+
+/* Upside cells — Alt 8 hybrid (tier bg + pill + magnitude bar) */
+.up-td{position:relative; padding:10px 10px 14px !important}
+.up-td.t-pd{background:var(--tier-pos-deep)}
+.up-td.t-pm{background:var(--tier-pos-mid)}
+.up-td.t-ps{background:var(--tier-pos-soft)}
+.up-td.t-ns{background:var(--tier-neg-soft)}
+.up-td.t-nd{background:var(--tier-neg-deep)}
+.up-pill{
+  display:inline-block; font-family:var(--font-mono);
+  font-variant-numeric:tabular-nums;
+  font-size:11.5px; font-weight:600; letter-spacing:-0.01em;
+}
+.up-pill.pos{color:var(--color-positive)}
+.up-pill.neg{color:var(--color-negative)}
+.up-pill.emph{font-weight:700}
+/* C — magnitude bar 4px tall, left-anchored (was midpoint), inline width drives length */
+.mag-bar{
+  position:absolute; left:10px; bottom:4px;
+  height:4px; border-radius:2px;
+  background:var(--color-positive); opacity:0.9;
+  pointer-events:none;
+  max-width:calc(100% - 20px);
+}
+.mag-bar.neg{ background:var(--color-negative); }
+
+/* Conviction dots */
+.conv{display:inline-flex; gap:2.5px; align-items:center; justify-content:flex-end}
+.conv-dot{width:5px; height:5px; border-radius:50%; background:var(--color-border-hover)}
+.conv-dot.on{background:var(--color-text-primary)}
+
+/* VA / SA pills */
+.va-pill, .sa-pill{
+  display:inline-block; font-size:9.5px; font-weight:600;
+  font-family:var(--font-sans); padding:2px 7px; border-radius:3px; letter-spacing:0.04em;
+}
+.va-pill{background:rgba(67,56,202,0.10); color:#6366F1}
+.sa-pill{background:var(--color-warning-bg); color:var(--color-warning)}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.01ms !important; transition-duration:0.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+<span class="design-badge">Option C · Scannable</span>
+
+<header class="page-head">
+  <div class="brand-lock">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 2.6c-3.3 0-6 2.4-6 5.4 0 1.7.9 3.2 2.4 4.2L8 16.4l-1.6-.6.4 2.4-1.4.4.5 1.5 2.6-.7.5 2.4h2.5l-.4-2.6 1.5-.4 1.5.4-.4 2.6h2.5l.5-2.4 2.6.7.5-1.5-1.4-.4.4-2.4-1.6.6-.4-4.2c1.5-1 2.4-2.5 2.4-4.2 0-3-2.7-5.4-6-5.4z"/>
+      </svg>
+    </div>
+    <div class="brand-text">OctoTusk</div>
+  </div>
+  <div class="brand-divider"></div>
+  <div class="page-title">Octopus <span class="page-title-tag">Table · C</span></div>
+  <div class="page-actions">
+    <button type="button" class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main id="main" tabindex="-1">
+
+  <div class="compare-bar">
+    <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--color-text-muted)">Compare</span>
+    <a href="table-a-light-headers.html">A · Light Headers</a>
+    <a href="table-b-editorial-dense.html">B · Editorial Dense</a>
+    <a class="current" aria-current="page">C · Scannable</a>
+    <span style="margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--color-text-muted)">sticky company column · faint zebra · whole-row hover · 4px bars</span>
+  </div>
+
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div class="tbl-title">Equity coverage <span class="tbl-title-tag">12 of 91</span></div>
+      <div class="tbl-meta">Synced 06:12 IST · OneDrive</div>
+    </div>
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <thead>
+          <tr class="thead-group">
+            <th class="col-action"></th>
+            <th colspan="1">Company</th>
+            <th colspan="1" class="bd-l">Price</th>
+            <th colspan="3" class="bd-l">Targets</th>
+            <th colspan="3" class="g-pos bd-l">Scenario Upsides</th>
+            <th colspan="2" class="g-pos bd-l">Forward</th>
+            <th colspan="3" class="g-accent bd-l">Multiples</th>
+            <th colspan="3" class="bd-l">Analysts</th>
+            <th colspan="1" class="bd-l gear-cell">Fundamentals</th>
+          </tr>
+          <tr class="thead-col">
+            <th class="col-action"></th>
+            <th>Company</th>
+            <th class="bd-l">CMP</th>
+            <th class="bd-l">Bear</th>
+            <th>Base</th>
+            <th>Bull</th>
+            <th class="c-pos bd-l">↑ Bear</th>
+            <th class="c-pos">↑ Base</th>
+            <th class="c-pos">↑ Bull</th>
+            <th class="c-pos bd-l">1Y ↑</th>
+            <th class="c-pos">2Y ↑</th>
+            <th class="c-accent bd-l">PE</th>
+            <th class="c-accent">PB</th>
+            <th class="c-accent">EV/EBITDA</th>
+            <th class="bd-l">Conv</th>
+            <th>VA</th>
+            <th>SA</th>
+            <th class="bd-l">MCap</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn" title="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn" title="Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">The Bank of Baroda</div><div class="co-sub">BANKBARODA · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">263.40</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">351</td><td class="cell-emph">400</td><td>449</td>
+            <td class="up-td t-pm bd-l"><span class="up-pill pos">+33.2%</span><span class="mag-bar" style="width:47%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos emph">+51.8%</span><span class="mag-bar" style="width:74%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+70.6%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+68.9%</span><span class="mag-bar" style="width:98%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+88.0%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l">10.5x</td><td>1.2x</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
+            <td class="bd-l">₹1,36,214 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Bank of India</div><div class="co-sub">BANKINDIA · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">138.60</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">177</td><td class="cell-emph">211</td><td>234</td>
+            <td class="up-td t-pm bd-l"><span class="up-pill pos">+27.4%</span><span class="mag-bar" style="width:39%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos emph">+52.6%</span><span class="mag-bar" style="width:75%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+68.8%</span><span class="mag-bar" style="width:98%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+68.6%</span><span class="mag-bar" style="width:98%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+86.3%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l">9.2x</td><td>1.1x</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
+            <td class="bd-l">₹63,091 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Punjab National Bank</div><div class="co-sub">PNB · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">107.90</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">132</td><td class="cell-emph">146</td><td>159</td>
+            <td class="up-td t-pm bd-l"><span class="up-pill pos">+22.8%</span><span class="mag-bar" style="width:33%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+35.0%</span><span class="mag-bar" style="width:50%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+47.4%</span><span class="mag-bar" style="width:68%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+51.4%</span><span class="mag-bar" style="width:73%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+69.9%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l">7.9x</td><td>1.1x</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot"></span></span></td>
+            <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
+            <td class="bd-l">₹1,23,997 Cr</td>
+          </tr>
+
+          <tr>
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Wework India Management</div><div class="co-sub">WEWORKINDIA · REAL ESTATE <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">542.90</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">544</td><td class="cell-emph">653</td><td>762</td>
+            <td class="up-td t-ps bd-l"><span class="up-pill pos">+0.3%</span><span class="mag-bar" style="width:1%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+20.3%</span><span class="mag-bar" style="width:29%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+40.4%</span><span class="mag-bar" style="width:58%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+50.1%</span><span class="mag-bar" style="width:72%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+87.3%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l cell-muted">—</td><td class="cell-muted">—</td><td>18.0x</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">KS</span></td><td><span class="sa-pill">ST</span></td>
+            <td class="bd-l">₹7,448 Cr</td>
+          </tr>
+
+          <tr>
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Axis Bank</div><div class="co-sub">AXISBANK · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">1,259.70</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">1,487</td><td class="cell-emph">1,609</td><td>1,731</td>
+            <td class="up-td t-pm bd-l"><span class="up-pill pos">+18.0%</span><span class="mag-bar" style="width:26%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+27.7%</span><span class="mag-bar" style="width:40%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+37.4%</span><span class="mag-bar" style="width:53%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+46.3%</span><span class="mag-bar" style="width:66%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+67.5%</span><span class="mag-bar" style="width:96%"></span></td>
+            <td class="bd-l">18.3x</td><td>2.4x</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
+            <td class="bd-l">₹3,91,592 Cr</td>
+          </tr>
+
+          <tr class="zone-hold">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Motilal Oswal Financial Services</div><div class="co-sub">MOTILALOFS · BFSI <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">843.70</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">766</td><td class="cell-emph">942</td><td>1,117</td>
+            <td class="up-td t-ns bd-l"><span class="up-pill neg">−9.2%</span><span class="mag-bar neg" style="width:13%"></span></td>
+            <td class="up-td t-ps"><span class="up-pill pos emph">+11.6%</span><span class="mag-bar" style="width:17%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+32.4%</span><span class="mag-bar" style="width:46%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+42.0%</span><span class="mag-bar" style="width:60%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+80.6%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l">25.5x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+            <td class="bd-l">₹50,840 Cr</td>
+          </tr>
+
+          <tr class="zone-hold">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">IIFL Capital Services</div><div class="co-sub">IIFLCAPS · BFSI <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">326.90</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">288</td><td class="cell-emph">368</td><td>447</td>
+            <td class="up-td t-ns bd-l"><span class="up-pill neg">−11.9%</span><span class="mag-bar neg" style="width:17%"></span></td>
+            <td class="up-td t-ps"><span class="up-pill pos emph">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+36.8%</span><span class="mag-bar" style="width:53%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+40.8%</span><span class="mag-bar" style="width:58%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+68.0%</span><span class="mag-bar" style="width:97%"></span></td>
+            <td class="bd-l">17.6x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot"></span></span></td>
+            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+            <td class="bd-l">₹10,179 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Canara Robeco Asset Management</div><div class="co-sub">CRAMC · BFSI <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">246.70</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">256</td><td class="cell-emph">292</td><td>327</td>
+            <td class="up-td t-ps bd-l"><span class="up-pill pos">+3.7%</span><span class="mag-bar" style="width:5%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+18.2%</span><span class="mag-bar" style="width:26%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+32.4%</span><span class="mag-bar" style="width:46%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+40.1%</span><span class="mag-bar" style="width:57%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+66.0%</span><span class="mag-bar" style="width:94%"></span></td>
+            <td class="bd-l">28.5x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+            <td class="bd-l">₹4,920 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">GPT Infraprojects</div><div class="co-sub">GPTINFRA · INFRASTRUCTURE <span class="cap-tag cap-small">SMALL</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">121.20</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">109</td><td class="cell-emph">140</td><td>171</td>
+            <td class="up-td t-ns bd-l"><span class="up-pill neg">−10.2%</span><span class="mag-bar neg" style="width:15%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+15.4%</span><span class="mag-bar" style="width:22%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+41.1%</span><span class="mag-bar" style="width:59%"></span></td>
+            <td class="up-td t-pm bd-l"><span class="up-pill pos">+39.5%</span><span class="mag-bar" style="width:56%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+64.8%</span><span class="mag-bar" style="width:93%"></span></td>
+            <td class="bd-l">18.0x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">NS</span></td><td><span class="sa-pill">AP</span></td>
+            <td class="bd-l">₹1,532 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">MCX</div><div class="co-sub">MCX · CAPITAL MARKETS <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">2,402.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">2,602</td><td class="cell-emph">2,953</td><td>3,305</td>
+            <td class="up-td t-ps bd-l"><span class="up-pill pos">+8.3%</span><span class="mag-bar" style="width:12%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+22.9%</span><span class="mag-bar" style="width:33%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+37.6%</span><span class="mag-bar" style="width:54%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+45.3%</span><span class="mag-bar" style="width:65%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+62.8%</span><span class="mag-bar" style="width:90%"></span></td>
+            <td class="bd-l">42.0x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+            <td class="bd-l">₹1,22,000 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Smartworks</div><div class="co-sub">SMARTWORKS · REAL ESTATE <span class="cap-tag cap-small">SMALL</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">436.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">433</td><td class="cell-emph">541</td><td>649</td>
+            <td class="up-td t-ns bd-l"><span class="up-pill neg">−0.7%</span><span class="mag-bar neg" style="width:1%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos emph">+24.1%</span><span class="mag-bar" style="width:34%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+48.8%</span><span class="mag-bar" style="width:70%"></span></td>
+            <td class="up-td t-pd bd-l"><span class="up-pill pos">+78.0%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td t-pd"><span class="up-pill pos">+115.2%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l cell-muted">—</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+            <td class="bd-l">₹4,200 Cr</td>
+          </tr>
+
+          <tr>
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">Tips Music</div><div class="co-sub">TIPSMUSIC · MEDIA &amp; ENTMT <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">555.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">516</td><td class="cell-emph">610</td><td>704</td>
+            <td class="up-td t-ns bd-l"><span class="up-pill neg">−7.0%</span><span class="mag-bar neg" style="width:10%"></span></td>
+            <td class="up-td t-ps"><span class="up-pill pos emph">+9.9%</span><span class="mag-bar" style="width:14%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+26.8%</span><span class="mag-bar" style="width:38%"></span></td>
+            <td class="up-td t-pm bd-l"><span class="up-pill pos">+30.2%</span><span class="mag-bar" style="width:43%"></span></td>
+            <td class="up-td t-pm"><span class="up-pill pos">+38.5%</span><span class="mag-bar" style="width:55%"></span></td>
+            <td class="bd-l">39.0x</td><td>8.4x</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
+            <td class="bd-l">₹7,140 Cr</td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  (function(){
+    var KEY = 'octotusk-table-theme';
+    var saved = localStorage.getItem(KEY);
+    if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    var btn = document.getElementById('themeToggle');
+    btn.addEventListener('click', function(){
+      var current = document.documentElement.getAttribute('data-theme');
+      var next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem(KEY, next);
+    });
+  })();
+</script>
+
+</body>
+</html>
