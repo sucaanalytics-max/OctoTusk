@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OctoTusk — Table Readability · A/B/C</title>
-<meta name="description" content="Three table treatment options for the live Octopus dashboard. Compare side-by-side, pick a winner.">
+<title>OctoTusk — Table Readability · A/B/C/D</title>
+<meta name="description" content="Four table treatment options for the live Octopus dashboard. Compare side-by-side, pick a winner.">
 <meta name="theme-color" content="#F8F9FB">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,7 +34,7 @@ h1{font-weight:700; font-size:38px; letter-spacing:-0.025em; line-height:1.1; ma
 .lede{font-size:15px; color:var(--ink-2); max-width:64ch; line-height:1.6}
 .lede strong{color:var(--ink-1); font-weight:600}
 
-.grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-top:40px}
+.grid{display:grid; grid-template-columns:repeat(2, 1fr); gap:14px; margin-top:40px}
 .card{
   background:var(--card); border:1px solid var(--border);
   border-radius:var(--r-md); padding:22px 22px 24px;
@@ -91,8 +91,8 @@ h1{font-weight:700; font-size:38px; letter-spacing:-0.025em; line-height:1.1; ma
 <body>
 <div class="wrap">
   <div class="kicker">OctoTusk · Table treatment</div>
-  <h1>Three options for the Octopus table.</h1>
-  <p class="lede">The live <strong>/dashboard</strong> table works, but the dark-slate header reads as Bloomberg against the new lighter chrome, neon column tints feel "trading screen" not "research desk," and 11px row padding makes 17 columns hard to scan. Here are three different fixes — same data, three philosophies.</p>
+  <h1>Four options for the Octopus table.</h1>
+  <p class="lede">The live <strong>/dashboard</strong> table works, but the dark-slate header reads as Bloomberg against the new lighter chrome, neon column tints feel "trading screen" not "research desk," and 11px row padding makes 17 columns hard to scan. Here are four different fixes — same data, four philosophies.</p>
 
   <div class="grid">
 
@@ -103,10 +103,9 @@ h1{font-weight:700; font-size:38px; letter-spacing:-0.025em; line-height:1.1; ma
       <span class="card-spec">no dark slate · text-color tints · 1px column-group hairlines · 11px body padding</span>
     </a>
 
-    <a class="card recommended" href="table-b-editorial-dense.html">
+    <a class="card" href="table-b-editorial-dense.html">
       <div class="card-h">
         <span class="card-tag">B · Editorial Dense</span>
-        <span class="rec-pill">Recommended</span>
       </div>
       <h2>Refined <span class="arrow">→</span></h2>
       <p>Keeps the dark header — but graduates it from "Bloomberg" to "FT/Economist." Calmer green and amber tints. <strong>14px body padding</strong> (was 11px) is the single biggest readability gain.</p>
@@ -120,12 +119,22 @@ h1{font-weight:700; font-size:38px; letter-spacing:-0.025em; line-height:1.1; ma
       <span class="card-spec">sticky company column · ultra-faint zebra · whole-row hover · 4px left-anchored bars</span>
     </a>
 
+    <a class="card recommended" href="table-d-clean-numbers.html">
+      <div class="card-h">
+        <span class="card-tag">D · Clean Numbers</span>
+        <span class="rec-pill">Latest</span>
+      </div>
+      <h2>Tufte <span class="arrow">→</span></h2>
+      <p>No conditional background tint anywhere — pill text + magnitude bar carry the signal. <strong>1Y &amp; 2Y forward cells show absolute target ₹ price</strong> below the % upside. Default sort: 1Y descending — actionable opportunities at the top.</p>
+      <span class="card-spec">no upside tints · 1Y/2Y show ₹ targets · sorted by 1Y desc · refined dark header from B</span>
+    </a>
+
   </div>
 
   <div class="context">
-    <strong>How to compare:</strong> open each option, then horizontal-scroll the table to test C's sticky column, hover a row to test C's whole-row highlight, and compare row density between A (11px), B (14px), and C (12px). Use the theme toggle (top-right) to test light + dark on each. Each preview includes a compare-bar at top so you can flip between them in two clicks.
+    <strong>How to compare:</strong> open each option, then horizontal-scroll the table to test C's sticky column, hover a row to test C's whole-row highlight, and compare row density between A (11px), B (14px), and C (12px). On <strong>D</strong>, look at the 1Y/2Y cells (now show ₹ target under the %), the rows ordered by 1Y descending, and the absence of any conditional background tint in the upside columns. Use the theme toggle (top-right) to test light + dark on each.
     <br><br>
-    All three render the <strong>same 12 rows</strong> with the same data — visual diff is treatment-only.
+    All four render the <strong>same 12 rows</strong> with the same data — visual diff is treatment-only.
   </div>
 
   <div class="aux">

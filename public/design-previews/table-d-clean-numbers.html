@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OctoTusk — Table Option B · Editorial Dense</title>
-<meta name="description" content="Octopus table treatment — Option B: Refined dark header (deeper, warmer slate), calmer tints, 14px body padding, softer Alt 8.">
+<title>OctoTusk — Table Option D · Clean Numbers</title>
+<meta name="description" content="Octopus table treatment — Option D: No conditional background tint in upside cells. 1Y/2Y forward columns show absolute target price under the upside %. Default sort by 1Y descending.">
 <meta name="theme-color" content="#F8F9FB" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0F1117" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -235,6 +235,12 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
 [data-theme="dark"] .tbl thead tr.thead-col th.c-pos{ background:#0F1B14; }
 [data-theme="dark"] .tbl thead tr.thead-col th.c-accent{ background:#1F1808; }
 
+/* D — sorted column gets a subtle copper underline + brighter text */
+.tbl thead tr.thead-col th.sorted-desc{
+  color:#FDE68A; font-weight:700;
+  box-shadow: inset 0 -2px 0 var(--color-warning);
+}
+
 /* No vertical hairlines in B (the dark header itself defines structure) */
 .bd-l{ /* no-op for B */ }
 
@@ -317,28 +323,44 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
 .cell-emph{font-weight:600; color:var(--color-text-primary)}
 .cell-muted{color:var(--color-text-muted)}
 
-/* Upside cells — Alt 8 hybrid (tier bg + pill + magnitude bar) */
-.up-td{position:relative; padding:10px 10px 14px !important}
-.up-td.t-pd{background:var(--tier-pos-deep)}
-.up-td.t-pm{background:var(--tier-pos-mid)}
-.up-td.t-ps{background:var(--tier-pos-soft)}
-.up-td.t-ns{background:var(--tier-neg-soft)}
-.up-td.t-nd{background:var(--tier-neg-deep)}
+/* D — Upside cells: NO conditional background tint
+   Pill text colour + magnitude bar do all the work.
+   Forward cells (1Y / 2Y) ALSO show absolute target price below the % */
+.up-td{
+  position:relative;
+  padding:14px 10px 18px !important;  /* extra bottom padding for the absolute number */
+  background:transparent !important;  /* explicitly kill any tier backgrounds */
+}
+.up-td.t-pd, .up-td.t-pm, .up-td.t-ps,
+.up-td.t-ns, .up-td.t-nd { background:transparent !important; }
+
 .up-pill{
   display:inline-block; font-family:var(--font-mono);
   font-variant-numeric:tabular-nums;
-  font-size:11.5px; font-weight:600; letter-spacing:-0.01em;
+  font-size:12px; font-weight:600; letter-spacing:-0.01em;
 }
 .up-pill.pos{color:var(--color-positive)}
 .up-pill.neg{color:var(--color-negative)}
 .up-pill.emph{font-weight:700}
-.mag-bar{
-  position:absolute; left:50%; bottom:5px;
-  height:3px; border-radius:1.5px;
-  background:var(--color-positive); opacity:0.85;
-  pointer-events:none;
+
+/* D — absolute target price under the upside % (forward cells only) */
+.fwd-target{
+  display:block; margin-top:2px;
+  font-family:var(--font-mono); font-size:10.5px;
+  font-variant-numeric:tabular-nums;
+  color:var(--color-text-muted);
+  letter-spacing:-0.01em; font-weight:400;
 }
-.mag-bar.neg{background:var(--color-negative); transform-origin:right center}
+
+/* D — magnitude bar slightly more prominent (no tint to back it up) */
+.mag-bar{
+  position:absolute; left:10px; bottom:5px;
+  height:3px; border-radius:1.5px;
+  background:var(--color-positive); opacity:0.9;
+  pointer-events:none;
+  max-width:calc(100% - 20px);
+}
+.mag-bar.neg{background:var(--color-negative)}
 
 /* Conviction dots */
 /* B — slightly smaller conviction dots (4.5px from 5px) */
@@ -362,7 +384,7 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
 <body>
 
 <a class="skip-link" href="#main">Skip to content</a>
-<span class="design-badge">Option B · Editorial Dense</span>
+<span class="design-badge">Option D · Clean Numbers</span>
 
 <header class="page-head">
   <div class="brand-lock">
@@ -374,7 +396,7 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
     <div class="brand-text">OctoTusk</div>
   </div>
   <div class="brand-divider"></div>
-  <div class="page-title">Octopus <span class="page-title-tag">Table · B</span></div>
+  <div class="page-title">Octopus <span class="page-title-tag">Table · D</span></div>
   <div class="page-actions">
     <button type="button" class="icon-btn" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
       <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
@@ -393,10 +415,10 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
   <div class="compare-bar">
     <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; color:var(--color-text-muted)">Compare</span>
     <a href="table-a-light-headers.html">A · Light</a>
-    <a class="current" aria-current="page">B · Editorial</a>
+    <a href="table-b-editorial-dense.html">B · Editorial</a>
     <a href="table-c-scannable.html">C · Scannable</a>
-    <a href="table-d-clean-numbers.html">D · Clean Numbers</a>
-    <span style="margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--color-text-muted)">warmer slate · calmer tints · 14px row padding · softer Alt 8</span>
+    <a class="current" aria-current="page">D · Clean Numbers</a>
+    <span style="margin-left:auto; font-family:var(--font-mono); font-size:11px; color:var(--color-text-muted)">no upside tints · 1Y/2Y show ₹ targets · sorted by 1Y desc</span>
   </div>
 
   <div class="tbl-card">
@@ -428,7 +450,7 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <th class="c-pos bd-l">↑ Bear</th>
             <th class="c-pos">↑ Base</th>
             <th class="c-pos">↑ Bull</th>
-            <th class="c-pos bd-l">1Y ↑</th>
+            <th class="c-pos bd-l sorted-desc">1Y ↑ ▼</th>
             <th class="c-pos">2Y ↑</th>
             <th class="c-accent bd-l">PE</th>
             <th class="c-accent">PB</th>
@@ -440,20 +462,41 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
           </tr>
         </thead>
         <tbody>
+          <!-- Sorted by 1Y upside descending. 1Y/2Y cells show absolute target (₹ price)
+               under the % upside. Upside cells have NO conditional background tint. -->
 
           <tr class="zone-buy">
             <td><span class="act-cell">
               <button type="button" class="act-btn" title="Hide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
               <button type="button" class="act-btn" title="Watchlist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
             </span></td>
+            <td class="col-company"><div class="co-name">Smartworks</div><div class="co-sub">SMARTWORKS · REAL ESTATE <span class="cap-tag cap-small">SMALL</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">436.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">433</td><td class="cell-emph">541</td><td>649</td>
+            <td class="up-td bd-l"><span class="up-pill neg">−0.7%</span><span class="mag-bar neg" style="width:1%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+24.1%</span><span class="mag-bar" style="width:34%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+48.8%</span><span class="mag-bar" style="width:70%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+78.0%</span><span class="fwd-target">₹776</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+115.2%</span><span class="fwd-target">₹938</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="bd-l cell-muted">—</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+            <td class="bd-l">₹4,200 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
             <td class="col-company"><div class="co-name">The Bank of Baroda</div><div class="co-sub">BANKBARODA · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">263.40</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">351</td><td class="cell-emph">400</td><td>449</td>
-            <td class="up-td t-pm bd-l"><span class="up-pill pos">+33.2%</span><span class="mag-bar" style="width:47%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos emph">+51.8%</span><span class="mag-bar" style="width:74%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+70.6%</span><span class="mag-bar" style="width:100%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+68.9%</span><span class="mag-bar" style="width:98%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+88.0%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos">+33.2%</span><span class="mag-bar" style="width:47%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+51.8%</span><span class="mag-bar" style="width:74%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+70.6%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+68.9%</span><span class="fwd-target">₹445</span><span class="mag-bar" style="width:98%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+88.0%</span><span class="fwd-target">₹495</span><span class="mag-bar" style="width:100%"></span></td>
             <td class="bd-l">10.5x</td><td>1.2x</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
@@ -468,11 +511,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Bank of India</div><div class="co-sub">BANKINDIA · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">138.60</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">177</td><td class="cell-emph">211</td><td>234</td>
-            <td class="up-td t-pm bd-l"><span class="up-pill pos">+27.4%</span><span class="mag-bar" style="width:39%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos emph">+52.6%</span><span class="mag-bar" style="width:75%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+68.8%</span><span class="mag-bar" style="width:98%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+68.6%</span><span class="mag-bar" style="width:98%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+86.3%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos">+27.4%</span><span class="mag-bar" style="width:39%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+52.6%</span><span class="mag-bar" style="width:75%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+68.8%</span><span class="mag-bar" style="width:98%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+68.6%</span><span class="fwd-target">₹234</span><span class="mag-bar" style="width:98%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+86.3%</span><span class="fwd-target">₹258</span><span class="mag-bar" style="width:100%"></span></td>
             <td class="bd-l">9.2x</td><td>1.1x</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
@@ -487,11 +530,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Punjab National Bank</div><div class="co-sub">PNB · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">107.90</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">132</td><td class="cell-emph">146</td><td>159</td>
-            <td class="up-td t-pm bd-l"><span class="up-pill pos">+22.8%</span><span class="mag-bar" style="width:33%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+35.0%</span><span class="mag-bar" style="width:50%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+47.4%</span><span class="mag-bar" style="width:68%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+51.4%</span><span class="mag-bar" style="width:73%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+69.9%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos">+22.8%</span><span class="mag-bar" style="width:33%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+35.0%</span><span class="mag-bar" style="width:50%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+47.4%</span><span class="mag-bar" style="width:68%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+51.4%</span><span class="fwd-target">₹163</span><span class="mag-bar" style="width:73%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+69.9%</span><span class="fwd-target">₹183</span><span class="mag-bar" style="width:100%"></span></td>
             <td class="bd-l">7.9x</td><td>1.1x</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot"></span></span></td>
             <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
@@ -506,11 +549,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Wework India Management</div><div class="co-sub">WEWORKINDIA · REAL ESTATE <span class="cap-tag cap-mid">MID</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">542.90</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">544</td><td class="cell-emph">653</td><td>762</td>
-            <td class="up-td t-ps bd-l"><span class="up-pill pos">+0.3%</span><span class="mag-bar" style="width:1%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+20.3%</span><span class="mag-bar" style="width:29%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+40.4%</span><span class="mag-bar" style="width:58%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+50.1%</span><span class="mag-bar" style="width:72%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+87.3%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos">+0.3%</span><span class="mag-bar" style="width:1%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+20.3%</span><span class="mag-bar" style="width:29%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+40.4%</span><span class="mag-bar" style="width:58%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+50.1%</span><span class="fwd-target">₹815</span><span class="mag-bar" style="width:72%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+87.3%</span><span class="fwd-target">₹1,017</span><span class="mag-bar" style="width:100%"></span></td>
             <td class="bd-l cell-muted">—</td><td class="cell-muted">—</td><td>18.0x</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">KS</span></td><td><span class="sa-pill">ST</span></td>
@@ -525,15 +568,34 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Axis Bank</div><div class="co-sub">AXISBANK · BANKS &amp; NBFC <span class="cap-tag cap-large">LARGE</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">1,259.70</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">1,487</td><td class="cell-emph">1,609</td><td>1,731</td>
-            <td class="up-td t-pm bd-l"><span class="up-pill pos">+18.0%</span><span class="mag-bar" style="width:26%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+27.7%</span><span class="mag-bar" style="width:40%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+37.4%</span><span class="mag-bar" style="width:53%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+46.3%</span><span class="mag-bar" style="width:66%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+67.5%</span><span class="mag-bar" style="width:96%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos">+18.0%</span><span class="mag-bar" style="width:26%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+27.7%</span><span class="mag-bar" style="width:40%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+37.4%</span><span class="mag-bar" style="width:53%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+46.3%</span><span class="fwd-target">₹1,843</span><span class="mag-bar" style="width:66%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+67.5%</span><span class="fwd-target">₹2,110</span><span class="mag-bar" style="width:96%"></span></td>
             <td class="bd-l">18.3x</td><td>2.4x</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">DN</span></td><td><span class="sa-pill">PK</span></td>
             <td class="bd-l">₹3,91,592 Cr</td>
+          </tr>
+
+          <tr class="zone-buy">
+            <td><span class="act-cell">
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
+            </span></td>
+            <td class="col-company"><div class="co-name">MCX</div><div class="co-sub">MCX · CAPITAL MARKETS <span class="cap-tag cap-mid">MID</span></div></td>
+            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">2,402.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
+            <td class="bd-l">2,602</td><td class="cell-emph">2,953</td><td>3,305</td>
+            <td class="up-td bd-l"><span class="up-pill pos">+8.3%</span><span class="mag-bar" style="width:12%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+22.9%</span><span class="mag-bar" style="width:33%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+37.6%</span><span class="mag-bar" style="width:54%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+45.3%</span><span class="fwd-target">₹3,490</span><span class="mag-bar" style="width:65%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+62.8%</span><span class="fwd-target">₹3,910</span><span class="mag-bar" style="width:90%"></span></td>
+            <td class="bd-l">42.0x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
+            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
+            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
+            <td class="bd-l">₹1,22,000 Cr</td>
           </tr>
 
           <tr class="zone-hold">
@@ -544,11 +606,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Motilal Oswal Financial Services</div><div class="co-sub">MOTILALOFS · BFSI <span class="cap-tag cap-mid">MID</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">843.70</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">766</td><td class="cell-emph">942</td><td>1,117</td>
-            <td class="up-td t-ns bd-l"><span class="up-pill neg">−9.2%</span><span class="mag-bar neg" style="width:13%"></span></td>
-            <td class="up-td t-ps"><span class="up-pill pos emph">+11.6%</span><span class="mag-bar" style="width:17%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+32.4%</span><span class="mag-bar" style="width:46%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+42.0%</span><span class="mag-bar" style="width:60%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+80.6%</span><span class="mag-bar" style="width:100%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill neg">−9.2%</span><span class="mag-bar neg" style="width:13%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+11.6%</span><span class="mag-bar" style="width:17%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+32.4%</span><span class="mag-bar" style="width:46%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+42.0%</span><span class="fwd-target">₹1,198</span><span class="mag-bar" style="width:60%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+80.6%</span><span class="fwd-target">₹1,524</span><span class="mag-bar" style="width:100%"></span></td>
             <td class="bd-l">25.5x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
@@ -563,11 +625,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">IIFL Capital Services</div><div class="co-sub">IIFLCAPS · BFSI <span class="cap-tag cap-mid">MID</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">326.90</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">288</td><td class="cell-emph">368</td><td>447</td>
-            <td class="up-td t-ns bd-l"><span class="up-pill neg">−11.9%</span><span class="mag-bar neg" style="width:17%"></span></td>
-            <td class="up-td t-ps"><span class="up-pill pos emph">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+36.8%</span><span class="mag-bar" style="width:53%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+40.8%</span><span class="mag-bar" style="width:58%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+68.0%</span><span class="mag-bar" style="width:97%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill neg">−11.9%</span><span class="mag-bar neg" style="width:17%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+12.6%</span><span class="mag-bar" style="width:18%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+36.8%</span><span class="mag-bar" style="width:53%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+40.8%</span><span class="fwd-target">₹460</span><span class="mag-bar" style="width:58%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+68.0%</span><span class="fwd-target">₹549</span><span class="mag-bar" style="width:97%"></span></td>
             <td class="bd-l">17.6x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot"></span></span></td>
             <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
@@ -582,11 +644,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Canara Robeco Asset Management</div><div class="co-sub">CRAMC · BFSI <span class="cap-tag cap-mid">MID</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">246.70</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">256</td><td class="cell-emph">292</td><td>327</td>
-            <td class="up-td t-ps bd-l"><span class="up-pill pos">+3.7%</span><span class="mag-bar" style="width:5%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+18.2%</span><span class="mag-bar" style="width:26%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+32.4%</span><span class="mag-bar" style="width:46%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+40.1%</span><span class="mag-bar" style="width:57%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+66.0%</span><span class="mag-bar" style="width:94%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos">+3.7%</span><span class="mag-bar" style="width:5%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+18.2%</span><span class="mag-bar" style="width:26%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+32.4%</span><span class="mag-bar" style="width:46%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+40.1%</span><span class="fwd-target">₹346</span><span class="mag-bar" style="width:57%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+66.0%</span><span class="fwd-target">₹410</span><span class="mag-bar" style="width:94%"></span></td>
             <td class="bd-l">28.5x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
@@ -601,53 +663,15 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">GPT Infraprojects</div><div class="co-sub">GPTINFRA · INFRASTRUCTURE <span class="cap-tag cap-small">SMALL</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">121.20</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">109</td><td class="cell-emph">140</td><td>171</td>
-            <td class="up-td t-ns bd-l"><span class="up-pill neg">−10.2%</span><span class="mag-bar neg" style="width:15%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+15.4%</span><span class="mag-bar" style="width:22%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+41.1%</span><span class="mag-bar" style="width:59%"></span></td>
-            <td class="up-td t-pm bd-l"><span class="up-pill pos">+39.5%</span><span class="mag-bar" style="width:56%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+64.8%</span><span class="mag-bar" style="width:93%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill neg">−10.2%</span><span class="mag-bar neg" style="width:15%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+15.4%</span><span class="mag-bar" style="width:22%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+41.1%</span><span class="mag-bar" style="width:59%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+39.5%</span><span class="fwd-target">₹169</span><span class="mag-bar" style="width:56%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+64.8%</span><span class="fwd-target">₹200</span><span class="mag-bar" style="width:93%"></span></td>
             <td class="bd-l">18.0x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">NS</span></td><td><span class="sa-pill">AP</span></td>
             <td class="bd-l">₹1,532 Cr</td>
-          </tr>
-
-          <tr class="zone-buy">
-            <td><span class="act-cell">
-              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
-            </span></td>
-            <td class="col-company"><div class="co-name">MCX</div><div class="co-sub">MCX · CAPITAL MARKETS <span class="cap-tag cap-mid">MID</span></div></td>
-            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">2,402.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
-            <td class="bd-l">2,602</td><td class="cell-emph">2,953</td><td>3,305</td>
-            <td class="up-td t-ps bd-l"><span class="up-pill pos">+8.3%</span><span class="mag-bar" style="width:12%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+22.9%</span><span class="mag-bar" style="width:33%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+37.6%</span><span class="mag-bar" style="width:54%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+45.3%</span><span class="mag-bar" style="width:65%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+62.8%</span><span class="mag-bar" style="width:90%"></span></td>
-            <td class="bd-l">42.0x</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
-            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
-            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
-            <td class="bd-l">₹1,22,000 Cr</td>
-          </tr>
-
-          <tr class="zone-buy">
-            <td><span class="act-cell">
-              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-              <button type="button" class="act-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg></button>
-            </span></td>
-            <td class="col-company"><div class="co-name">Smartworks</div><div class="co-sub">SMARTWORKS · REAL ESTATE <span class="cap-tag cap-small">SMALL</span></div></td>
-            <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">436.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
-            <td class="bd-l">433</td><td class="cell-emph">541</td><td>649</td>
-            <td class="up-td t-ns bd-l"><span class="up-pill neg">−0.7%</span><span class="mag-bar neg" style="width:1%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos emph">+24.1%</span><span class="mag-bar" style="width:34%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+48.8%</span><span class="mag-bar" style="width:70%"></span></td>
-            <td class="up-td t-pd bd-l"><span class="up-pill pos">+78.0%</span><span class="mag-bar" style="width:100%"></span></td>
-            <td class="up-td t-pd"><span class="up-pill pos">+115.2%</span><span class="mag-bar" style="width:100%"></span></td>
-            <td class="bd-l cell-muted">—</td><td class="cell-muted">—</td><td class="cell-muted">—</td>
-            <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
-            <td><span class="va-pill">SM</span></td><td><span class="sa-pill">KS</span></td>
-            <td class="bd-l">₹4,200 Cr</td>
           </tr>
 
           <tr>
@@ -658,11 +682,11 @@ main{max-width:1700px; margin:0 auto; padding:24px 24px 80px}
             <td class="col-company"><div class="co-name">Tips Music</div><div class="co-sub">TIPSMUSIC · MEDIA &amp; ENTMT <span class="cap-tag cap-mid">MID</span></div></td>
             <td class="bd-l"><div class="cmp-cell"><span class="cmp-val">555.00</span><span class="cmp-delta zero">— 0.0%</span></div></td>
             <td class="bd-l">516</td><td class="cell-emph">610</td><td>704</td>
-            <td class="up-td t-ns bd-l"><span class="up-pill neg">−7.0%</span><span class="mag-bar neg" style="width:10%"></span></td>
-            <td class="up-td t-ps"><span class="up-pill pos emph">+9.9%</span><span class="mag-bar" style="width:14%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+26.8%</span><span class="mag-bar" style="width:38%"></span></td>
-            <td class="up-td t-pm bd-l"><span class="up-pill pos">+30.2%</span><span class="mag-bar" style="width:43%"></span></td>
-            <td class="up-td t-pm"><span class="up-pill pos">+38.5%</span><span class="mag-bar" style="width:55%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill neg">−7.0%</span><span class="mag-bar neg" style="width:10%"></span></td>
+            <td class="up-td"><span class="up-pill pos emph">+9.9%</span><span class="mag-bar" style="width:14%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+26.8%</span><span class="mag-bar" style="width:38%"></span></td>
+            <td class="up-td bd-l"><span class="up-pill pos emph">+30.2%</span><span class="fwd-target">₹723</span><span class="mag-bar" style="width:43%"></span></td>
+            <td class="up-td"><span class="up-pill pos">+38.5%</span><span class="fwd-target">₹769</span><span class="mag-bar" style="width:55%"></span></td>
             <td class="bd-l">39.0x</td><td>8.4x</td><td class="cell-muted">—</td>
             <td class="bd-l"><span class="conv"><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span><span class="conv-dot on"></span></span></td>
             <td><span class="va-pill">DN</span></td><td><span class="sa-pill">SM</span></td>
