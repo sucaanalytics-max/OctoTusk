@@ -1,0 +1,93 @@
+TIKR,Official Name,Current Sector (JVB live),Current Subsector (JVB live),New Sector (F5),New Subsector (G5),Sector Changed,Subsector Changed,Status,Notes
+ABCAPITAL,ADITYA BIRLA CAPITAL LIMITED,BFSI,NBFCs,Financial Services,Holding Company (Diversified Financials),Y,Y,CORRECTION,"was NBFC — Aditya Birla Capital is a holding co (AB Finance, Housing, AMC, Insurance)"
+ABSLAMC,ADITYA BIRLA SUN LIFE AMC LIMITED,BFSI,AMC,Financial Services,Asset Management Company,Y,Y,CORRECTION,subsector was '0' — Aditya Birla Sun Life AMC
+BAJAJFINSV,BAJAJ FINSERV LIMITED,BFSI,NBFCs,Financial Services,Holding Company (Diversified Financials),Y,Y,CORRECTION,"was NBFC — Bajaj Finserv is a holding co (Bajaj Finance, Allianz Life, Allianz General)"
+CAMS,COMPUTER AGE MANAGEMENT SERVICES LIMITED,BFSI,Housing Finance,Financial Services,Registrar & Transfer Agent,Y,Y,CORRECTION,was Asset Mgmt/Housing Finance — CAMS is an RTA
+CDSL,CENTRAL DEPOSITORY SERVICES (INDIA) LIMITED,BFSI,0,Financial Services,Depository,Y,Y,CORRECTION,subsector was '0' — Central Depository Services
+CRAMC,CANARA ROBECO ASSET MANAGEMENT COMPANY LIMITED,BFSI,0,Financial Services,Asset Management Company,Y,Y,CORRECTION,subsector was '0' — Canara Robeco AMC
+HDFCAMC,HDFC ASSET MANAGEMENT COMPANY LIMITED,0,0,Financial Services,Asset Management Company,Y,Y,CORRECTION,subsector was '0' — HDFC AMC
+HUDCO,HOUSING AND URBAN DEVELOPMENT CORPORATION LIMITED,BFSI,Infra Financing,Financial Services,Housing Finance Company,Y,Y,CORRECTION,was Infra Finance — keeping as HFC; alternative is Specialised Finance (Infra)
+ICICIAMC,ICICI PRUDENTIAL ASSET MANAGEMENT COMPANY LIMITED,BFSI,AMC,Financial Services,Asset Management Company,Y,Y,CORRECTION,subsector was '0' — ICICI Prudential AMC
+IEX,INDIAN ENERGY EXCHANGE LIMITED,BFSI,Exchanges & Capital Markets,Financial Services,Power Exchange,Y,Y,CORRECTION,"Financial Services / Power Exchange — NSE/Nifty places IEX in Nifty Capital Markets index, not Power"
+KFINTECH,KFIN TECHNOLOGIES LIMITED,BFSI,Exchanges & Capital Markets,Financial Services,Registrar & Transfer Agent,Y,Y,CORRECTION,was Capital Markets — KFin is an RTA
+PNBHOUSING,PNB HOUSING FINANCE LIMITED,BFSI,Housing Finance,Financial Services,Housing Finance Company,Y,Y,CORRECTION,sector was 'Banks' — it's an HFC
+XBOM:590108,Nippon India ETF Nifty PSU Bank BeES,,,Financial Services,Exchange Traded Fund (Banking),Y,Y,CORRECTION,PSU Bank BeES ETF — row 96 in live JVB but sector/subsector cells are empty (slipped through prior audits)
+AXISBANK,Axis Bank Limited,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+BAJFINANCE,BAJAJ FINANCE LIMITED,BFSI,NBFCs,Financial Services,NBFC,Y,Y,rename,
+BANKBARODA,THE BANK OF BARODA LIMITED,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+BANKINDIA,BANK OF INDIA LIMITED,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+BSE,BSE Limited,BFSI,Exchanges & Capital Markets,Financial Services,Stock Exchange,Y,Y,rename,
+CanBK,THE CANARA BANK LIMITED,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+CANFINHOME,CAN FIN HOMES LIMITED,BFSI,Housing Finance,Financial Services,Housing Finance Company,Y,Y,rename,
+CSBBANK,CSB BANK LIMITED,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+EDELWEISS,Edelweiss Financial Services Limited,BFSI,Exchanges & Capital Markets,Financial Services,Diversified Financials,Y,Y,rename,
+FEDERALBNK,THE FEDERAL BANK LTD,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+FEDFINA,FEDBANK FINANCIAL SERVICES LIMITED,BFSI,NBFCs,Financial Services,NBFC,Y,Y,rename,
+FIVESTAR,FIVE-STAR BUSINESS FINANCE LIMITED,BFSI,NBFCs,Financial Services,NBFC,Y,Y,rename,
+HDFCBANK,HDFC BANK LIMITED,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+ICICIBANK,ICICI BANK LIMITED,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+IDFCFIRSTB,IDFC FIRST BANK LIMITED,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+IIFL,IIFL FINANCE LIMITED,BFSI,NBFCs,Financial Services,NBFC,Y,Y,rename,
+IIFLCAPS,IIFL Capital Services Limited,BFSI,Exchanges & Capital Markets,Financial Services,Stockbroking & Allied Services,Y,Y,rename,
+IndianB,Indian Bank,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+INDIASHLTR,INDIA SHELTER FINANCE CORPORATION LIMITED,BFSI,Housing Finance,Financial Services,Housing Finance Company,Y,Y,rename,
+JMFINANCIL,JM FINANCIAL LIMITED,BFSI,Exchanges & Capital Markets,Financial Services,Stockbroking & Allied Services,Y,Y,rename,
+LICHSGFIN,LIC HOUSING FINANCE LTD,BFSI,Housing Finance,Financial Services,Housing Finance Company,Y,Y,rename,
+LTF,L&T Finance Limited,BFSI,NBFCs,Financial Services,NBFC,Y,Y,rename,
+MANAPPURAM,MANAPPURAM FINANCE LIMITED,BFSI,NBFCs,Financial Services,NBFC (Gold Loan),Y,Y,rename,
+MCX,MULTI COMMODITY EXCHANGE OF INDIA LIMITED,BFSI,Exchanges & Capital Markets,Financial Services,Commodity Exchange,Y,Y,rename,
+MOTILALOFS,MOTILAL OSWAL FINANCIAL SERVICES LIMITED,BFSI,Exchanges & Capital Markets,Financial Services,Stockbroking & Allied Services,Y,Y,rename,
+MUTHOOTFIN,MUTHOOT FINANCE LIMITED,BFSI,NBFCs,Financial Services,NBFC (Gold Loan),Y,Y,rename,
+NAM-INDIA,NIPPON LIFE INDIA ASSET MANAGEMENT LIMITED,BFSI,AMC,Financial Services,Asset Management Company,Y,Y,rename,
+National Stock Exchange (NSE),National Stock Exchange (NSE),BFSI,Exchanges & Capital Markets,Financial Services,Stock Exchange,Y,Y,rename,
+PFC,POWER FINANCE CORPORATION LIMITED,BFSI,Power Finance,Financial Services,Specialised Finance — Power,Y,Y,rename,
+PNB,Punjab National Bank,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+RECLTD,REC LTD,,,Financial Services,Specialised Finance — Power,Y,Y,rename,
+SBICARD,SBI CARDS AND PAYMENT SERVICES LIMITED,BFSI,NBFCs,Financial Services,NBFC (Credit Card),Y,Y,rename,
+SBIN,State Bank of India,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+SHRIRAMFIN,SHRIRAM FINANCE LIMITED,BFSI,NBFCs,Financial Services,NBFC,Y,Y,rename,
+TMB,TAMILNAD MERCANTILE BANK LIMITED,BFSI,Banks,Financial Services,Private Sector Bank,Y,Y,rename,
+unionbank,UNION BANK OF INDIA LIMITED,BFSI,Banks,Financial Services,Public Sector Bank,Y,Y,rename,
+COFORGE,COFORGE LIMITED,IT,IT Services,Information Technology,IT - Services,Y,Y,rename,
+CYIENT,Cyient Limited,IT,IT Services,Information Technology,IT - Services,Y,Y,rename,
+E2E,E2E NETWORKS LIMITED,IT Services,IT Services,Information Technology,IT - Services (Cloud),Y,Y,rename,
+FSL,Firstsource Solutions Limited,IT,IT Services,Information Technology,IT - Services (BPO/KPO),Y,Y,rename,
+OFSS,ORACLE FINANCIAL SERVICES SOFTWARE LIMITED,IT,IT Services,Information Technology,IT - Software,Y,Y,rename,
+TATAELXSI,TATA ELXSI LIMITED,IT,IT Services,Information Technology,IT - Services (Engineering R&D),Y,Y,rename,
+BPCL,BHARAT PETROLEUM CORPORATION LIMITED,Oil & Gas,OMCS,"Oil, Gas & Consumable Fuels",Refineries & Marketing,Y,Y,rename,
+Hindpetro,HINDUSTAN PETROLEUM CORPORATION LIMITED,Oil & Gas,OMCS,"Oil, Gas & Consumable Fuels",Refineries & Marketing,Y,Y,rename,
+IOC,INDIAN OIL CORPORATION LIMITED,Oil & Gas,OMCS,"Oil, Gas & Consumable Fuels",Refineries & Marketing,Y,Y,rename,
+OIL,OIL INDIA LIMITED,Oil & Gas,Upstream,"Oil, Gas & Consumable Fuels",Crude Oil & Natural Gas (E&P),Y,Y,rename,
+ACMESOLAR,ACME SOLAR HOLDINGS LIMITED,Power,Reneawable,Power,Renewable Power Generation,,Y,CORRECTION,typo fix: 'Reneawable' → 'Renewable'
+ADANIGREEN,ADANI GREEN ENERGY LIMITED,Power,Reneawable,Power,Renewable Power Generation,,Y,CORRECTION,typo fix: 'Reneawable' → 'Renewable'
+CESC,CESC LTD,Power,Legacy,Power,Electric Utilities (Integrated),,Y,rename,
+NTPC,NTPC LIMITED,Power,Legacy,Power,Electric Utilities (Integrated),,Y,rename,
+Inoxwind,INOX WIND LIMITED,Power,Reneawable,Capital Goods,Heavy Electrical Equipment (Wind Turbines),Y,Y,CORRECTION,was Power — wind turbine OEMs are Capital Goods (NSE)
+INTERARCH,INTERARCH BUILDING SOLUTIONS LIMITED,Infrastructure,Building Materials,Capital Goods,Industrial Products (Pre-Engineered Buildings),Y,Y,CORRECTION,was Real Estate/Building Materials — PEB is industrial mfg
+VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597),VIRTUOSO OPTOELECTRONICS LIMITED,Consumer,Retail,Capital Goods,Electronic Components (EMS),Y,Y,CORRECTION,"was Consumer/Retail — Virtuoso is an EMS contract manufacturer (LED), reclassified to Capital Goods per peer placement (Kaynes/Syrma)"
+XBOM:522101,KILBURN ENGINEERING LTD,Manufacturing,Capital Goods,Capital Goods,Industrial Manufacturing (Process Equipment),Y,Y,rename,
+GPTINFRA,GPT INFRAPROJECTS LIMITED,Infrastructure,Integrated,Construction,Civil Construction (Railways/Bridges),Y,Y,rename,
+SPMLINFRA,SPML INFRA LIMITED,Infrastructure,Water,Construction,Civil Construction (Water Infra),Y,Y,rename,
+XBOM:516003,DUROPLY INDUSTRIES LIMITED,Real Estate,Integrated,Construction Materials,Plywood & Allied,Y,Y,CORRECTION,was Real Estate — Duroply is a plywood manufacturer
+PHOENIXLTD,THE PHOENIX MILLS LIMITED,Hospitality & Real Estate,Retail,Realty,Commercial (Retail Malls),Y,Y,CORRECTION,"was Real Estate/Retail → Realty/Commercial (Retail Malls) — Phoenix is a mall developer, not a retailer"
+BIRET,BROOKFIELD INDIA REAL ESTATE TRUST,Real Estate,REITs,Realty,REIT (Office),Y,Y,rename,
+Embassy,Embassy Office Parks Reit,Real Estate,REITs,Realty,REIT (Office),Y,Y,rename,
+MINDSPACE,Mindspace Business Parks Reit,Real Estate,REITs,Realty,REIT (Office),Y,Y,rename,
+NXST,Nexus Select Trust,Hospitality & Real Estate,REITs,Realty,REIT (Retail),Y,Y,rename,
+INDIGO,INTERGLOBE AVIATION LIMITED,Aviation,Others,Consumer Services,Air Transport Services,Y,Y,rename,
+PARKHOTELS,APEEJAY SURRENDRA PARK HOTELS LIMITED,Consumer,Hospitality,Consumer Services,Hotels & Resorts,Y,Y,rename,
+EPACK DURABLE LIMITED (XNSE:EPACK),EPACK DURABLE LIMITED,Consumer,Retail,Consumer Durables,Household Appliances (RAC ODM),Y,Y,CORRECTION,"was Consumer/Retail — they're an ODM (RACs, washing machines)"
+ANNAPURNA,ANNAPURNA SWADISHT LIMITED,FMCG,Consumer,Fast Moving Consumer Goods,Food Products — Snacks,Y,Y,rename,
+MANORAMA,MANORAMA INDUSTRIES LIMITED,Consumer,FMCG,Fast Moving Consumer Goods,Food Products — Specialty Fats / Edible Oils,Y,Y,rename,
+VBL,VARUN BEVERAGES LIMITED,Consumer,F&B Manufacturing,Fast Moving Consumer Goods,Beverages — Soft Drinks,Y,Y,rename,
+XNSE:TRIVENI,TRIVENI ENGINEERING AND INDUSTRIES LIMITED,Industry,Ethanol/Sugar/Alcohol,Fast Moving Consumer Goods,Food Products — Sugar & Ethanol,Y,Y,rename,
+GPTHEALTH,GPT HEALTHCARE LIMITED,Health,Hospitals,Healthcare,Healthcare Services — Hospital,Y,Y,rename,
+SURAKSHA,SURAKSHA DIAGNOSTIC LIMITED,Health,Diagnostics,Healthcare,Healthcare Services — Diagnostic Centre,Y,Y,rename,
+GPIL,GODAWARI POWER AND ISPAT LIMITED,Metals & Mining,Metals,Metals & Mining,Iron & Steel (Integrated),,Y,rename,
+VEDL,Vedanta Limited,Metals & Mining,Metals,Metals & Mining,Diversified Metals,,Y,rename,
+PCBL,PCBL CHEMICAL LIMITED,Chemicals,Chemcials,Chemicals,Carbon Black,,Y,CORRECTION,typo fix: 'Chemcials' → 'Chemicals'; subsector refined to 'Carbon Black'
+TIPSMUSIC,TIPS MUSIC LIMITED,0,0,Media Entertainment & Publication,Music Production & Publishing,Y,Y,CORRECTION,subsector was '0' (placeholder)
+ADANIPORTS,ADANI PORTS AND SPECIAL ECONOMIC ZONE LIMITED,Infrastructure,Other,Services,Marine Port & Services,Y,Y,CORRECTION,subsector was 'Diagnostics' — pure data error
+Smartworks,SMARTWORKS COWORKING SPACES LIMITED,,,Services,Managed Workspaces,Y,Y,CORRECTION,"subsector was '0' (placeholder); reclassified Realty→Services per NSE/screener (managed-services operator, not landlord)"
+Wework,WEWORK INDIA MANAGEMENT LIMITED,Real Estate,Co-Working,Services,Managed Workspaces,Y,Y,rename,
+GRASIM,GRASIM INDUSTRIES LTD,Other,Other,Diversified,Holding Company (VSF / Chemicals / Cement / Paints),Y,Y,CORRECTION,"subsector was 'Paper' — Grasim is conglomerate (VSF/Chem/Cement/Paints), not paper"

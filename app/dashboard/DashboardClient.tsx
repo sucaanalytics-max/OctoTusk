@@ -739,15 +739,6 @@ const REMOVED_STOCKS = [
   "somany", "sunteck", "arihant", "coal india", "533278",
 ];
 
-const SECTOR_MAP: Record<string, string[]> = {
-  "BFSI":         ["bfsi", "financials", "asset mgmt", "wealth mgmt", "fintech", "insurance", "banking"],
-  "Technology":   ["technology", "electronics", "it services", "software", "tech"],
-  "Consumption":  ["consumption", "consumer", "fmcg", "retail", "lifestyle", "apparel", "food"],
-  "Healthcare":   ["healthcare", "pharma", "hospitals", "diagnostics", "health"],
-  "Industrials":  ["industrials", "capital goods", "auto", "engineering", "defence"],
-  "Infra":        ["infra", "infrastructure", "utilities", "power", "cement", "construction"],
-  "Real Estate":  ["real estate", "realty"],
-};
 
 function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
   const t = s.tikr.toLowerCase();
@@ -1113,7 +1104,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     // Capture holdings + ticker_map from baseline for snapshot persistence
     let snapshotHoldings: unknown[] = [];
     let snapshotTickerMap: Record<string, string> = {};
-    let snapshotFoPositions: unknown[] = [];
+    // null sentinel = "OneDrive read failed; preserve last-good in Supabase"
+    // empty array = "explicit empty result from a successful read"
+    let snapshotFoPositions: unknown[] | null = null;
     try {
       // Step 1: Fetch JVB baseline + vF file list (fast)
       const baseRes = await fetch("/api/sync", {
@@ -1126,7 +1119,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
       snapshotHoldings = (baseData.holdings ?? []) as unknown[];
       snapshotTickerMap = (baseData.ticker_map ?? {}) as Record<string, string>;
-      snapshotFoPositions = (baseData.fo_positions ?? []) as unknown[];
+      snapshotFoPositions = baseData.fo_positions === undefined
+        ? null
+        : (baseData.fo_positions as unknown[] | null);
 
       let currentStocks = baseData.stocks;
       setLiveStocks(currentStocks);
@@ -1137,10 +1132,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       if (totalFiles === 0) {
         // Persist even if no vF files (baseline-only snapshot)
         try {
+          const snapBody: Record<string, unknown> = {
+            stocks: currentStocks,
+            holdings: snapshotHoldings,
+            ticker_map: snapshotTickerMap,
+          };
+          if (snapshotFoPositions !== null) snapBody.fo_positions = snapshotFoPositions;
           const snapRes = await fetch("/api/snapshot", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap, fo_positions: snapshotFoPositions }),
+            body: JSON.stringify(snapBody),
           });
           if (!snapRes.ok) console.error("[snapshot] Save failed:", snapRes.status, await snapRes.text().catch(() => ""));
           else console.log("[snapshot] Baseline snapshot saved to Supabase");
@@ -1184,10 +1185,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
       // Persist final merged snapshot to Supabase so it survives page refreshes
       try {
+        const snapBody: Record<string, unknown> = {
+          stocks: currentStocks,
+          holdings: snapshotHoldings,
+          ticker_map: snapshotTickerMap,
+        };
+        if (snapshotFoPositions !== null) snapBody.fo_positions = snapshotFoPositions;
         const snapRes = await fetch("/api/snapshot", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ stocks: currentStocks, holdings: snapshotHoldings, ticker_map: snapshotTickerMap, fo_positions: snapshotFoPositions }),
+          body: JSON.stringify(snapBody),
         });
         if (!snapRes.ok) console.error("[snapshot] Save failed:", snapRes.status, await snapRes.text().catch(() => ""));
         else console.log("[snapshot] Snapshot saved to Supabase");
@@ -1316,15 +1323,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     return { sectors, vps, convictions };
   }, [liveStocks]);
 
-  // Cascading subsectors: scoped to whichever sector group is currently selected.
+  // Cascading subsectors: scoped to whichever sector is currently selected.
   const subsectorOptions = useMemo(() => {
     const pool = filterSector === "all"
       ? liveStocks
-      : liveStocks.filter(s => {
-          const broad = SECTOR_MAP[filterSector];
-          const sec = s.sector?.toLowerCase() ?? "";
-          return broad ? broad.some(m => sec.includes(m)) : s.sector === filterSector;
-        });
+      : liveStocks.filter(s => s.sector === filterSector);
     return Array.from(new Set(
       pool.map(s => (s.subsector && s.subsector !== "0" ? s.subsector : "")).filter(Boolean)
     )).sort();
@@ -1393,14 +1396,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
         const t = searchTerm.toLowerCase();
         if (!(s.tikr?.toLowerCase().includes(t) || s.displayTikr?.toLowerCase().includes(t) || s.companyShort?.toLowerCase().includes(t) || s.sector?.toLowerCase().includes(t) || s.official_name?.toLowerCase().includes(t) || s.vp?.toLowerCase().includes(t) || s.sa?.toLowerCase().includes(t))) return false;
       }
-      if (filterSector !== "all") {
-        const broad = SECTOR_MAP[filterSector];
-        const sec = s.sector?.toLowerCase() ?? "";
-        const match = broad
-          ? broad.some(m => sec.includes(m))
-          : s.sector === filterSector;
-        if (!match) return false;
-      }
+      if (filterSector !== "all" && s.sector !== filterSector) return false;
       if (filterSubsector !== "all") {
         const sub = s.subsector && s.subsector !== "0" ? s.subsector : "";
         if (sub !== filterSubsector) return false;
@@ -2243,13 +2239,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             />
             <select value={filterSector} onChange={e => setFilterSector(e.target.value)} className="select-dark" aria-label="Filter by sector">
               <option value="all">All Sectors</option>
-              <option value="BFSI">BFSI</option>
-              <option value="Technology">Technology</option>
-              <option value="Consumption">Consumption</option>
-              <option value="Healthcare">Healthcare</option>
-              <option value="Industrials">Industrials</option>
-              <option value="Infra">Infra</option>
-              <option value="Real Estate">Real Estate</option>
+              {filterOptions.sectors.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <select value={filterSubsector} onChange={e => setFilterSubsector(e.target.value)} className="select-dark" aria-label="Filter by subsector" disabled={subsectorOptions.length === 0}>
               <option value="all">All Subsectors</option>

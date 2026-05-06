@@ -525,23 +525,27 @@ function parseExpiry(ddmmyy: string): string {
 }
 
 async function readFoPositions(token: string): Promise<FoPosition[] | null> {
+  console.log(`[fo] start; folder=${POSITIONS_FOLDER_ID} drive=${DRIVE_ID.slice(0, 12)}…`);
   try {
     const listUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${POSITIONS_FOLDER_ID}/children?$select=id,name,lastModifiedDateTime,file&$top=50`;
     const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
     const listData = await listRes.json();
+    console.log(`[fo] list status=${listRes.status} children=${(listData.value ?? []).length}`);
     if (listData.error) {
-      console.warn(`[fo] Folder listing error: ${listData.error.message}`);
+      console.warn(`[fo] Folder listing error: ${listData.error.message} (folder=${POSITIONS_FOLDER_ID})`);
       return null;
     }
 
-    const foFiles: { id: string; name: string }[] = (listData.value || [])
-      .filter((f: { file?: unknown; name: string }) =>
-        f.file && /^\d{6,8}\s+Tusk FO\.xlsx$/i.test(f.name)
-      )
-      .sort((a: { name: string }, b: { name: string }) => b.name.localeCompare(a.name));
+    const allChildren: { name: string }[] = listData.value || [];
+    const foFiles: { id: string; name: string }[] = allChildren
+      .filter((f) => (f as { file?: unknown }).file && /^\d{6,8}\s+Tusk FO\.xlsx$/i.test(f.name))
+      .map((f) => f as { id: string; name: string })
+      .sort((a, b) => b.name.localeCompare(a.name));
+    console.log(`[fo] matched ${foFiles.length} candidate FO files: ${foFiles.map((f) => f.name).join(", ") || "(none)"}`);
 
     if (foFiles.length === 0) {
-      console.warn("[fo] No 'Tusk FO.xlsx' file found in Positions folder");
+      const nonMatching = allChildren.slice(0, 5).map((f) => f.name).join(", ");
+      console.warn(`[fo] No 'Tusk FO.xlsx' file found in Positions folder ${POSITIONS_FOLDER_ID}; first children: ${nonMatching || "(folder empty)"}`);
       return null;
     }
 
@@ -552,8 +556,9 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
       `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`,
       { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }
     );
+    console.log(`[fo] download status=${dlRes.status} content-length=${dlRes.headers.get("content-length") ?? "?"}`);
     if (!dlRes.ok) {
-      console.warn(`[fo] Download failed: ${dlRes.status}`);
+      console.warn(`[fo] Download failed: ${dlRes.status} for ${file.name}`);
       return null;
     }
 
@@ -565,6 +570,7 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
       header: 1,
       defval: "",
     });
+    console.log(`[fo] sheet=${wb.SheetNames[0]} rows=${rawRows.length}`);
 
     let headerRow = -1;
     for (let i = 0; i < rawRows.length; i++) {
@@ -573,8 +579,9 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
         break;
       }
     }
+    console.log(`[fo] headerRow=${headerRow}`);
     if (headerRow === -1) {
-      console.warn("[fo] Header row not found in Tusk FO file");
+      console.warn(`[fo] Header row not found in ${file.name}; first row: ${JSON.stringify(rawRows[0] ?? []).slice(0, 200)}`);
       return null;
     }
 
@@ -672,9 +679,18 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
     }
 
     console.log(`[fo] Parsed ${positions.length} F&O positions from ${file.name}`);
+    if (positions.length === 0) {
+      const dataRows = rawRows.slice(headerRow + 1, headerRow + 6);
+      const sampleNames = dataRows
+        .map((r) => String(r[Math.max(0, ci.name)] ?? "").trim())
+        .filter(Boolean)
+        .slice(0, 3);
+      console.warn(`[fo] zero positions parsed (rows after header: ${rawRows.length - headerRow - 1}, sample names: ${sampleNames.join(" | ") || "(none)"}); ci.name=${ci.name}`);
+    }
     return positions.length > 0 ? positions : null;
   } catch (err) {
-    console.warn("[fo] Error:", err instanceof Error ? err.message : err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.warn(`[fo] Error: ${err instanceof Error ? err.message : err}${stack ? `\n${stack}` : ""}`);
     return null;
   }
 }
@@ -728,13 +744,13 @@ export async function POST(request: Request) {
       ]);
       const holdingsBaseline = liveHoldingsBaseline ?? staticDb.holdings;
       console.log(`[sync] Holdings (baseline): ${holdingsBaseline.length} records (${liveHoldingsBaseline ? "live" : "static"})`);
-      console.log(`[sync] F&O positions (baseline): ${(liveFoBaseline ?? []).length} records (${liveFoBaseline ? "live" : "static"})`);
+      console.log(`[sync] F&O positions (baseline): ${liveFoBaseline === null ? "null (read failed) — caller should preserve last-good" : `${liveFoBaseline.length} records (live)`}`);
 
       return NextResponse.json({
         mode: "baseline",
         stocks: deduplicateStocks(baselineStocks),
         holdings: holdingsBaseline,
-        fo_positions: liveFoBaseline ?? [],
+        fo_positions: liveFoBaseline,
         ticker_map: staticDb.ticker_map,
         holdings_source: liveHoldingsBaseline ? "live_onedrive" : "static_fallback",
         vfFiles: dedupedFiles.map((f) => ({ id: f.id, name: f.name, size: f.size, webUrl: f.webUrl })),
@@ -917,17 +933,16 @@ export async function POST(request: Request) {
       readFoPositions(token),
     ]);
     const holdings = liveHoldings ?? staticDb.holdings;
-    const foPositions = liveFoPositions ?? [];
     const holdingsSource = liveHoldings ? "live_onedrive" : "static_fallback";
     console.log(`[sync] Holdings: ${holdings.length} records (${holdingsSource})`);
-    console.log(`[sync] F&O positions: ${foPositions.length} records (${liveFoPositions ? "live" : "static"})`);
+    console.log(`[sync] F&O positions: ${liveFoPositions === null ? "null (read failed) — caller should preserve last-good" : `${liveFoPositions.length} records (live)`}`);
 
     reportSuccess("sync");
     return NextResponse.json({
       mode: "full",
       stocks: finalStocks,
       holdings,
-      fo_positions: foPositions,
+      fo_positions: liveFoPositions,
       ticker_map: staticDb.ticker_map,
       metadata: {
         source: "JVB Output + vF overrides",

@@ -978,6 +978,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .watchlist-dropdown-wrap {
   position: relative;
   display: inline-block;
+  padding-bottom: 2px;
 }
 .watchlist-dropdown {
   display: none;
@@ -991,7 +992,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-elevated);
   padding: var(--space-1) 0;
-  margin-top: 2px;
 }
 .watchlist-dropdown-wrap:hover .watchlist-dropdown {
   display: block;
