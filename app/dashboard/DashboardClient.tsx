@@ -877,6 +877,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [scatterHover, setScatterHover] = useState<{ tikr: string; x: number; y: number } | null>(null);
   const [scatterSectorFilters, setScatterSectorFilters] = useState<Set<string>>(new Set());
   const [scatterConvictionFilters, setScatterConvictionFilters] = useState<Set<number>>(new Set());
+  const [scatterView, setScatterView] = useState<"chart" | "table" | "rrbars">("chart");
+  const [scatterSearchQuery, setScatterSearchQuery] = useState("");
+  const [scatterFitAll, setScatterFitAll] = useState(false);
+  const [scatterTableSort, setScatterTableSort] = useState<{ col: string; dir: "asc" | "desc" }>({ col: "rrRatio", dir: "desc" });
+
+  // Calendar state
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0); // 0 = current month, +1 = next, -1 = prev
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<string | null>(null); // YYYY-MM-DD or null
 
   // Holdings table sort
   const [holdSortCol, setHoldSortCol] = useState<string>("value");
@@ -3886,9 +3894,28 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             );
           })()}
 
-          {/* 6. Risk/Reward Scatter */}
+          {/* 6. Risk / Reward — Chart · Table · R/R Bars */}
           <div id="rr-scatter-anchor" className="metric-card animate-fade-in-up">
-            <h3 style={{ marginBottom: 12, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Risk / Reward Scatter — Base Upside vs Bear Downside</h3>
+            {/* Header: title + view toggle + search */}
+            <div className="flex items-center justify-between flex-wrap gap-3" style={{ marginBottom: 12 }}>
+              <h3 style={{ fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Risk / Reward — Base Upside vs Bear Downside</h3>
+              <div className="flex items-center gap-3">
+                <input
+                  value={scatterSearchQuery}
+                  onChange={e => setScatterSearchQuery(e.target.value)}
+                  placeholder="🔍 Search stock…"
+                  style={{ width: 180, padding: "5px 10px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", fontSize: "var(--text-xs)", background: "var(--color-bg-card)", color: "var(--color-text-primary)" }}
+                />
+                <div className="toggle-group" style={{ display: "inline-flex", padding: 3, background: "var(--color-bg-elevated)", borderRadius: "var(--radius-full)", border: "1px solid var(--color-border)" }}>
+                  {(["chart", "table", "rrbars"] as const).map(v => (
+                    <button key={v} onClick={() => setScatterView(v)} style={{ padding: "4px 12px", border: "none", background: scatterView === v ? "var(--color-bg-card)" : "none", color: scatterView === v ? "var(--color-text-primary)" : "var(--color-text-muted)", fontSize: 10, fontWeight: 600, borderRadius: "var(--radius-full)", cursor: "pointer", boxShadow: scatterView === v ? "0 1px 2px rgba(0,0,0,0.06)" : "none" }}>
+                      {v === "chart" ? "Chart" : v === "table" ? "Table" : "R/R Bars"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Sector filter pills */}
             <div className="flex flex-wrap gap-1 mb-2">
               <button className="scatter-pill" style={{ background: scatterSectorFilters.size === 0 ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: scatterSectorFilters.size === 0 ? "#fff" : "var(--color-text-muted)" }} onClick={() => setScatterSectorFilters(new Set())}>All Sectors</button>
@@ -3905,186 +3932,560 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                 return <button key={c} className="scatter-pill" style={{ opacity: active ? 1 : 0.35, background: active ? "var(--color-bg-hover)" : "transparent" }} onClick={() => { const nf = new Set(scatterConvictionFilters); if (scatterConvictionFilters.size === 0) { nf.add(c); } else if (nf.has(c)) { nf.delete(c); if (nf.size === 0) { setScatterConvictionFilters(new Set()); return; } } else { nf.add(c); } setScatterConvictionFilters(nf); }}>Conv {c}</button>;
               })}
             </div>
-            <div style={{ position: "relative" }}>
-              {(() => {
-                const W = typeof window !== "undefined" && window.innerWidth < 768 ? window.innerWidth - 32 : 900, H = W < 600 ? 300 : 500, PAD = { t: 20, r: 30, b: 50, l: 60 };
-                const allPts = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBearCalc != null && s.liveCmp);
-                const pts = allPts.filter(s => {
-                  if (scatterSectorFilters.size > 0 && !scatterSectorFilters.has(s.sector || "Other")) return false;
-                  if (scatterConvictionFilters.size > 0 && !scatterConvictionFilters.has(s.conviction || 0)) return false;
-                  return true;
-                });
-                if (allPts.length === 0) return <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)", padding: 20 }}>No data</p>;
-                // Use allPts for axis scale so axes stay stable when filtering
-                const xVals = allPts.map(s => (s.upsideBaseCalc || 0) * 100);
-                const yVals = allPts.map(s => (s.upsideBearCalc || 0) * 100);
-                const xMin = Math.min(-10, ...xVals) - 5, xMax = Math.max(10, ...xVals) + 5;
-                const yMin = Math.min(-50, ...yVals) - 5, yMax = Math.max(10, ...yVals) + 5;
+
+            {(() => {
+              // Shared data prep across all 3 views
+              const allPts = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBearCalc != null && s.liveCmp);
+              const visiblePts = allPts.filter(s => {
+                if (scatterSectorFilters.size > 0 && !scatterSectorFilters.has(s.sector || "Other")) return false;
+                if (scatterConvictionFilters.size > 0 && !scatterConvictionFilters.has(s.conviction || 0)) return false;
+                return true;
+              });
+
+              // Search match — case-insensitive companyShort or tikr
+              const sq = scatterSearchQuery.trim().toLowerCase();
+              const isMatch = (s: EnrichedStock) => sq.length > 0 && (
+                (s.companyShort || "").toLowerCase().includes(sq) ||
+                (s.tikr || "").toLowerCase().includes(sq)
+              );
+
+              if (allPts.length === 0) return <p style={{ color: "var(--color-text-muted)", fontSize: "var(--text-sm)", padding: 20 }}>No data</p>;
+
+              // ════════════ CHART VIEW ════════════
+              if (scatterView === "chart") {
+                const W = typeof window !== "undefined" && window.innerWidth < 768 ? window.innerWidth - 32 : 1100;
+                const H = W < 600 ? 320 : 600;
+                const PAD = { t: 24, r: 80, b: 50, l: 60 };
+
+                // Axis range: auto-clip to ±50% by default; expanded to fit any matched search target;
+                // expanded to fit-all when scatterFitAll is on.
+                const baseXVals = allPts.map(s => (s.upsideBaseCalc || 0) * 100);
+                const baseYVals = allPts.map(s => (s.upsideBearCalc || 0) * 100);
+                let xMin: number, xMax: number, yMin: number, yMax: number;
+                if (scatterFitAll) {
+                  xMin = Math.min(-10, ...baseXVals) - 5; xMax = Math.max(10, ...baseXVals) + 5;
+                  yMin = Math.min(-50, ...baseYVals) - 5; yMax = Math.max(10, ...baseYVals) + 5;
+                } else {
+                  xMin = -50; xMax = 50; yMin = -50; yMax = 50;
+                  // Stretch to include any searched stock so it's visible on canvas
+                  if (sq) {
+                    const matchedPts = allPts.filter(isMatch);
+                    matchedPts.forEach(s => {
+                      const xv = (s.upsideBaseCalc || 0) * 100;
+                      const yv = (s.upsideBearCalc || 0) * 100;
+                      if (xv < xMin) xMin = xv - 10;
+                      if (xv > xMax) xMax = xv + 10;
+                      if (yv < yMin) yMin = yv - 10;
+                      if (yv > yMax) yMax = yv + 10;
+                    });
+                  }
+                }
                 const xScale = (v: number) => PAD.l + ((v - xMin) / (xMax - xMin)) * (W - PAD.l - PAD.r);
                 const yScale = (v: number) => H - PAD.b - ((v - yMin) / (yMax - yMin)) * (H - PAD.t - PAD.b);
                 const hoveredStock = scatterHover ? enrichedStocks.find(s => s.tikr === scatterHover.tikr) : null;
-                const xTicks: number[] = []; for (let x = Math.ceil(xMin / 20) * 20; x <= xMax; x += 20) xTicks.push(x);
-                const yTicks: number[] = []; for (let y = Math.ceil(yMin / 20) * 20; y <= yMax; y += 20) yTicks.push(y);
+
+                const tickStep = (max: number, min: number) => {
+                  const range = max - min;
+                  if (range > 200) return 50; if (range > 100) return 25; if (range > 50) return 20; return 10;
+                };
+                const xStep = tickStep(xMax, xMin), yStep = tickStep(yMax, yMin);
+                const xTicks: number[] = []; for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax; x += xStep) xTicks.push(x);
+                const yTicks: number[] = []; for (let y = Math.ceil(yMin / yStep) * yStep; y <= yMax; y += yStep) yTicks.push(y);
+
+                // Bucket visible points into in-range vs out-of-range (edge chips)
+                const inRange: typeof visiblePts = [];
+                const outOfRange: { stock: EnrichedStock; xv: number; yv: number; edge: "top" | "right" | "bottom" | "left" | "tr" | "br" | "bl" | "tl" }[] = [];
+                visiblePts.forEach(s => {
+                  const xv = (s.upsideBaseCalc || 0) * 100;
+                  const yv = (s.upsideBearCalc || 0) * 100;
+                  const xOut = xv < xMin || xv > xMax;
+                  const yOut = yv < yMin || yv > yMax;
+                  if (!xOut && !yOut) {
+                    inRange.push(s);
+                  } else {
+                    let edge: "top" | "right" | "bottom" | "left" | "tr" | "br" | "bl" | "tl";
+                    if (xOut && yOut) {
+                      if (xv > xMax && yv > yMax) edge = "tr";
+                      else if (xv > xMax && yv < yMin) edge = "br";
+                      else if (xv < xMin && yv > yMax) edge = "tl";
+                      else edge = "bl";
+                    } else if (xv > xMax) edge = "right";
+                    else if (xv < xMin) edge = "left";
+                    else if (yv > yMax) edge = "top";
+                    else edge = "bottom";
+                    outOfRange.push({ stock: s, xv, yv, edge });
+                  }
+                });
 
                 return (
-                  <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", maxHeight: 500, cursor: "crosshair" }}>
-                    {xTicks.map(x => <line key={`gx${x}`} x1={xScale(x)} y1={PAD.t} x2={xScale(x)} y2={H - PAD.b} stroke="var(--color-border-subtle)" strokeWidth={0.5} strokeDasharray={x === 0 ? "none" : "4,4"} />)}
-                    {yTicks.map(y => <line key={`gy${y}`} x1={PAD.l} y1={yScale(y)} x2={W - PAD.r} y2={yScale(y)} stroke="var(--color-border-subtle)" strokeWidth={0.5} strokeDasharray={y === 0 ? "none" : "4,4"} />)}
-                    {xMin <= 0 && xMax >= 0 && <line x1={xScale(0)} y1={PAD.t} x2={xScale(0)} y2={H - PAD.b} stroke="var(--color-text-muted)" strokeWidth={1} />}
-                    {yMin <= 0 && yMax >= 0 && <line x1={PAD.l} y1={yScale(0)} x2={W - PAD.r} y2={yScale(0)} stroke="var(--color-text-muted)" strokeWidth={1} />}
-                    {xTicks.map(x => <text key={`lx${x}`} x={xScale(x)} y={H - PAD.b + 18} textAnchor="middle" fill="var(--color-text-muted)" style={{ fontSize: 10 }}>{x}%</text>)}
-                    {yTicks.map(y => <text key={`ly${y}`} x={PAD.l - 8} y={yScale(y) + 3} textAnchor="end" fill="var(--color-text-muted)" style={{ fontSize: 10 }}>{y}%</text>)}
-                    <text x={W / 2} y={H - 4} textAnchor="middle" fill="var(--color-text-secondary)" style={{ fontSize: 11, fontWeight: 600 }}>Upside to Base (%)</text>
-                    <text x={14} y={H / 2} textAnchor="middle" fill="var(--color-text-secondary)" style={{ fontSize: 11, fontWeight: 600 }} transform={`rotate(-90, 14, ${H / 2})`}>Downside to Bear (%)</text>
-                    {xMin <= 0 && yMax >= 0 && <text x={xScale(xMin) + 8} y={yScale(yMax) + 14} fill="var(--color-text-muted)" style={{ fontSize: 9, opacity: 0.6 }}>Low Upside + Low Risk</text>}
-                    {xMax >= 0 && yMax >= 0 && <text x={xScale(xMax) - 8} y={yScale(yMax) + 14} textAnchor="end" fill="var(--color-positive)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>High Upside + Low Risk</text>}
-                    {xMin <= 0 && yMin <= 0 && <text x={xScale(xMin) + 8} y={yScale(yMin) - 6} fill="var(--color-negative)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Low Upside + High Risk</text>}
-                    {pts.map(s => {
-                      const cx = xScale((s.upsideBaseCalc || 0) * 100);
-                      const cy = yScale((s.upsideBearCalc || 0) * 100);
-                      const r = Math.max(4, Math.min(16, (s.conviction || 1) * 3));
-                      const color = sectorColors[s.sector || "Other"] || "#6B7280";
-                      const isHovered = scatterHover?.tikr === s.tikr;
-                      return (
-                        <circle key={s.tikr} cx={cx} cy={cy} r={isHovered ? r + 2 : r} fill={color} fillOpacity={isHovered ? 0.95 : 0.7} stroke={isHovered ? "var(--color-text-primary)" : "none"} strokeWidth={isHovered ? 2 : 0}
-                          style={{ cursor: "pointer", transition: "r 0.15s, fill-opacity 0.15s" }}
-                          onMouseEnter={() => setScatterHover({ tikr: s.tikr, x: cx, y: cy })}
-                          onMouseLeave={() => setScatterHover(null)}
-                          onClick={() => setDetailStock(s)}
-                        />
-                      );
-                    })}
-                    {hoveredStock && scatterHover && (
-                      <g>
-                        <rect x={scatterHover.x + 12} y={scatterHover.y - 48} width={220} height={44} rx={6} fill="var(--color-bg-card)" stroke="var(--color-border)" strokeWidth={1} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }} />
-                        <text x={scatterHover.x + 20} y={scatterHover.y - 30} fill="var(--color-text-primary)" style={{ fontSize: 11, fontWeight: 700 }}>{hoveredStock.companyShort}</text>
-                        <text x={scatterHover.x + 20} y={scatterHover.y - 16} fill="var(--color-text-secondary)" style={{ fontSize: 10 }}>CMP ₹{fmt(hoveredStock.liveCmp, 0)} | Base ↑{((hoveredStock.upsideBaseCalc || 0) * 100).toFixed(1)}% | Bear ↓{((hoveredStock.upsideBearCalc || 0) * 100).toFixed(1)}%</text>
-                      </g>
-                    )}
-                  </svg>
+                  <div style={{ position: "relative" }}>
+                    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto", maxHeight: H, cursor: "crosshair", display: "block" }}>
+                      {xTicks.map(x => <line key={`gx${x}`} x1={xScale(x)} y1={PAD.t} x2={xScale(x)} y2={H - PAD.b} stroke="var(--color-border-subtle)" strokeWidth={0.5} strokeDasharray={x === 0 ? "none" : "4,4"} />)}
+                      {yTicks.map(y => <line key={`gy${y}`} x1={PAD.l} y1={yScale(y)} x2={W - PAD.r} y2={yScale(y)} stroke="var(--color-border-subtle)" strokeWidth={0.5} strokeDasharray={y === 0 ? "none" : "4,4"} />)}
+                      {xMin <= 0 && xMax >= 0 && <line x1={xScale(0)} y1={PAD.t} x2={xScale(0)} y2={H - PAD.b} stroke="var(--color-text-muted)" strokeWidth={1} />}
+                      {yMin <= 0 && yMax >= 0 && <line x1={PAD.l} y1={yScale(0)} x2={W - PAD.r} y2={yScale(0)} stroke="var(--color-text-muted)" strokeWidth={1} />}
+                      {xTicks.map(x => <text key={`lx${x}`} x={xScale(x)} y={H - PAD.b + 18} textAnchor="middle" fill="var(--color-text-muted)" style={{ fontSize: 10, fontFamily: "var(--font-mono)" }}>{x}%</text>)}
+                      {yTicks.map(y => <text key={`ly${y}`} x={PAD.l - 8} y={yScale(y) + 3} textAnchor="end" fill="var(--color-text-muted)" style={{ fontSize: 10, fontFamily: "var(--font-mono)" }}>{y}%</text>)}
+                      <text x={W / 2} y={H - 4} textAnchor="middle" fill="var(--color-text-secondary)" style={{ fontSize: 11, fontWeight: 600 }}>Upside to Base (%)</text>
+                      <text x={14} y={H / 2} textAnchor="middle" fill="var(--color-text-secondary)" style={{ fontSize: 11, fontWeight: 600 }} transform={`rotate(-90, 14, ${H / 2})`}>Downside to Bear (%)</text>
+                      {/* Quadrant labels */}
+                      {xMin <= 0 && yMax >= 0 && <text x={xScale(xMin) + 8} y={yScale(yMax) + 14} fill="var(--color-text-muted)" style={{ fontSize: 9, opacity: 0.6 }}>Low Upside · Low Risk</text>}
+                      {xMax >= 0 && yMax >= 0 && <text x={xScale(xMax) - 8} y={yScale(yMax) + 14} textAnchor="end" fill="var(--color-positive)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>High Upside · Low Risk</text>}
+                      {xMin <= 0 && yMin <= 0 && <text x={xScale(xMin) + 8} y={yScale(yMin) - 6} fill="var(--color-negative)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>Low Upside · High Risk</text>}
+                      {xMax >= 0 && yMin <= 0 && <text x={xScale(xMax) - 8} y={yScale(yMin) - 6} textAnchor="end" fill="var(--color-warning)" style={{ fontSize: 9, fontWeight: 600, opacity: 0.7 }}>High Upside · High Risk</text>}
+
+                      {/* In-range circles */}
+                      {inRange.map(s => {
+                        const cx = xScale((s.upsideBaseCalc || 0) * 100);
+                        const cy = yScale((s.upsideBearCalc || 0) * 100);
+                        const r = Math.max(4, Math.min(16, (s.conviction || 1) * 3));
+                        const color = sectorColors[s.sector || "Other"] || "#6B7280";
+                        const isHovered = scatterHover?.tikr === s.tikr;
+                        const matched = sq.length > 0 && isMatch(s);
+                        const dimmed = sq.length > 0 && !matched;
+                        return (
+                          <g key={s.tikr}>
+                            <circle cx={cx} cy={cy} r={isHovered ? r + 2 : r} fill={color} fillOpacity={dimmed ? 0.18 : isHovered ? 0.95 : 0.7} stroke={matched ? "var(--color-text-primary)" : isHovered ? "var(--color-text-primary)" : "none"} strokeWidth={matched ? 2 : isHovered ? 2 : 0}
+                              style={{ cursor: "pointer", transition: "r 0.15s, fill-opacity 0.15s" }}
+                              onMouseEnter={() => setScatterHover({ tikr: s.tikr, x: cx, y: cy })}
+                              onMouseLeave={() => setScatterHover(null)}
+                              onClick={() => setCockpitTikr(s.tikr)}
+                            />
+                            {matched && (
+                              <text x={cx + r + 4} y={cy + 3} fill="var(--color-text-primary)" style={{ fontSize: 11, fontWeight: 700, pointerEvents: "none" }}>{s.companyShort}</text>
+                            )}
+                          </g>
+                        );
+                      })}
+
+                      {/* Hover tooltip */}
+                      {hoveredStock && scatterHover && (
+                        <g>
+                          <rect x={Math.min(scatterHover.x + 12, W - 230)} y={Math.max(scatterHover.y - 48, 4)} width={220} height={44} rx={6} fill="var(--color-bg-card)" stroke="var(--color-border)" strokeWidth={1} style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }} />
+                          <text x={Math.min(scatterHover.x + 20, W - 222)} y={Math.max(scatterHover.y - 30, 22)} fill="var(--color-text-primary)" style={{ fontSize: 11, fontWeight: 700 }}>{hoveredStock.companyShort}</text>
+                          <text x={Math.min(scatterHover.x + 20, W - 222)} y={Math.max(scatterHover.y - 16, 36)} fill="var(--color-text-secondary)" style={{ fontSize: 10, fontFamily: "var(--font-mono)" }}>CMP ₹{fmt(hoveredStock.liveCmp, 0)} · Base ↑{((hoveredStock.upsideBaseCalc || 0) * 100).toFixed(1)}% · Bear ↓{((hoveredStock.upsideBearCalc || 0) * 100).toFixed(1)}%</text>
+                        </g>
+                      )}
+
+                      {/* Edge chips for outliers */}
+                      {!scatterFitAll && outOfRange.map(({ stock: s, xv, yv, edge }) => {
+                        const color = sectorColors[s.sector || "Other"] || "#6B7280";
+                        const matched = sq.length > 0 && isMatch(s);
+                        const dimmed = sq.length > 0 && !matched;
+                        let chipX: number, chipY: number;
+                        if (edge === "right" || edge === "tr" || edge === "br") chipX = W - PAD.r + 4;
+                        else if (edge === "left" || edge === "tl" || edge === "bl") chipX = 4;
+                        else chipX = xScale(Math.max(xMin, Math.min(xMax, xv))) - 30;
+                        if (edge === "top" || edge === "tr" || edge === "tl") chipY = PAD.t - 14;
+                        else if (edge === "bottom" || edge === "br" || edge === "bl") chipY = H - PAD.b + 26;
+                        else chipY = yScale(Math.max(yMin, Math.min(yMax, yv))) - 7;
+                        const label = `${s.companyShort.length > 16 ? s.companyShort.slice(0, 14) + "…" : s.companyShort} ${xv > xMax ? "→" : xv < xMin ? "←" : ""}${yv > yMax ? "↑" : yv < yMin ? "↓" : ""}`;
+                        return (
+                          <g key={`out-${s.tikr}`} style={{ cursor: "pointer", opacity: dimmed ? 0.3 : 1 }} onClick={() => setCockpitTikr(s.tikr)}>
+                            <rect x={chipX} y={chipY} width={Math.min(140, label.length * 6.5 + 14)} height={16} rx={3} fill={color} fillOpacity={0.85} stroke={matched ? "var(--color-text-primary)" : "none"} strokeWidth={matched ? 1.5 : 0} />
+                            <text x={chipX + 7} y={chipY + 11} fill="#fff" style={{ fontSize: 9, fontWeight: 700, pointerEvents: "none" }}>{label}</text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+
+                    <div className="flex items-center justify-between mt-2 px-2 flex-wrap gap-2">
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
+                        Showing {visiblePts.length} of {allPts.length} stocks
+                        {!scatterFitAll && outOfRange.length > 0 && <span style={{ color: "var(--color-warning)", marginLeft: 6 }}>· {outOfRange.length} off-scale (edge chips)</span>}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => setScatterFitAll(p => !p)} className="scatter-pill" style={{ background: scatterFitAll ? "var(--color-accent-blue)" : "var(--color-bg-hover)", color: scatterFitAll ? "#fff" : "var(--color-text-secondary)" }}>
+                          {scatterFitAll ? "↺ Cluster view" : "⤢ Fit all"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 );
-              })()}
-              <div className="flex items-center justify-between mt-2 px-2">
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Showing {(() => { const allPts = enrichedStocks.filter(s => s.upsideBaseCalc != null && s.upsideBearCalc != null && s.liveCmp); const filtered = allPts.filter(s => { if (scatterSectorFilters.size > 0 && !scatterSectorFilters.has(s.sector || "Other")) return false; if (scatterConvictionFilters.size > 0 && !scatterConvictionFilters.has(s.conviction || 0)) return false; return true; }); return `${filtered.length} of ${allPts.length}`; })()} stocks</span>
-              </div>
-            </div>
+              }
+
+              // Compute R/R ratio for table & bar views
+              const withRR = visiblePts.map(s => {
+                const ub = s.upsideBaseCalc || 0;
+                const uBe = s.upsideBearCalc || 0;
+                const atFloor = uBe >= 0;
+                const rrRatio = atFloor ? Number.POSITIVE_INFINITY : ub / Math.max(0.01, Math.abs(uBe));
+                let quadrant = "";
+                if (ub >= 0 && uBe >= 0) quadrant = "High Up · Low Risk";
+                else if (ub >= 0 && uBe < 0) quadrant = "High Up · High Risk";
+                else if (ub < 0 && uBe >= 0) quadrant = "Low Up · Low Risk";
+                else quadrant = "Low Up · High Risk";
+                return { ...s, rrRatio, atFloor, quadrant };
+              });
+
+              // ════════════ TABLE VIEW ════════════
+              if (scatterView === "table") {
+                const sorted = [...withRR].sort((a, b) => {
+                  const c = scatterTableSort.col;
+                  let av: number | string = "", bv: number | string = "";
+                  if (c === "rrRatio") { av = isFinite(a.rrRatio) ? a.rrRatio : 1e9; bv = isFinite(b.rrRatio) ? b.rrRatio : 1e9; }
+                  else if (c === "companyShort") { av = a.companyShort; bv = b.companyShort; }
+                  else if (c === "sector") { av = a.sector || ""; bv = b.sector || ""; }
+                  else if (c === "conviction") { av = a.conviction || 0; bv = b.conviction || 0; }
+                  else if (c === "upsideBearCalc") { av = a.upsideBearCalc || 0; bv = b.upsideBearCalc || 0; }
+                  else if (c === "upsideBaseCalc") { av = a.upsideBaseCalc || 0; bv = b.upsideBaseCalc || 0; }
+                  else if (c === "upsideBullCalc") { av = a.upsideBullCalc || 0; bv = b.upsideBullCalc || 0; }
+                  else if (c === "quadrant") { av = a.quadrant; bv = b.quadrant; }
+                  if (typeof av === "number" && typeof bv === "number") return scatterTableSort.dir === "asc" ? av - bv : bv - av;
+                  return scatterTableSort.dir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+                });
+                const filtered = sq ? sorted.filter(isMatch) : sorted;
+                const sortIcon = (col: string) => scatterTableSort.col === col ? (scatterTableSort.dir === "asc" ? " ▲" : " ▼") : "";
+                const onSort = (col: string) => setScatterTableSort(p => p.col === col ? { col, dir: p.dir === "asc" ? "desc" : "asc" } : { col, dir: "desc" });
+
+                return (
+                  <div style={{ overflowX: "auto", maxHeight: 560, overflowY: "auto" }}>
+                    <table className="data-table w-full">
+                      <thead>
+                        <tr>
+                          <th onClick={() => onSort("companyShort")} style={{ cursor: "pointer" }}>Stock{sortIcon("companyShort")}</th>
+                          <th onClick={() => onSort("sector")} style={{ cursor: "pointer" }}>Sector{sortIcon("sector")}</th>
+                          <th onClick={() => onSort("conviction")} style={{ cursor: "pointer", textAlign: "center" }}>Conv{sortIcon("conviction")}</th>
+                          <th onClick={() => onSort("upsideBearCalc")} style={{ cursor: "pointer", textAlign: "right" }}>↓ Bear{sortIcon("upsideBearCalc")}</th>
+                          <th onClick={() => onSort("upsideBaseCalc")} style={{ cursor: "pointer", textAlign: "right" }}>↑ Base{sortIcon("upsideBaseCalc")}</th>
+                          <th onClick={() => onSort("upsideBullCalc")} style={{ cursor: "pointer", textAlign: "right" }}>↑ Bull{sortIcon("upsideBullCalc")}</th>
+                          <th onClick={() => onSort("rrRatio")} style={{ cursor: "pointer", textAlign: "right" }}>R:R{sortIcon("rrRatio")}</th>
+                          <th onClick={() => onSort("quadrant")} style={{ cursor: "pointer" }}>Quadrant{sortIcon("quadrant")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.length === 0 ? (
+                          <tr><td colSpan={8} style={{ textAlign: "center", padding: 24, color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>No matches</td></tr>
+                        ) : filtered.map(s => {
+                          const matched = sq.length > 0 && isMatch(s);
+                          const color = sectorColors[s.sector || "Other"] || "#6B7280";
+                          return (
+                            <tr key={s.tikr} className="cursor-pointer" onClick={() => setCockpitTikr(s.tikr)} style={{ background: matched ? "var(--color-info-bg)" : undefined }}>
+                              <td className="font-semibold" style={{ fontSize: "var(--text-sm)" }}>{s.companyShort}</td>
+                              <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}><span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: color, marginRight: 6, verticalAlign: "middle" }} />{s.sector || "—"}</td>
+                              <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
+                              <td style={{ textAlign: "right" }}>{upsidePill(s.upsideBearCalc)}</td>
+                              <td style={{ textAlign: "right" }}>{upsidePill(s.upsideBaseCalc)}</td>
+                              <td style={{ textAlign: "right" }}>{upsidePill(s.upsideBullCalc)}</td>
+                              <td style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontWeight: 600, color: s.atFloor ? "var(--color-positive)" : (s.rrRatio >= 2 ? "var(--color-positive)" : s.rrRatio >= 1 ? "var(--color-text-primary)" : s.rrRatio >= 0.5 ? "var(--color-warning)" : "var(--color-negative)") }}>
+                                {s.atFloor ? <span className="pill pill-green" style={{ fontSize: 9 }}>at floor</span> : `${s.rrRatio.toFixed(2)}×`}
+                              </td>
+                              <td style={{ fontSize: "var(--text-xs)" }}>
+                                <span className="pill" style={{ background: s.quadrant.includes("High Up · Low") ? "var(--color-positive-bg)" : s.quadrant.includes("High Up · High") ? "var(--color-warning-bg)" : s.quadrant.includes("Low Up · High") ? "var(--color-negative-bg)" : "var(--color-bg-hover)", color: s.quadrant.includes("High Up · Low") ? "var(--color-positive)" : s.quadrant.includes("High Up · High") ? "var(--color-warning)" : s.quadrant.includes("Low Up · High") ? "var(--color-negative)" : "var(--color-text-muted)", border: "none", fontSize: 9 }}>{s.quadrant}</span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+
+              // ════════════ R/R BARS VIEW ════════════
+              // Sort: at-floor stocks first (best), then descending by ratio
+              const rrSorted = [...withRR].sort((a, b) => {
+                if (a.atFloor && !b.atFloor) return -1;
+                if (!a.atFloor && b.atFloor) return 1;
+                return b.rrRatio - a.rrRatio;
+              });
+              const rrFiltered = sq ? rrSorted.filter(isMatch) : rrSorted;
+              const ratioMax = Math.max(...rrSorted.filter(s => isFinite(s.rrRatio) && !s.atFloor).map(s => s.rrRatio), 1);
+
+              return (
+                <div style={{ maxHeight: 600, overflowY: "auto", padding: "0 4px" }}>
+                  <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--color-text-muted)", fontWeight: 700, padding: "8px 12px", background: "var(--color-bg-elevated)", borderRadius: "var(--radius-sm)", marginBottom: 8 }}>
+                    Risk/Reward Ratio = Upside-to-Base ÷ |Downside-to-Bear| · sorted by best reward per unit of risk
+                  </div>
+                  {rrFiltered.length === 0 ? (
+                    <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-xs)" }}>No matches</div>
+                  ) : rrFiltered.map(s => {
+                    const color = sectorColors[s.sector || "Other"] || "#6B7280";
+                    const matched = sq.length > 0 && isMatch(s);
+                    const dimmed = sq.length > 0 && !matched;
+                    const barWidth = s.atFloor ? 100 : Math.max(2, Math.min(100, (s.rrRatio / ratioMax) * 100));
+                    const barColor = s.atFloor ? "var(--color-positive)" : s.rrRatio >= 2 ? "var(--color-positive)" : s.rrRatio >= 1 ? "var(--color-accent-blue)" : s.rrRatio >= 0.5 ? "var(--color-warning)" : "var(--color-negative)";
+                    return (
+                      <div key={s.tikr} onClick={() => setCockpitTikr(s.tikr)} style={{ display: "grid", gridTemplateColumns: "180px 90px 1fr 80px 60px", alignItems: "center", gap: 12, padding: "8px 12px", borderBottom: "1px solid var(--color-border-subtle)", cursor: "pointer", opacity: dimmed ? 0.35 : 1, background: matched ? "var(--color-info-bg)" : undefined, transition: "background 0.15s" }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.companyShort}</div>
+                          <div style={{ fontSize: 9, color: "var(--color-text-muted)", marginTop: 1, display: "flex", alignItems: "center", gap: 5 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
+                            {s.sector || "—"}
+                          </div>
+                        </div>
+                        <ConvictionDots level={s.conviction ?? 0} />
+                        <div style={{ position: "relative", height: 16, background: "var(--color-bg-hover)", borderRadius: "var(--radius-full)", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${barWidth}%`, background: barColor, opacity: 0.85, borderRadius: "var(--radius-full)", transition: "width 0.4s" }} />
+                          {s.atFloor && (
+                            <div style={{ position: "absolute", left: 8, top: 0, bottom: 0, display: "flex", alignItems: "center", fontSize: 9, fontWeight: 700, color: "#fff", letterSpacing: "0.04em" }}>AT FLOOR · already +{((s.upsideBearCalc || 0) * 100).toFixed(1)}% to bear</div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: "var(--text-sm)", fontWeight: 700, color: barColor }}>
+                          {s.atFloor ? "∞" : `${s.rrRatio.toFixed(2)}×`}
+                        </div>
+                        <div style={{ textAlign: "right", fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--color-text-muted)" }}>
+                          {((s.upsideBaseCalc || 0) * 100).toFixed(0)}% / {((s.upsideBearCalc || 0) * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div style={{ padding: "8px 12px", fontSize: "var(--text-xs)", color: "var(--color-text-muted)", textAlign: "center" }}>
+                    Showing {rrFiltered.length} of {rrSorted.length} stocks
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
-          {/* 7. Catalyst Calendar */}
-          <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #F59E0B" }}>
-            <h3 style={{ marginBottom: 12, fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Catalyst Calendar — Earnings, Ex-Dividend & Analysis Freshness</h3>
+          {/* 7. Catalyst Calendar — mini-month + agenda split */}
+          <div className="metric-card animate-fade-in-up">
             {(() => {
               const now = new Date();
-              type CalEvent = { tikr: string; name: string; type: "Earnings" | "Ex-Dividend" | "Stale Analysis"; date: Date; daysUntil: number; sector?: string };
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              type CalEvent = { tikr: string; name: string; type: "Earnings" | "Ex-Dividend"; date: Date; daysUntil: number; sector?: string };
               const events: CalEvent[] = [];
-              // Enrichment-based events (earnings, ex-div)
               Object.entries(enrichmentCache).forEach(([tikr, data]) => {
                 const stock = enrichedStocks.find(s => s.tikr === tikr);
                 const name = stock?.companyShort || tikr;
                 const sector = stock?.sector;
                 if (data.earningsDate) {
                   const d = new Date(data.earningsDate);
-                  const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diff >= -7 && diff <= 90) events.push({ tikr, name, type: "Earnings", date: d, daysUntil: diff, sector });
+                  const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diff >= -14 && diff <= 90) events.push({ tikr, name, type: "Earnings", date: d, daysUntil: diff, sector });
                 }
                 if (data.exDividendDate) {
                   const d = new Date(data.exDividendDate);
-                  const diff = Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                  if (diff >= -7 && diff <= 90) events.push({ tikr, name, type: "Ex-Dividend", date: d, daysUntil: diff, sector });
+                  const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diff >= -14 && diff <= 90) events.push({ tikr, name, type: "Ex-Dividend", date: d, daysUntil: diff, sector });
                 }
               });
-              // last_updated staleness (from database.json — available on all stocks)
-              const staleStocks = enrichedStocks.filter(s => {
-                if (!s.last_updated) return true; // never updated = stale
-                const d = new Date(s.last_updated);
-                return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) > 60;
-              }).sort((a, b) => {
-                const da = a.last_updated ? new Date(a.last_updated).getTime() : 0;
-                const db = b.last_updated ? new Date(b.last_updated).getTime() : 0;
-                return da - db;
-              });
-
               events.sort((a, b) => a.date.getTime() - b.date.getTime());
               const enrichedCount = Object.keys(enrichmentCache).length;
 
-              // Group events by week
-              const weekGroups: { label: string; events: CalEvent[] }[] = [];
-              events.forEach(e => {
-                const weekStart = new Date(e.date);
-                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                const label = e.daysUntil < 0 ? "Recent" : e.daysUntil <= 7 ? "This Week" : e.daysUntil <= 14 ? "Next Week" : weekStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + " week";
-                const existing = weekGroups.find(g => g.label === label);
-                if (existing) existing.events.push(e);
-                else weekGroups.push({ label, events: [e] });
-              });
+              // Mini-month grid: viewMonth controlled by calendarMonthOffset
+              const viewMonthDate = new Date(today.getFullYear(), today.getMonth() + calendarMonthOffset, 1);
+              const viewYear = viewMonthDate.getFullYear();
+              const viewMonth = viewMonthDate.getMonth();
+              const monthName = viewMonthDate.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+              const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun
+              const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+              const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
 
-              const typeColor = (t: string) => t === "Earnings" ? { bg: "var(--color-info-bg)", fg: "var(--color-accent-blue)", border: "rgba(79,142,247,0.25)" } : t === "Ex-Dividend" ? { bg: "var(--color-positive-bg)", fg: "var(--color-positive)", border: "var(--color-positive-border)" } : { bg: "rgba(251,191,36,0.15)", fg: "#D97706", border: "rgba(251,191,36,0.3)" };
+              // Build a 6-week grid (42 cells)
+              const cells: { day: number; inMonth: boolean; date: Date; iso: string }[] = [];
+              for (let i = 0; i < firstDayOfWeek; i++) {
+                const day = daysInPrevMonth - firstDayOfWeek + 1 + i;
+                const d = new Date(viewYear, viewMonth - 1, day);
+                cells.push({ day, inMonth: false, date: d, iso: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` });
+              }
+              for (let day = 1; day <= daysInMonth; day++) {
+                const d = new Date(viewYear, viewMonth, day);
+                cells.push({ day, inMonth: true, date: d, iso: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` });
+              }
+              const remaining = 42 - cells.length;
+              for (let i = 1; i <= remaining; i++) {
+                const d = new Date(viewYear, viewMonth + 1, i);
+                cells.push({ day: i, inMonth: false, date: d, iso: `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` });
+              }
+
+              // Map ISO date → events in that day
+              const eventsByDate: Record<string, CalEvent[]> = {};
+              events.forEach(e => {
+                const iso = `${e.date.getFullYear()}-${String(e.date.getMonth()+1).padStart(2,"0")}-${String(e.date.getDate()).padStart(2,"0")}`;
+                if (!eventsByDate[iso]) eventsByDate[iso] = [];
+                eventsByDate[iso].push(e);
+              });
+              const todayISO = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,"0")}-${String(today.getDate()).padStart(2,"0")}`;
+
+              // Agenda contents: filtered by selected day, or rolling 28 days
+              const agendaEvents = calendarSelectedDate
+                ? events.filter(e => {
+                    const iso = `${e.date.getFullYear()}-${String(e.date.getMonth()+1).padStart(2,"0")}-${String(e.date.getDate()).padStart(2,"0")}`;
+                    return iso === calendarSelectedDate;
+                  })
+                : events.filter(e => e.daysUntil >= 0 && e.daysUntil <= 28);
+
+              const typeColor = (t: string) => t === "Earnings" ? { bg: "var(--color-info-bg)", fg: "var(--color-accent-blue)", border: "rgba(37,99,235,0.25)" } : { bg: "var(--color-positive-bg)", fg: "var(--color-positive)", border: "var(--color-positive-border)" };
+              const typeDot = (t: string) => t === "Earnings" ? "var(--color-accent-blue)" : "var(--color-positive)";
 
               return (
-                <div>
-                  {enrichedCount < enrichedStocks.length && (
-                    <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", marginBottom: 8, padding: "4px 8px", background: "var(--color-bg-hover)", borderRadius: "var(--radius-sm)" }}>Catalyst data loaded for {enrichedCount} of {enrichedStocks.length} stocks. Click stocks in Octopus tab to load more.</p>
-                  )}
+                <>
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <h3 style={{ fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Catalyst Calendar</h3>
+                    <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Earnings &amp; Ex-Dividend · {enrichedCount} of {enrichedStocks.length} stocks loaded</span>
+                  </div>
 
-                  {/* Timeline view */}
-                  {weekGroups.length > 0 ? (
-                    <div className="space-y-3 mb-4">
-                      {weekGroups.map(g => (
-                        <div key={g.label}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold uppercase tracking-wider" style={{ fontSize: 10, color: g.label === "This Week" ? "#F59E0B" : "var(--color-text-muted)" }}>{g.label}</span>
-                            <div style={{ flex: 1, height: 1, background: "var(--color-border)" }} />
-                            <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>{g.events.length} event{g.events.length > 1 ? "s" : ""}</span>
-                          </div>
-                          <div className="grid grid-cols-1 gap-1">
-                            {g.events.map((e, i) => {
-                              const tc = typeColor(e.type);
+                  <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 20 }}>
+                    {/* ── Mini month grid ── */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <button onClick={() => setCalendarMonthOffset(p => p - 1)} className="lux-icon-btn" aria-label="Previous month">←</button>
+                        <div style={{ fontSize: "var(--text-sm)", fontWeight: 700, color: "var(--color-text-primary)", letterSpacing: "-0.01em" }}>{monthName}</div>
+                        <button onClick={() => setCalendarMonthOffset(p => p + 1)} className="lux-icon-btn" aria-label="Next month">→</button>
+                      </div>
+                      {calendarMonthOffset !== 0 && (
+                        <div style={{ textAlign: "center", marginBottom: 6 }}>
+                          <button onClick={() => setCalendarMonthOffset(0)} className="scatter-pill" style={{ fontSize: 9 }}>Back to today</button>
+                        </div>
+                      )}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 4 }}>
+                        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                          <div key={i} style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-muted)", textAlign: "center", padding: "4px 0" }}>{d}</div>
+                        ))}
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
+                        {cells.map(c => {
+                          const dayEvents = eventsByDate[c.iso] || [];
+                          const isToday = c.iso === todayISO;
+                          const isSelected = c.iso === calendarSelectedDate;
+                          const evCount = dayEvents.length;
+                          return (
+                            <button
+                              key={c.iso}
+                              onClick={() => setCalendarSelectedDate(prev => prev === c.iso ? null : c.iso)}
+                              style={{
+                                position: "relative",
+                                aspectRatio: "1",
+                                border: isToday ? "1.5px solid var(--color-warning)" : "1px solid var(--color-border-subtle)",
+                                borderRadius: "var(--radius-sm)",
+                                background: isSelected ? "var(--color-accent-blue)" : isToday ? "var(--color-warning-bg)" : "var(--color-bg-card)",
+                                color: isSelected ? "#fff" : c.inMonth ? "var(--color-text-primary)" : "var(--color-text-muted)",
+                                opacity: c.inMonth ? 1 : 0.4,
+                                fontSize: 11,
+                                fontFamily: "var(--font-mono)",
+                                fontWeight: isToday || isSelected ? 700 : 500,
+                                cursor: "pointer",
+                                padding: "4px 0 6px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "flex-start",
+                                transition: "background 0.15s, border-color 0.15s",
+                              }}
+                            >
+                              <span>{c.day}</span>
+                              {evCount > 0 && (
+                                <div style={{ position: "absolute", bottom: 3, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 2 }}>
+                                  {dayEvents.slice(0, 3).map((e, i) => (
+                                    <span key={i} style={{ width: 4, height: 4, borderRadius: "50%", background: isSelected ? "rgba(255,255,255,0.9)" : typeDot(e.type) }} />
+                                  ))}
+                                  {evCount > 3 && <span style={{ fontSize: 7, color: isSelected ? "rgba(255,255,255,0.9)" : "var(--color-text-muted)", marginLeft: 1 }}>+{evCount - 3}</span>}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center gap-3 mt-3" style={{ fontSize: 9, color: "var(--color-text-muted)" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-accent-blue)" }} />Earnings</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--color-positive)" }} />Ex-Div</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, border: "1.5px solid var(--color-warning)", background: "var(--color-warning-bg)" }} />Today</span>
+                      </div>
+                    </div>
+
+                    {/* ── Agenda ── */}
+                    <div style={{ minWidth: 0 }}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.10em", color: "var(--color-text-muted)" }}>
+                          {calendarSelectedDate
+                            ? `Selected · ${new Date(calendarSelectedDate).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}`
+                            : "Next 28 Days"}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span style={{ fontSize: 10, color: "var(--color-text-muted)" }}>{agendaEvents.length} event{agendaEvents.length !== 1 ? "s" : ""}</span>
+                          {calendarSelectedDate && <button onClick={() => setCalendarSelectedDate(null)} className="scatter-pill" style={{ fontSize: 9 }}>✕ Clear</button>}
+                        </div>
+                      </div>
+
+                      {agendaEvents.length === 0 ? (
+                        <div style={{ padding: "32px 12px", textAlign: "center", color: "var(--color-text-muted)", fontSize: "var(--text-xs)", background: "var(--color-bg-elevated)", borderRadius: "var(--radius-md)" }}>
+                          {calendarSelectedDate ? "No catalyst events on this day." : "No upcoming events in the next 28 days."}
+                        </div>
+                      ) : (
+                        <div style={{ maxHeight: 360, overflowY: "auto" }}>
+                          {(() => {
+                            // Group agenda by date for cleaner reading
+                            const grouped: Record<string, CalEvent[]> = {};
+                            agendaEvents.forEach(e => {
+                              const iso = `${e.date.getFullYear()}-${String(e.date.getMonth()+1).padStart(2,"0")}-${String(e.date.getDate()).padStart(2,"0")}`;
+                              if (!grouped[iso]) grouped[iso] = [];
+                              grouped[iso].push(e);
+                            });
+                            return Object.entries(grouped).map(([iso, dayEvents]) => {
+                              const d = new Date(iso);
+                              const isToday = iso === todayISO;
+                              const dayLabel = isToday ? "Today" : d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+                              const dayDiff = dayEvents[0]?.daysUntil ?? 0;
                               return (
-                                <div key={`${e.tikr}-${e.type}-${i}`} className="flex items-center gap-3 px-3 py-1.5 rounded cursor-pointer" style={{ background: "var(--color-bg-hover)" }} onClick={() => { const st = enrichedStocks.find(x => x.tikr === e.tikr); if (st) setDetailStock(st); }}>
-                                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: e.daysUntil <= 7 && e.daysUntil >= 0 ? "#F59E0B" : "var(--color-text-muted)", minWidth: 52 }}>{e.date.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
-                                  <span className="pill" style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.border}`, fontSize: 9, minWidth: 65, textAlign: "center" }}>{e.type}</span>
-                                  <span className="font-semibold flex-1" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{e.name}</span>
-                                  {e.sector && <span style={{ fontSize: 9, color: "var(--color-text-muted)" }}>{e.sector}</span>}
-                                  <span className="font-bold" style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: e.daysUntil < 0 ? "var(--color-text-muted)" : e.daysUntil <= 7 ? "#F59E0B" : "var(--color-text-primary)", minWidth: 36, textAlign: "right" }}>{e.daysUntil < 0 ? `${Math.abs(e.daysUntil)}d ago` : e.daysUntil === 0 ? "Today" : `${e.daysUntil}d`}</span>
+                                <div key={iso} style={{ marginBottom: 12 }}>
+                                  <div className="flex items-center gap-2 mb-1.5">
+                                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: isToday ? "var(--color-warning)" : "var(--color-text-secondary)" }}>{dayLabel}</span>
+                                    <span style={{ flex: 1, height: 1, background: "var(--color-border-subtle)" }} />
+                                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--color-text-muted)" }}>{dayDiff < 0 ? `${Math.abs(dayDiff)}d ago` : dayDiff === 0 ? "Today" : `${dayDiff}d`}</span>
+                                  </div>
+                                  {dayEvents.map((e, i) => {
+                                    const tc = typeColor(e.type);
+                                    return (
+                                      <div key={`${e.tikr}-${e.type}-${i}`} className="flex items-center gap-3 cursor-pointer" style={{ padding: "7px 12px", borderRadius: "var(--radius-sm)", background: "var(--color-bg-elevated)", marginBottom: 3, transition: "background 0.15s" }} onClick={() => setCockpitTikr(e.tikr)} onMouseEnter={ev => ev.currentTarget.style.background = "var(--color-bg-hover)"} onMouseLeave={ev => ev.currentTarget.style.background = "var(--color-bg-elevated)"}>
+                                        <span className="pill" style={{ background: tc.bg, color: tc.fg, border: `1px solid ${tc.border}`, fontSize: 9, minWidth: 70, textAlign: "center" }}>{e.type}</span>
+                                        <span className="font-semibold flex-1" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-primary)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.name}</span>
+                                        {e.sector && <span style={{ fontSize: 9, color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{e.sector}</span>}
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               );
-                            })}
-                          </div>
+                            });
+                          })()}
                         </div>
-                      ))}
+                      )}
                     </div>
-                  ) : <p style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)", padding: 12 }}>No upcoming events. Click stocks in the Octopus tab to load enrichment data.</p>}
-
-                  {/* Analysis Freshness — Stale Stocks */}
-                  {staleStocks.length > 0 && (
-                    <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12, marginTop: 8 }}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span style={{ fontSize: 14 }}>⏰</span>
-                        <span className="font-bold" style={{ fontSize: "var(--text-sm)", color: "#D97706" }}>Stale Analysis — Not Updated in 60+ Days</span>
-                        <span className="pill pill-amber" style={{ marginLeft: 4 }}>{staleStocks.length}</span>
-                      </div>
-                      <div className="overflow-auto max-h-[240px]">
-                        <table className="data-table w-full"><thead><tr><th>Stock</th><th>Sector</th><th>Last Updated</th><th>Age</th><th>Conv.</th></tr></thead>
-                          <tbody>{staleStocks.slice(0, 20).map(s => {
-                            const d = s.last_updated ? new Date(s.last_updated) : null;
-                            const age = d ? Math.ceil((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)) : null;
-                            return (
-                              <tr key={s.tikr} className="cursor-pointer" onClick={() => setDetailStock(s)}>
-                                <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
-                                <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
-                                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{d ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "Never"}</td>
-                                <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: age && age > 90 ? "#EF4444" : "#D97706", fontWeight: 600 }}>{age ? `${age}d` : "∞"}</td>
-                                <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
-                              </tr>
-                            );
-                          })}</tbody></table>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                </>
               );
             })()}
           </div>
+
+          {/* 7b. Stale Analysis (split out from Catalyst Calendar) */}
+          {(() => {
+            const now = new Date();
+            const staleStocks = enrichedStocks.filter(s => {
+              if (!s.last_updated) return true;
+              const d = new Date(s.last_updated);
+              return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) > 60;
+            }).sort((a, b) => {
+              const da = a.last_updated ? new Date(a.last_updated).getTime() : 0;
+              const db = b.last_updated ? new Date(b.last_updated).getTime() : 0;
+              return da - db;
+            });
+            if (staleStocks.length === 0) return null;
+            return (
+              <div className="metric-card animate-fade-in-up">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 style={{ fontWeight: 700, fontSize: "var(--text-base)", color: "var(--color-text-primary)", paddingLeft: 10, borderLeft: "3px solid var(--color-warning)" }}>Stale Analysis</h3>
+                  <span style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>not updated in 60+ days</span>
+                  <span className="pill pill-amber" style={{ marginLeft: "auto" }}>{staleStocks.length}</span>
+                </div>
+                <div className="overflow-auto max-h-[280px]">
+                  <table className="data-table w-full"><thead><tr><th>Stock</th><th>Sector</th><th>Last Updated</th><th>Age</th><th className="text-center">Conv.</th></tr></thead>
+                    <tbody>{staleStocks.slice(0, 30).map(s => {
+                      const d = s.last_updated ? new Date(s.last_updated) : null;
+                      const age = d ? Math.ceil((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24)) : null;
+                      return (
+                        <tr key={s.tikr} className="cursor-pointer" onClick={() => setCockpitTikr(s.tikr)}>
+                          <td className="font-semibold" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-primary)" }}>{s.companyShort}</td>
+                          <td style={{ fontSize: "var(--text-xs)", color: "var(--color-text-secondary)" }}>{s.sector || "—"}</td>
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)" }}>{d ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "Never"}</td>
+                          <td style={{ fontFamily: "var(--font-mono)", fontSize: "var(--text-xs)", color: age && age > 90 ? "var(--color-negative)" : "var(--color-warning)", fontWeight: 600 }}>{age ? `${age}d` : "∞"}</td>
+                          <td className="text-center"><ConvictionDots level={s.conviction ?? 0} /></td>
+                        </tr>
+                      );
+                    })}</tbody></table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 8. Decision Journal */}
           <div className="metric-card animate-fade-in-up" style={{ borderTop: "3px solid #8B5CF6" }}>
