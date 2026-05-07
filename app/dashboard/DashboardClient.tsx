@@ -287,6 +287,16 @@ const fmtRupee = (n: number | undefined | null): string => {
   return `₹${n.toFixed(0)}`;
 };
 
+const formatLastSync = (iso: string | null): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString("en-IN", { hour12: false })
+    : `${d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })} ${d.toLocaleTimeString("en-IN", { hour12: false, hour: "2-digit", minute: "2-digit" })}`;
+};
+
 const pctColor = (n: number | undefined | null): string => {
   if (n == null) return "";
   const v = n * 100;
@@ -766,7 +776,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
   const [dataRefreshing, setDataRefreshing] = useState(false);
-  const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(null);
+  const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(
+    (metadata?.snapshot_synced_at as string | null | undefined) ?? null
+  );
   const [holdingsUnlocked, setHoldingsUnlocked] = useState(false);
   const [holdingsPin, setHoldingsPin] = useState("");
   const [holdingsData, setHoldingsData] = useState<Holding[]>([]);
@@ -2173,7 +2185,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
           {dataLastRefreshed && (
             <span className="lux-timestamp" title={`Last data sync: ${new Date(dataLastRefreshed).toLocaleString("en-IN")}`}>
               <span className="lux-timestamp-label">Data</span>
-              <span className="lux-timestamp-value">{new Date(dataLastRefreshed).toLocaleTimeString("en-IN", { hour12: false })}</span>
+              <span className="lux-timestamp-value">{formatLastSync(dataLastRefreshed)}</span>
             </span>
           )}
           <button type="button" onClick={refreshData} disabled={dataRefreshing} className="lux-icon-btn" aria-label="Sync data from OneDrive" title={dataRefreshing ? (syncStatus || "Syncing…") : "Sync data from OneDrive"}>
