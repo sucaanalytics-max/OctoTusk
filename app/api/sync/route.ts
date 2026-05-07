@@ -356,7 +356,11 @@ async function processVFFiles(
       if (data && data.tikr && typeof data.tikr === "string") {
         const tikr = data.tikr as string;
         if (results.has(tikr)) {
-          console.warn(`[vF] DUPLICATE TIKR "${tikr}": "${file.name}" overwrites "${(results.get(tikr)?._vf_source as string) || "unknown"}" — check cell B2 in both files`);
+          // Reject the duplicate rather than silently overwriting. First-parsed
+          // file wins; loud console.error so analyst template-copy mistakes
+          // (wrong B2) fail visibly instead of corrupting the prior file's data.
+          console.error(`[vF] DUPLICATE TIKR "${tikr}": "${file.name}" REJECTED — keeping "${(results.get(tikr)?._vf_source as string) || "unknown"}". Fix B2 in one of the files.`);
+          continue;
         }
         results.set(tikr, data);
       } else if (data === null) failures.push(file.name);
@@ -772,7 +776,7 @@ export async function POST(request: Request) {
       const isDone = offset + batchSize >= vfFileList.length;
 
       console.log(`[sync] Mode: vf batch offset=${offset} size=${filesToProcess.length} total=${vfFileList.length}`);
-      const { results: vfMap, failures } = await processVFFiles(token, filesToProcess, 3);
+      const { results: vfMap, failures } = await processVFFiles(token, filesToProcess, 2);
       console.log(`[sync] Parsed ${vfMap.size} vF files, ${failures.length} failures`);
 
       // Apply aliases
@@ -868,7 +872,7 @@ export async function POST(request: Request) {
     const baselineStocks = parseStocks(rows);
     const allFiles = await listVFFiles(token);
     const dedupedFiles = deduplicateVFFiles(allFiles);
-    const { results: vfMap, failures: vfFailures } = await processVFFiles(token, dedupedFiles, 3);
+    const { results: vfMap, failures: vfFailures } = await processVFFiles(token, dedupedFiles, 2);
 
     for (const [vfTikr, jvbTikr] of Object.entries(TIKR_ALIAS)) {
       const data = vfMap.get(vfTikr);

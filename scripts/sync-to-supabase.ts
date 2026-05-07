@@ -304,9 +304,26 @@ function readerFromXlsxSheet(ws: XLSX.WorkSheet): CellReader {
 }
 
 async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResult> {
+  const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
+  let sessionId: string | undefined;
   try {
-    const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
-    const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: { Authorization: `Bearer ${token}` } }, file.name);
+    // Open a read-only persistent session — pays the workbook cold-load cost
+    // once and reuses the warm in-memory workbook for the subsequent calls.
+    // This eliminates most "HTTP 504 listing sheets" errors on heavy .xlsm files.
+    const sessionRes = await fetchWithRetry(`${baseUrl}/createSession`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ persistChanges: false }),
+    }, file.name);
+    if (!sessionRes.ok) {
+      const txt = await sessionRes.text().catch(() => "");
+      return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${sessionRes.status} createSession: ${txt.slice(0, 150)}` };
+    }
+    const sessionJson = await sessionRes.json();
+    sessionId = sessionJson.id as string;
+    const sessionHeaders = { Authorization: `Bearer ${token}`, "workbook-session-id": sessionId } as Record<string, string>;
+
+    const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: sessionHeaders }, file.name);
     if (!sheetsRes.ok) return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${sheetsRes.status} listing sheets` };
     const sheetsData = await sheetsRes.json();
     if (sheetsData.error) return { ok: false, reason: "parse_error", file: file.name, detail: sheetsData.error.message };
@@ -316,7 +333,7 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
     if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
 
     const rangeUrl = `${baseUrl}/worksheets('${encodeURIComponent(summarySheet)}')/range(address='A1:G22')?$select=values`;
-    const rangeRes = await fetchWithRetry(rangeUrl, { headers: { Authorization: `Bearer ${token}` } }, file.name);
+    const rangeRes = await fetchWithRetry(rangeUrl, { headers: sessionHeaders }, file.name);
     if (!rangeRes.ok) {
       const txt = await rangeRes.text().catch(() => "");
       return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${rangeRes.status} reading range: ${txt.slice(0, 200)}` };
@@ -326,6 +343,15 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
     return buildVfData(file, readerFromGraphValues((rangeData.values || []) as unknown[][]), "graph");
   } catch (err) {
     return { ok: false, reason: "parse_error", file: file.name, detail: err instanceof Error ? err.message : String(err) };
+  } finally {
+    // Best-effort session close. Graph auto-cleans after ~7 min idle, so leaks
+    // are harmless; we don't block the worker if this fails.
+    if (sessionId) {
+      fetch(`${baseUrl}/closeSession`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "workbook-session-id": sessionId },
+      }).catch(() => {});
+    }
   }
 }
 
@@ -369,7 +395,12 @@ async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
         if (data.tikr && typeof data.tikr === "string") {
           const tikr = data.tikr as string;
           if (results.has(tikr)) {
-            console.warn(`[vF] DUPLICATE TIKR "${tikr}": "${file.name}" overwrites "${(results.get(tikr)?._vf_source as string) || "unknown"}" — check cell B2 in both files`);
+            // Reject the second file rather than silently overwriting. First-parsed
+            // file wins (deterministic given our queue order). Loud console.error so
+            // analyst template-copy mistakes (wrong B2) fail visibly instead of
+            // corrupting the prior file's data.
+            console.error(`[vF] DUPLICATE TIKR "${tikr}": "${file.name}" REJECTED — keeping "${(results.get(tikr)?._vf_source as string) || "unknown"}". Fix B2 in one of the files.`);
+            continue;
           }
           results.set(tikr, data);
         }
@@ -660,7 +691,9 @@ async function main() {
   const dedupedFiles = deduplicateVFFiles(allFiles);
   console.log(`[sync] Found ${allFiles.length} files, deduplicated to ${dedupedFiles.length}`);
 
-  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 3);
+  // concurrency=2 (down from 3): with persistent workbook sessions per file,
+  // fewer parallel cold-loads means more Graph backend headroom per request.
+  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 2);
   console.log(`[sync] Parsed ${vfMap.size} vF files, skipped ${vfSkipped.length} (no sheet), ${vfFailed.length} errors`);
   console.log(`[sync] vF tikrs: ${Array.from(vfMap.keys()).join(", ")}`);
   if (vfSkipped.length > 0) console.warn(`[sync] Skipped files (no Tusk - Summary sheet): ${vfSkipped.join(", ")}`);
