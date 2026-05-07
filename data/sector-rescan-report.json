@@ -1,15 +1,15 @@
 {
-  "ranAt": "2026-05-06T09:01:03.122Z",
+  "ranAt": "2026-05-06T10:55:59.010Z",
   "summary": {
     "jvbCount": 92,
     "vfCount": 103,
-    "mappingCount": 93,
+    "mappingCount": 102,
     "a_jvbMismatches": 92,
     "b_jvbEmpty": 3,
     "c_jvbUncovered": 0,
-    "d_vfMismatches": 63,
-    "e_vfUnresolved": 9,
-    "f_jvbVfDisagreement": 21,
+    "d_vfMismatches": 73,
+    "e_vfUnresolved": 0,
+    "f_jvbVfDisagreement": 23,
     "g_staleMapEntries": 1
   },
   "a_jvbMismatches": [
@@ -960,15 +960,6 @@
   "c_jvbUncovered": [],
   "d_vfMismatches": [
     {
-      "canonicalTikr": "VEDL",
-      "file": "01052026_Vedanta - RemainCo_vF.xlsx",
-      "field": "subsector",
-      "currentSector": "Metals & Mining",
-      "currentSubsector": "Metals",
-      "expectedSector": "Metals & Mining",
-      "expectedSubsector": "Diversified Metals"
-    },
-    {
       "canonicalTikr": "COFORGE",
       "file": "20250317_Coforge vF.xlsx",
       "field": "both",
@@ -976,6 +967,15 @@
       "currentSubsector": "IT Services",
       "expectedSector": "Information Technology",
       "expectedSubsector": "IT - Services"
+    },
+    {
+      "canonicalTikr": "ABCAPITAL",
+      "file": "20250318_AB Capital vF.xlsx",
+      "field": "subsector",
+      "currentSector": "Financial Services",
+      "currentSubsector": "NBFC",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "Holding Company (Diversified Financials)"
     },
     {
       "canonicalTikr": "GPIL",
@@ -994,6 +994,15 @@
       "currentSubsector": "Other",
       "expectedSector": "Services",
       "expectedSubsector": "Marine Port & Services"
+    },
+    {
+      "canonicalTikr": "538734",
+      "file": "20250320_Ceinsys vF.xlsx",
+      "field": "both",
+      "currentSector": "IT",
+      "currentSubsector": "IT Services",
+      "expectedSector": "Capital Goods",
+      "expectedSubsector": "IT Services (Defense & Geomatics)"
     },
     {
       "canonicalTikr": "NXST",
@@ -1075,15 +1084,6 @@
       "currentSubsector": "NBFC",
       "expectedSector": "Financial Services",
       "expectedSubsector": "Holding Company (Diversified Financials)"
-    },
-    {
-      "canonicalTikr": "GPTINFRA",
-      "file": "20250408_GPTInfra_vf.xlsx",
-      "field": "both",
-      "currentSector": "Infrastructure",
-      "currentSubsector": "Integrated",
-      "expectedSector": "Construction",
-      "expectedSubsector": "Civil Construction (Railways/Bridges)"
     },
     {
       "canonicalTikr": "PARKHOTELS",
@@ -1221,6 +1221,15 @@
       "expectedSubsector": "Commodity Exchange"
     },
     {
+      "canonicalTikr": "IIFL",
+      "file": "20251111_IIFL Finance_vF.xlsx",
+      "field": "sector",
+      "currentSector": "Banks & NBFC",
+      "currentSubsector": "NBFC",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "NBFC"
+    },
+    {
       "canonicalTikr": "HUDCO",
       "file": "20250915_HUDCO Ltd.xlsx",
       "field": "both",
@@ -1237,15 +1246,6 @@
       "currentSubsector": "Co-Working",
       "expectedSector": "Services",
       "expectedSubsector": "Managed Workspaces"
-    },
-    {
-      "canonicalTikr": "PHOENIXLTD",
-      "file": "20251010_Phoenix Mills vF.xlsx",
-      "field": "both",
-      "currentSector": "Hospitality & Real Estate",
-      "currentSubsector": "Retail",
-      "expectedSector": "Realty",
-      "expectedSubsector": "Commercial (Retail Malls)"
     },
     {
       "canonicalTikr": "BIRET",
@@ -1318,6 +1318,15 @@
       "currentSubsector": "Retail",
       "expectedSector": "Capital Goods",
       "expectedSubsector": "Electronic Components (EMS)"
+    },
+    {
+      "canonicalTikr": "505192",
+      "file": "20251202_SML Mahindra.xlsx",
+      "field": "both",
+      "currentSector": "Automotive",
+      "currentSubsector": "OEMs",
+      "expectedSector": "Capital Goods",
+      "expectedSubsector": "Commercial Vehicles"
     },
     {
       "canonicalTikr": "INDIASHLTR",
@@ -1410,6 +1419,15 @@
       "expectedSubsector": "Industrial Manufacturing (Process Equipment)"
     },
     {
+      "canonicalTikr": "ITCHOTELS",
+      "file": "20260129 ITC Hotels vf.xlsx",
+      "field": "both",
+      "currentSector": "Consumer",
+      "currentSubsector": "Hospitality",
+      "expectedSector": "Consumer Services",
+      "expectedSubsector": "Hotels & Resorts"
+    },
+    {
       "canonicalTikr": "CanBK",
       "file": "20260204_Canara Bank Ltd.xlsx",
       "field": "both",
@@ -1423,9 +1441,18 @@
       "file": "20260204_PSU Bank Index Analysis.xlsx",
       "field": "both",
       "currentSector": "Banks & NBFC",
-      "currentSubsector": "NBFC",
+      "currentSubsector": "PSU Banks",
       "expectedSector": "Financial Services",
       "expectedSubsector": "Exchange Traded Fund (Banking)"
+    },
+    {
+      "canonicalTikr": "GROWW",
+      "file": "20260217_Groww_vF.xlsx",
+      "field": "both",
+      "currentSector": "BFSI",
+      "currentSubsector": "Exchanges & Capital Markets",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "Stockbroking & Allied Services"
     },
     {
       "canonicalTikr": "PNB",
@@ -1446,8 +1473,8 @@
       "expectedSubsector": "Private Sector Bank"
     },
     {
-      "canonicalTikr": "BANKBARODA",
-      "file": "20260218_Bank of Baroda_vF.xlsx",
+      "canonicalTikr": "SBIN",
+      "file": "20260218_SBIN_vF.xlsx",
       "field": "both",
       "currentSector": "Banks & NBFC",
       "currentSubsector": "PSU Bank",
@@ -1473,8 +1500,35 @@
       "expectedSubsector": "Housing Finance Company"
     },
     {
+      "canonicalTikr": "APTUS",
+      "file": "20260317_Aptus_vF.xlsx",
+      "field": "both",
+      "currentSector": "Banks & NBFC",
+      "currentSubsector": "Housing Finance",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "Housing Finance Company"
+    },
+    {
+      "canonicalTikr": "BAJAJHFL",
+      "file": "20260317_BAJAJ HousingFinance_vF.xlsx",
+      "field": "both",
+      "currentSector": "Banks & NBFC",
+      "currentSubsector": "Housing Finance",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "Housing Finance Company"
+    },
+    {
       "canonicalTikr": "CANFINHOME",
       "file": "20260317_Can Fin Homes_vF.xlsx",
+      "field": "both",
+      "currentSector": "Banks & NBFC",
+      "currentSubsector": "Housing Finance",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "Housing Finance Company"
+    },
+    {
+      "canonicalTikr": "HOMEFIRST",
+      "file": "20260317_HOME FIRST_vF.xlsx",
       "field": "both",
       "currentSector": "Banks & NBFC",
       "currentSubsector": "Housing Finance",
@@ -1489,6 +1543,15 @@
       "currentSubsector": "Housing Finance",
       "expectedSector": "Financial Services",
       "expectedSubsector": "Housing Finance Company"
+    },
+    {
+      "canonicalTikr": "MANAPPURAM",
+      "file": "20260318_Manappuram Finance_vF.xlsx",
+      "field": "both",
+      "currentSector": "Banks & NBFC",
+      "currentSubsector": "NBFC",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "NBFC (Gold Loan)"
     },
     {
       "canonicalTikr": "ANNAPURNA",
@@ -1509,6 +1572,15 @@
       "expectedSubsector": "Beverages — Soft Drinks"
     },
     {
+      "canonicalTikr": "CLAIT",
+      "file": "20260408_Capitaland REIT vF.xlsx",
+      "field": "both",
+      "currentSector": "Real Estate",
+      "currentSubsector": "REITs",
+      "expectedSector": "Realty",
+      "expectedSubsector": "REIT (Industrial)"
+    },
+    {
       "canonicalTikr": "MOTILALOFS",
       "file": "20260415_Motilal Oswal vF.xlsx",
       "field": "both",
@@ -1518,6 +1590,15 @@
       "expectedSubsector": "Stockbroking & Allied Services"
     },
     {
+      "canonicalTikr": "KTKBANK",
+      "file": "20260428_Karnataka Bank.xlsx",
+      "field": "both",
+      "currentSector": "Banks & NBFC",
+      "currentSubsector": "Private Bank",
+      "expectedSector": "Financial Services",
+      "expectedSubsector": "Private Sector Bank"
+    },
+    {
       "canonicalTikr": "TMB",
       "file": "20260428_Tamilnad Merchantile Bank.xlsx",
       "field": "both",
@@ -1525,47 +1606,32 @@
       "currentSubsector": "Private Bank",
       "expectedSector": "Financial Services",
       "expectedSubsector": "Private Sector Bank"
+    },
+    {
+      "canonicalTikr": "VEDL",
+      "file": "30122025_Vedanta_V7.xlsx",
+      "field": "subsector",
+      "currentSector": "Metals & Mining",
+      "currentSubsector": "Metals",
+      "expectedSector": "Metals & Mining",
+      "expectedSubsector": "Diversified Metals"
     }
   ],
-  "e_vfUnresolved": [
-    {
-      "file": "20250320_Ceinsys vF.xlsx",
-      "rawTikr": "538734"
-    },
-    {
-      "file": "20251202_SML Mahindra.xlsx",
-      "rawTikr": "505192"
-    },
-    {
-      "file": "20260129 ITC Hotels vf.xlsx",
-      "rawTikr": "ITC HOTELS LIMITED (XNSE:ITCHOTELS)"
-    },
-    {
-      "file": "20260217_Groww_vF.xlsx",
-      "rawTikr": "GROWW"
-    },
-    {
-      "file": "20260317_Aptus_vF.xlsx",
-      "rawTikr": "APTUS"
-    },
-    {
-      "file": "20260317_BAJAJ HousingFinance_vF.xlsx",
-      "rawTikr": "BAJAJHFL"
-    },
-    {
-      "file": "20260317_HOME FIRST_vF.xlsx",
-      "rawTikr": "HOMEFIRST"
-    },
-    {
-      "file": "20260408_Capitaland REIT vF.xlsx",
-      "rawTikr": "Capitaland India REIT"
-    },
-    {
-      "file": "20260428_Karnataka Bank.xlsx",
-      "rawTikr": "KTKBANK"
-    }
-  ],
+  "e_vfUnresolved": [],
   "f_jvbVfDisagreement": [
+    {
+      "tikr": "ABCAPITAL",
+      "officialName": "ADITYA BIRLA CAPITAL LIMITED",
+      "jvbSector": "BFSI",
+      "jvbSubsector": "NBFCs",
+      "vfSector": "Financial Services",
+      "vfSubsector": "NBFC",
+      "file": "20250318_AB Capital vF.xlsx",
+      "disagreements": [
+        "sector: JVB=\"BFSI\" vs vF=\"Financial Services\"",
+        "subsector: JVB=\"NBFCs\" vs vF=\"NBFC\""
+      ]
+    },
     {
       "tikr": "CAMS",
       "officialName": "COMPUTER AGE MANAGEMENT SERVICES LIMITED",
@@ -1590,19 +1656,6 @@
       "disagreements": [
         "sector: JVB=\"BFSI\" vs vF=\"Financial Services\"",
         "subsector: JVB=\"0\" vs vF=\"Depository\""
-      ]
-    },
-    {
-      "tikr": "KFINTECH",
-      "officialName": "KFIN TECHNOLOGIES LIMITED",
-      "jvbSector": "BFSI",
-      "jvbSubsector": "Exchanges & Capital Markets",
-      "vfSector": "Financial Services",
-      "vfSubsector": "Registrar & Transfer Agent",
-      "file": "20250319_KFintech vF.xlsx",
-      "disagreements": [
-        "sector: JVB=\"BFSI\" vs vF=\"Financial Services\"",
-        "subsector: JVB=\"Exchanges & Capital Markets\" vs vF=\"Registrar & Transfer Agent\""
       ]
     },
     {
@@ -1654,6 +1707,19 @@
       "file": "20250722_Smartworks vF.xlsx",
       "disagreements": [
         "sector: JVB=\"\" vs vF=\"Hospitality & Real Estate\""
+      ]
+    },
+    {
+      "tikr": "IIFL",
+      "officialName": "IIFL FINANCE LIMITED",
+      "jvbSector": "BFSI",
+      "jvbSubsector": "NBFCs",
+      "vfSector": "Banks & NBFC",
+      "vfSubsector": "NBFC",
+      "file": "20251111_IIFL Finance_vF.xlsx",
+      "disagreements": [
+        "sector: JVB=\"BFSI\" vs vF=\"Banks & NBFC\"",
+        "subsector: JVB=\"NBFCs\" vs vF=\"NBFC\""
       ]
     },
     {
@@ -1726,11 +1792,11 @@
       "jvbSector": "",
       "jvbSubsector": "",
       "vfSector": "Banks & NBFC",
-      "vfSubsector": "NBFC",
+      "vfSubsector": "PSU Banks",
       "file": "20260204_PSU Bank Index Analysis.xlsx",
       "disagreements": [
         "sector: JVB=\"\" vs vF=\"Banks & NBFC\"",
-        "subsector: JVB=\"\" vs vF=\"NBFC\""
+        "subsector: JVB=\"\" vs vF=\"PSU Banks\""
       ]
     },
     {
@@ -1760,13 +1826,13 @@
       ]
     },
     {
-      "tikr": "BANKBARODA",
-      "officialName": "THE BANK OF BARODA LIMITED",
+      "tikr": "SBIN",
+      "officialName": "State Bank of India",
       "jvbSector": "BFSI",
       "jvbSubsector": "Banks",
       "vfSector": "Banks & NBFC",
       "vfSubsector": "PSU Bank",
-      "file": "20260218_Bank of Baroda_vF.xlsx",
+      "file": "20260218_SBIN_vF.xlsx",
       "disagreements": [
         "sector: JVB=\"BFSI\" vs vF=\"Banks & NBFC\"",
         "subsector: JVB=\"Banks\" vs vF=\"PSU Bank\""
@@ -1822,6 +1888,19 @@
       ]
     },
     {
+      "tikr": "MANAPPURAM",
+      "officialName": "MANAPPURAM FINANCE LIMITED",
+      "jvbSector": "BFSI",
+      "jvbSubsector": "NBFCs",
+      "vfSector": "Banks & NBFC",
+      "vfSubsector": "NBFC",
+      "file": "20260318_Manappuram Finance_vF.xlsx",
+      "disagreements": [
+        "sector: JVB=\"BFSI\" vs vF=\"Banks & NBFC\"",
+        "subsector: JVB=\"NBFCs\" vs vF=\"NBFC\""
+      ]
+    },
+    {
       "tikr": "TMB",
       "officialName": "TAMILNAD MERCANTILE BANK LIMITED",
       "jvbSector": "BFSI",
@@ -1844,10 +1923,12 @@
   ],
   "vfReadErrors": [],
   "vfNoSummarySheet": [
+    "01052026_Vedanta - RemainCo_vF.xlsx",
     "20240324_Angel One_vF.xlsx",
-    "20250318_AB Capital vF.xlsx",
+    "20250319_KFintech vF.xlsx",
     "20250319_NSDL.xlsx",
     "20250401_Interarch_vf.xlsx",
+    "20250408_GPTInfra_vf.xlsx",
     "20250416 HPCL model v4.xlsx",
     "20250423_Shriram Fin_vf.xlsx",
     "20250630_Five Star Finance_vf.xlsx",
@@ -1855,22 +1936,20 @@
     "20250728_AWFIS vF.xlsx",
     "20250805_SBI Cards vF.xlsx",
     "20250809_NSE vF.xlsx",
-    "20251111_IIFL Finance_vF.xlsx",
+    "20251010_Phoenix Mills vF.xlsx",
     "20251024 PCBL V8.xlsm",
     "20251029 Adani Green Model V15.xlsm",
     "20251102 CESC V3.xlsm",
     "20260115_Duroply_V6.xlsm",
     "20260213 Inox_Wind_Model.xlsm",
     "20260218 Suraksha  Diagnostics  VF.xlsx",
+    "20260218_Bank of Baroda_vF.xlsx",
     "20260218_HDFC Bank_vF.xlsx",
-    "20260218_SBIN_vF.xlsx",
     "20260311 NTPC V11 .xlsm",
-    "20260318_Manappuram Finance_vF.xlsx",
     "20260319_CSB Bank_vF.xlsx",
     "20260319_FedFina_vF.xlsx",
     "20260319_Muthoot_vF.xlsx",
     "20260408 GPT Healthcare vF.xlsm",
-    "20260429_Piramal Finance.xlsx",
-    "30122025_Vedanta_V7.xlsx"
+    "20260429_Piramal Finance.xlsx"
   ]
 }

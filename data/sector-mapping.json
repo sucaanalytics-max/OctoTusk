@@ -79,6 +79,14 @@
     "KFINTECH":    { "sector": "Financial Services", "subsector": "Registrar & Transfer Agent" },
     "CAMS":        { "sector": "Financial Services", "subsector": "Registrar & Transfer Agent" },
 
+    "KTKBANK":     { "sector": "Financial Services", "subsector": "Private Sector Bank" },
+
+    "APTUS":       { "sector": "Financial Services", "subsector": "Housing Finance Company" },
+    "BAJAJHFL":    { "sector": "Financial Services", "subsector": "Housing Finance Company" },
+    "HOMEFIRST":   { "sector": "Financial Services", "subsector": "Housing Finance Company" },
+
+    "GROWW":       { "sector": "Financial Services", "subsector": "Stockbroking & Allied Services" },
+
     "OFSS":        { "sector": "Information Technology", "subsector": "IT - Software" },
     "COFORGE":     { "sector": "Information Technology", "subsector": "IT - Services" },
     "CYIENT":      { "sector": "Information Technology", "subsector": "IT - Services" },
@@ -100,6 +108,8 @@
     "Inoxwind":    { "sector": "Capital Goods", "subsector": "Heavy Electrical Equipment (Wind Turbines)" },
     "INTERARCH":   { "sector": "Capital Goods", "subsector": "Industrial Products (Pre-Engineered Buildings)" },
     "XBOM:522101": { "sector": "Capital Goods", "subsector": "Industrial Manufacturing (Process Equipment)" },
+    "538734":      { "sector": "Capital Goods", "subsector": "IT Services (Defense & Geomatics)" },
+    "505192":      { "sector": "Capital Goods", "subsector": "Commercial Vehicles" },
 
     "SPMLINFRA":   { "sector": "Construction", "subsector": "Civil Construction (Water Infra)" },
     "GPTINFRA":    { "sector": "Construction", "subsector": "Civil Construction (Railways/Bridges)" },
@@ -113,8 +123,10 @@
     "BIRET":       { "sector": "Realty", "subsector": "REIT (Office)" },
     "Embassy":     { "sector": "Realty", "subsector": "REIT (Office)" },
     "MINDSPACE":   { "sector": "Realty", "subsector": "REIT (Office)" },
+    "CLAIT":       { "sector": "Realty", "subsector": "REIT (Industrial)" },
 
     "PARKHOTELS":  { "sector": "Consumer Services", "subsector": "Hotels & Resorts" },
+    "ITCHOTELS":   { "sector": "Consumer Services", "subsector": "Hotels & Resorts" },
     "INDIGO":      { "sector": "Consumer Services", "subsector": "Air Transport Services" },
 
     "EPACK DURABLE LIMITED (XNSE:EPACK)":              { "sector": "Consumer Durables", "subsector": "Household Appliances (RAC ODM)" },
@@ -147,7 +159,9 @@
     "SMLMAH": "505192",
     "PSUBNKBEES": "XBOM:590108",
     "SMARTWORKS COWORKING SPACES LIMITED (XNSE:SMARTWORKS)": "Smartworks",
-    "IIFL Finance": "IIFL"
+    "IIFL Finance": "IIFL",
+    "ITC HOTELS LIMITED (XNSE:ITCHOTELS)": "ITCHOTELS",
+    "Capitaland India REIT": "CLAIT"
   },
   "substantiveNotes": {
     "ADANIPORTS": "subsector was 'Diagnostics' — pure data error",
