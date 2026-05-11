@@ -4056,6 +4056,7 @@
   ],
   "fo_positions": [],
   "ticker_map": {
+    "J&KBANK": "J&KBANK.NS",
     "Smartworks": "SMARTWORKS.NS",
     "538734": "CEINSYS.NS",
     "505192": "SMLMAH.NS",
