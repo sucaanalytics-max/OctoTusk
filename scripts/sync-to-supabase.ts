@@ -342,7 +342,20 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
     if (rangeData.error) return { ok: false, reason: "parse_error", file: file.name, detail: rangeData.error.message };
     return buildVfData(file, readerFromGraphValues((rangeData.values || []) as unknown[][]), "graph");
   } catch (err) {
-    return { ok: false, reason: "parse_error", file: file.name, detail: err instanceof Error ? err.message : String(err) };
+    const msg = err instanceof Error ? err.message : String(err);
+    // AbortSignal.timeout rejects with DOMException name="TimeoutError";
+    // node's fetch may also surface plain AbortError. Classify these as
+    // http_error so parseVFFile's XLSX fallback fires — Graph latency
+    // spikes drop into cached-values mode rather than dropping the file.
+    const isTimeout =
+      (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) ||
+      /aborted due to timeout|operation was aborted/i.test(msg);
+    return {
+      ok: false,
+      reason: isTimeout ? "http_error" : "parse_error",
+      file: file.name,
+      detail: msg,
+    };
   } finally {
     // Best-effort session close. Graph auto-cleans after ~7 min idle, so leaks
     // are harmless; we don't block the worker if this fails.
@@ -691,9 +704,7 @@ async function main() {
   const dedupedFiles = deduplicateVFFiles(allFiles);
   console.log(`[sync] Found ${allFiles.length} files, deduplicated to ${dedupedFiles.length}`);
 
-  // concurrency=2 (down from 3): with persistent workbook sessions per file,
-  // fewer parallel cold-loads means more Graph backend headroom per request.
-  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 2);
+  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 3);
   console.log(`[sync] Parsed ${vfMap.size} vF files, skipped ${vfSkipped.length} (no sheet), ${vfFailed.length} errors`);
   console.log(`[sync] vF tikrs: ${Array.from(vfMap.keys()).join(", ")}`);
   if (vfSkipped.length > 0) console.warn(`[sync] Skipped files (no Tusk - Summary sheet): ${vfSkipped.join(", ")}`);
