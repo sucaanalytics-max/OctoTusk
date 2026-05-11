@@ -100,47 +100,69 @@ export async function POST(request: Request) {
   try {
     const supabase = getSupabase();
 
-    // Holdings and F&O positions come from per-day OneDrive exports that can fail
-    // transiently on the Vercel side (silent null from readFoPositions/readHoldings
-    // collapses to []). A failed read must not destroy yesterday's data, so when the
-    // caller sends an empty array for those fields we preserve whatever is in the row.
-    // Stocks and ticker_map come from a deterministic full merge and always overwrite.
-    const incomingHoldings = Array.isArray(body.holdings) ? body.holdings : [];
-    const incomingFo = Array.isArray(body.fo_positions) ? body.fo_positions : [];
-    const needsExisting = incomingHoldings.length === 0 || incomingFo.length === 0;
+    // Each field is independently preserved when the caller sends empty/missing:
+    // - holdings / fo_positions: per-day OneDrive exports can fail transiently;
+    //   a failed read must not destroy yesterday's data.
+    // - stocks / ticker_map: a partial sync (e.g. holdings-only) omits these
+    //   entirely; never wipe the merged JVB+vF result with an empty array.
+    // The full-sync caller always sends all four populated, so its behavior is
+    // unchanged. Only partial callers benefit.
+    const incomingStocks    = Array.isArray(body.stocks)       ? body.stocks       : [];
+    const incomingHoldings  = Array.isArray(body.holdings)     ? body.holdings     : [];
+    const incomingFo        = Array.isArray(body.fo_positions) ? body.fo_positions : [];
+    const incomingTickerMap = (body.ticker_map && typeof body.ticker_map === "object" && !Array.isArray(body.ticker_map))
+      ? body.ticker_map as Record<string, unknown>
+      : {};
 
+    const needsExisting =
+      incomingStocks.length === 0 ||
+      incomingHoldings.length === 0 ||
+      incomingFo.length === 0 ||
+      Object.keys(incomingTickerMap).length === 0;
+
+    let existingStocks: unknown[] = [];
     let existingHoldings: unknown[] = [];
     let existingFo: unknown[] = [];
+    let existingTickerMap: Record<string, unknown> = {};
     if (needsExisting) {
       const { data: existing } = await supabase
         .from("sync_snapshot")
-        .select("holdings, fo_positions")
+        .select("stocks, holdings, fo_positions, ticker_map")
         .eq("id", 1)
         .single();
       if (existing) {
-        existingHoldings = Array.isArray(existing.holdings) ? existing.holdings : [];
-        existingFo = Array.isArray(existing.fo_positions) ? existing.fo_positions : [];
+        existingStocks    = Array.isArray(existing.stocks)       ? existing.stocks       : [];
+        existingHoldings  = Array.isArray(existing.holdings)     ? existing.holdings     : [];
+        existingFo        = Array.isArray(existing.fo_positions) ? existing.fo_positions : [];
+        existingTickerMap = (existing.ticker_map && typeof existing.ticker_map === "object" && !Array.isArray(existing.ticker_map))
+          ? existing.ticker_map as Record<string, unknown>
+          : {};
       }
     }
 
-    const finalHoldings = incomingHoldings.length > 0 ? incomingHoldings : existingHoldings;
-    const finalFo = incomingFo.length > 0 ? incomingFo : existingFo;
+    const finalStocks    = incomingStocks.length > 0    ? incomingStocks    : existingStocks;
+    const finalHoldings  = incomingHoldings.length > 0  ? incomingHoldings  : existingHoldings;
+    const finalFo        = incomingFo.length > 0        ? incomingFo        : existingFo;
+    const finalTickerMap = Object.keys(incomingTickerMap).length > 0 ? incomingTickerMap : existingTickerMap;
 
-    if (incomingHoldings.length === 0 && existingHoldings.length > 0) {
-      console.warn(`[snapshot] preserved ${existingHoldings.length} holdings — caller sent empty`);
-    }
-    if (incomingFo.length === 0 && existingFo.length > 0) {
-      console.warn(`[snapshot] preserved ${existingFo.length} fo_positions — caller sent empty`);
-    }
+    const preservedStocks    = incomingStocks.length === 0    && existingStocks.length > 0;
+    const preservedHoldings  = incomingHoldings.length === 0  && existingHoldings.length > 0;
+    const preservedFo        = incomingFo.length === 0        && existingFo.length > 0;
+    const preservedTickerMap = Object.keys(incomingTickerMap).length === 0 && Object.keys(existingTickerMap).length > 0;
+
+    if (preservedStocks)    console.warn(`[snapshot] preserved ${existingStocks.length} stocks — caller sent empty`);
+    if (preservedHoldings)  console.warn(`[snapshot] preserved ${existingHoldings.length} holdings — caller sent empty`);
+    if (preservedFo)        console.warn(`[snapshot] preserved ${existingFo.length} fo_positions — caller sent empty`);
+    if (preservedTickerMap) console.warn(`[snapshot] preserved ticker_map (${Object.keys(existingTickerMap).length} entries) — caller sent empty`);
 
     const { error } = await supabase
       .from("sync_snapshot")
       .upsert({
         id: 1,
-        stocks: body.stocks ?? [],
+        stocks: finalStocks,
         holdings: finalHoldings,
         fo_positions: finalFo,
-        ticker_map: body.ticker_map ?? {},
+        ticker_map: finalTickerMap,
         synced_at: new Date().toISOString(),
       });
 
@@ -149,10 +171,13 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       saved_at: new Date().toISOString(),
+      stocks_count: finalStocks.length,
       holdings_count: finalHoldings.length,
       fo_positions_count: finalFo.length,
-      preserved_holdings: incomingHoldings.length === 0 && existingHoldings.length > 0,
-      preserved_fo_positions: incomingFo.length === 0 && existingFo.length > 0,
+      preserved_stocks: preservedStocks,
+      preserved_holdings: preservedHoldings,
+      preserved_fo_positions: preservedFo,
+      preserved_ticker_map: preservedTickerMap,
     });
   } catch (err) {
     console.error("[snapshot] POST error:", err instanceof Error ? err.message : err);

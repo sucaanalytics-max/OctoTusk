@@ -725,6 +725,27 @@ export async function POST(request: Request) {
   try {
     const token = await getGraphToken();
 
+    // ── Mode: holdings ── reads only Tusk EQ + Tusk FO from the
+    // Positions & Leverage folder. No JVB read, no vF processing.
+    // For when the analyst has only updated today's positions exports and
+    // doesn't need the full ~10-min baseline+vF pipeline. Expected: <30s.
+    if (mode === "holdings") {
+      console.log("[sync] Mode: holdings");
+      const [liveHoldings, liveFo] = await Promise.all([
+        readHoldings(token),
+        readFoPositions(token),
+      ]);
+      console.log(`[sync] Mode: holdings — holdings=${liveHoldings?.length ?? "null"} fo=${liveFo?.length ?? "null"}`);
+      return NextResponse.json({
+        mode: "holdings",
+        holdings: liveHoldings,
+        fo_positions: liveFo,
+        holdings_source: liveHoldings ? "live_onedrive" : "read_failed",
+        fo_source:       liveFo       ? "live_onedrive" : "read_failed",
+        refreshedAt: new Date().toISOString(),
+      });
+    }
+
     // ── Mode: baseline ── returns JVB + file list (fast)
     if (mode === "baseline") {
       console.log("[sync] Mode: baseline");

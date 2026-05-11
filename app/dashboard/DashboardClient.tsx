@@ -776,6 +776,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
   const [dataRefreshing, setDataRefreshing] = useState(false);
+  const [holdingsRefreshing, setHoldingsRefreshing] = useState(false);
   const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(
     (metadata?.snapshot_synced_at as string | null | undefined) ?? null
   );
@@ -1110,6 +1111,55 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   // Countdown + auto-fetch delegated to <CountdownTimer /> to avoid 1Hz parent re-renders
 
   const [syncStatus, setSyncStatus] = useState("");
+
+  // Fast path: refresh ONLY holdings + F&O positions from the two files in the
+  // Positions & Leverage folder. Skips JVB Output + vF batches entirely.
+  // Expected: <30s end-to-end vs ~10 min for refreshData.
+  const refreshHoldings = useCallback(async () => {
+    setHoldingsRefreshing(true);
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "holdings" }),
+      });
+      const data = await res.json();
+      if (data.error) { alert("Holdings sync failed: " + data.error); return; }
+
+      // Null = read failed; keep existing local state intact (snapshot endpoint
+      // does the same on its side via the defensive preservation logic).
+      if (Array.isArray(data.holdings)) {
+        setHoldingsData(data.holdings as Holding[]);
+      }
+      if (Array.isArray(data.fo_positions)) {
+        setFoPositions((data.fo_positions as FoPosition[]).map(p => ({ ...p })));
+      }
+
+      // Persist; omit fields where the OneDrive read failed so the snapshot
+      // endpoint preserves last-good for those columns.
+      const snapBody: Record<string, unknown> = {};
+      if (Array.isArray(data.holdings))     snapBody.holdings = data.holdings;
+      if (Array.isArray(data.fo_positions)) snapBody.fo_positions = data.fo_positions;
+      if (Object.keys(snapBody).length > 0) {
+        try {
+          const snapRes = await fetch("/api/snapshot", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(snapBody),
+          });
+          if (!snapRes.ok) console.error("[snapshot] holdings save failed:", snapRes.status, await snapRes.text().catch(() => ""));
+        } catch (e) { console.error("[snapshot] holdings save error:", e); }
+      }
+
+      if (typeof data.refreshedAt === "string") setDataLastRefreshed(data.refreshedAt);
+    } catch (e) {
+      console.error("[sync] holdings error:", e);
+      alert("Holdings sync failed — see console");
+    } finally {
+      setHoldingsRefreshing(false);
+    }
+  }, []);
+
   const refreshData = useCallback(async () => {
     setDataRefreshing(true);
     setSyncStatus("Loading baseline...");
@@ -2188,12 +2238,19 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               <span className="lux-timestamp-value">{formatLastSync(dataLastRefreshed)}</span>
             </span>
           )}
-          <button type="button" onClick={refreshData} disabled={dataRefreshing} className="lux-icon-btn" aria-label="Sync data from OneDrive" title={dataRefreshing ? (syncStatus || "Syncing…") : "Sync data from OneDrive"}>
+          <button type="button" onClick={refreshData} disabled={dataRefreshing || holdingsRefreshing} className="lux-icon-btn" aria-label="Sync all data from OneDrive (slow, full pipeline)" title={dataRefreshing ? (syncStatus || "Syncing…") : "Sync all data from OneDrive (full pipeline, ~10 min)"}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 8"/>
               <path d="M3 4v4h4"/>
               <path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.36-2.64L21 16"/>
               <path d="M21 20v-4h-4"/>
+            </svg>
+          </button>
+          <button type="button" onClick={refreshHoldings} disabled={dataRefreshing || holdingsRefreshing} className="lux-icon-btn" aria-label="Sync holdings only from OneDrive (fast)" title={holdingsRefreshing ? "Syncing holdings…" : "Sync holdings only (Tusk EQ + Tusk FO, ~30s)"}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="7" width="18" height="13" rx="2"/>
+              <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              <path d="M3 13h18"/>
             </svg>
           </button>
           <span style={{ width: 1, height: 18, background: "var(--color-border)" }} />
