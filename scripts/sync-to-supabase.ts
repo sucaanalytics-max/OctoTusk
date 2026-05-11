@@ -759,7 +759,7 @@ async function main() {
   const standaloneTikrs = new Set<string>();
   for (const [tikr, vfData] of Array.from(vfMap.entries())) {
     if (!matchedTikrs.has(tikr)) {
-      const name = (vfData._vf_source as string || "").replace(/^\d{6,8}[_ ]?/, "").replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
+      const name = (vfData._vf_source as string || "").replace(/^\d{6,8}[_ ]?/, "").replace(/(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i, "");
       mergedStocks.push({ tikr, official_name: name, ...vfData });
       standaloneTikrs.add(tikr);
     }

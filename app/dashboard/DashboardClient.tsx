@@ -743,7 +743,7 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
 
 // ── Permanently removed stocks (excluded from all tabs) ──
 const REMOVED_STOCKS = [
-  "monarch network", "recltd", "rec ltd", "repco",
+  "monarch networth", "recltd", "rec ltd", "repco",
   "dam capital", "deepak fert", "disa india", "elecon",
   "emkay", "kpit", "mallcom", "patels airtemp", "rpsg",
   "somany", "sunteck", "arihant", "coal india", "533278",

@@ -850,7 +850,7 @@ export async function POST(request: Request) {
         if (!matchedTikrs.has(tikr)) {
           const name = ((vfData._vf_source as string) || "")
             .replace(/^\d{6,8}[_ ]?/, "")
-            .replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
+            .replace(/(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i, "");
           merged.push({ tikr, official_name: name, ...vfData });
           standaloneCount++;
           console.log(`[sync] Added standalone vF stock: ${tikr}`);
@@ -934,7 +934,7 @@ export async function POST(request: Request) {
       if (!fullMatchedTikrs.has(tikr)) {
         const name = ((vfData._vf_source as string) || "")
           .replace(/^\d{6,8}[_ ]?/, "")
-          .replace(/[_ ]?[vV][fF]\d?\.xls[xm]$/i, "");
+          .replace(/(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i, "");
         mergedStocks.push({ tikr, official_name: name, ...vfData });
         console.log(`[sync] Full: added standalone vF stock: ${tikr}`);
       }
