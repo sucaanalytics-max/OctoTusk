@@ -88,6 +88,9 @@ export default async function OctopusPage() {
       seed={seed}
       displayToken={displayToken}
       stockListStale={stockListStale}
+      centerpiece="pills"
+      showRail={false}
+      pillVariant="editorial-light"
     />
   );
 }
