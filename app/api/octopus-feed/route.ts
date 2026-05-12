@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { buildQuotesMap } from "../quotes/route";
 import { getSectorInfo } from "@/lib/sectors";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import database from "@/data/database.json";
 
 export const dynamic = "force-dynamic";
@@ -64,9 +65,39 @@ function pickUpside(n: unknown): number | null {
   return typeof n === "number" && isFinite(n) ? n : null;
 }
 
+async function loadStocks(): Promise<DbStock[]> {
+  // Mirror app/octopus/page.tsx: prefer the Supabase snapshot (which is
+  // refreshed by the GitHub Action / OneDrive sync), fall back to the
+  // static database.json when Supabase is unconfigured or empty.
+  const fallback = ((database as any).stocks ?? []) as DbStock[];
+  if (!isSupabaseConfigured()) return fallback;
+  try {
+    const result = await getSupabase()
+      .from("sync_snapshot")
+      .select("stocks")
+      .eq("id", 1)
+      .single();
+    if (result.error || !result.data) return fallback;
+    const data = result.data as { stocks?: unknown };
+    if (!Array.isArray(data.stocks) || data.stocks.length === 0) return fallback;
+    const seen = new Set<string>();
+    return (data.stocks as DbStock[]).filter((s) => {
+      const k = s.tikr?.toLowerCase();
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  } catch (err) {
+    console.warn(
+      "[octopus-feed] Supabase load failed, using local db:",
+      err instanceof Error ? err.message : err
+    );
+    return fallback;
+  }
+}
+
 async function buildPayload(): Promise<OctopusFeedPayload> {
-  const { quotes } = await buildQuotesMap();
-  const stocks: DbStock[] = (database as any).stocks ?? [];
+  const [{ quotes }, stocks] = await Promise.all([buildQuotesMap(), loadStocks()]);
 
   const out: OctopusFeedStock[] = stocks.map((s) => {
     const q = quotes[s.tikr];
