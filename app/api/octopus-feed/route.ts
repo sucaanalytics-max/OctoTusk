@@ -68,23 +68,17 @@ function pickUpside(n: unknown): number | null {
 /**
  * Recorded CMP overrides for unlisted / illiquid stocks where the live
  * Yahoo lookup is unreliable or absent. Wins over both the live quote and
- * the snapshot's `cmp` field. Keys are TIKR-as-stored-in-Supabase; lookup
- * is case-insensitive so minor casing drift between sync runs doesn't
- * silently break the pin.
+ * the snapshot's `cmp` field. Match is fuzzy on the lowercased TIKR so
+ * minor naming drift (e.g. "NSE" vs "NATIONAL STOCK EXCHANGE (NSE)") never
+ * silently breaks the pin.
  */
-const RECORDED_CMP_OVERRIDES: Record<string, number> = (() => {
-  const raw: Record<string, number> = {
-    "NSE": 2000,
-    "National Stock Exchange": 2000,
-    "Capitaland India REIT": 85,
-  };
-  return Object.fromEntries(
-    Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v])
-  );
-})();
-
 function recordedCmp(tikr: string): number | null {
-  return RECORDED_CMP_OVERRIDES[tikr.toLowerCase()] ?? null;
+  const t = tikr.toLowerCase();
+  // Pre-IPO NSE — any variant of the name
+  if (t === "nse" || t.includes("national stock exchange")) return 2000;
+  // Singapore-listed Capitaland India Trust (Yahoo CY6U.SI unreliable)
+  if (t.includes("capitaland")) return 85;
+  return null;
 }
 
 async function loadStocks(): Promise<DbStock[]> {
