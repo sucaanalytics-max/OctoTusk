@@ -6,6 +6,7 @@ import { Header, type DisplayState } from "./Header";
 import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { SectorGrid } from "./SectorGrid";
 import { SectorOrbital } from "./SectorOrbital";
+import { StockPills } from "./StockPills";
 import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
 import { HoverCard, type HoverStock } from "./HoverCard";
@@ -88,7 +89,7 @@ function saveCache(key: string, value: unknown): void {
   }
 }
 
-export type OctopusCenterpiece = "cards" | "orbital";
+export type OctopusCenterpiece = "cards" | "orbital" | "pills";
 
 export default function OctopusClient({
   seed,
@@ -374,7 +375,15 @@ export default function OctopusClient({
           {stocks.length === 0 ? (
             <div className="octopus-loading">no coverage data</div>
           ) : (
-            centerpiece === "orbital" ? (
+            centerpiece === "pills" ? (
+              <StockPills
+                stocks={stocks}
+                focusedTikr={hoveredTikr}
+                pinnedTikr={pinnedTikr}
+                onRowHover={handleRowHover}
+                onRowClick={handleRowClick}
+              />
+            ) : centerpiece === "orbital" ? (
               <SectorOrbital stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />
             ) : (
               <SectorGrid stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />
