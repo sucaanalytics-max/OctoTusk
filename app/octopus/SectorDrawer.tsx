@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { displayName } from "@/lib/displayName";
+import { displayClusterName } from "@/lib/sectors";
 import type { SectorGridStock } from "./SectorGrid";
 
 interface Props {
@@ -69,7 +70,7 @@ export function SectorDrawer({ open, cluster, stocks, onClose }: Props) {
       <div className="ox-drawer" onClick={(e) => e.stopPropagation()}>
         <header className="ox-drawer-head">
           <div>
-            <h2 className="ox-drawer-title">{cluster}</h2>
+            <h2 className="ox-drawer-title">{displayClusterName(cluster)}</h2>
             <p className="ox-drawer-sub">
               {stocks.length} {stocks.length === 1 ? "stock" : "stocks"}
               {mean != null && (

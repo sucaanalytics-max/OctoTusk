@@ -9,7 +9,7 @@ export interface MoverStock {
   cmp: number | null;
 }
 
-const ROWS_PER_SIDE = 5;
+const ROWS_PER_SIDE = 7;
 
 function fmtPctSigned(p: number): string {
   const s = p >= 0 ? "+" : "";

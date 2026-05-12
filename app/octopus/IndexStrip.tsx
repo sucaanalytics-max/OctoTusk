@@ -50,11 +50,13 @@ function Row({
       {indices.map((cfg, i) => {
         const t = lookup.get(cfg.label);
         const dayPct = t?.dayPct ?? null;
+        const dir = dayPct == null ? "flat" : dayPct > 0 ? "up" : dayPct < 0 ? "down" : "flat";
         return (
           <div
             key={cfg.label}
             className="ox-index-cell"
             data-leading={i === 0 || undefined}
+            data-dir={dir}
           >
             <div className="ox-index-label">{cfg.label}</div>
             <div className="ox-index-value">{fmtValue(t?.value ?? null)}</div>

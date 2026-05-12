@@ -7,8 +7,10 @@
  */
 
 const NOISE_SUFFIX = /\s*(?:LIMITED|LTD\.?|CORPORATION|CORP\.?|PLC|LLP|\(INDIA\))\s*$/i;
-const TRAILING_INDIA = /\s+INDIA\s*$/i;
 const PUREDIGIT = /^\d+$/;
+// Prepositions that bind "INDIA" to the proper name (e.g. "Bank Of India").
+// Strip trailing INDIA only when the preceding word is NOT one of these.
+const PREP_BEFORE_INDIA = new Set(["of", "in", "for", "to", "from", "the"]);
 
 // Acronyms / brand abbreviations that should NOT be title-cased.
 const ALLCAPS = new Set([
@@ -34,15 +36,25 @@ function isReadable(name: string): boolean {
   return true;
 }
 
+function stripTrailingIndia(name: string): string {
+  const m = name.match(/^(.+?)\s+INDIA\s*$/i);
+  if (!m) return name;
+  const base = m[1];
+  const lastWord = base.split(/\s+/).pop()?.toLowerCase() ?? "";
+  // "Bank Of India", "State Bank Of India", "Petroleum In India" — keep the suffix.
+  if (PREP_BEFORE_INDIA.has(lastWord)) return name;
+  return base;
+}
+
 export function displayName(tikr: string, officialName?: string | null): string {
   const raw = (officialName ?? "").trim();
   if (!isReadable(raw)) {
     // Fall back to TIKR. Strip exchange prefixes (XBOM:, XNSE:) for cleanliness.
     return tikr.replace(/^X(?:BOM|NSE):/, "");
   }
-  // Strip suffix noise, then trailing " INDIA"
+  // Strip suffix noise, then trailing " INDIA" (but preserve "OF INDIA" / "IN INDIA").
   let cleaned = raw.replace(NOISE_SUFFIX, "").trim();
-  cleaned = cleaned.replace(TRAILING_INDIA, "").trim();
+  cleaned = stripTrailingIndia(cleaned).trim();
   if (!cleaned) return tikr;
   // Title-case but preserve ALLCAPS acronyms
   return cleaned.split(/\s+/).map(titleCaseWord).join(" ");

@@ -7,7 +7,6 @@ import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { SectorGrid } from "./SectorGrid";
 import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
-import { SectorLadder } from "./SectorLadder";
 import { HoverCard, type HoverStock } from "./HoverCard";
 import { CommandPalette } from "./CommandPalette";
 import { defaultClusterKey } from "@/lib/treemap";
@@ -309,11 +308,6 @@ export default function OctopusClient({
     [stocks]
   );
 
-  const ladderStocks = useMemo(
-    () => stocks.map((s) => ({ sector: s.sector, dayPct: s.dayPct })),
-    [stocks]
-  );
-
   const drawerStocks = useMemo(() => {
     if (!openCluster) return [] as MergedStock[];
     return stocks.filter(
@@ -386,7 +380,6 @@ export default function OctopusClient({
             onRowHover={handleRowHover}
             onRowClick={handleRowClick}
           />
-          <SectorLadder stocks={ladderStocks} />
         </div>
       </div>
       {activeHoverStock && (cursor || pinnedCursor) && (

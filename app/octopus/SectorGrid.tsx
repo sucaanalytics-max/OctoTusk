@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { displayName } from "@/lib/displayName";
 import { defaultClusterKey } from "@/lib/treemap";
+import { displayClusterName } from "@/lib/sectors";
 
 /**
  * Stock shape consumed by the sector-card centerpiece.
@@ -108,7 +109,7 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
           >
             <header className="ox-secgrid-card-head">
               <div className="ox-secgrid-card-titleblock">
-                <span className="ox-secgrid-card-label">{c.cluster}</span>
+                <span className="ox-secgrid-card-label">{displayClusterName(c.cluster)}</span>
                 <span className="ox-secgrid-card-sub">
                   {c.stocks.length} {c.stocks.length === 1 ? "stock" : "stocks"}
                   {c.liveCount > 0 && (
@@ -134,12 +135,14 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
                 <>
                   {c.topUp.map((s) => (
                     <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
+                      <span className="ox-secgrid-arrow" aria-hidden>▲</span>
                       <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
                       <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
                     </div>
                   ))}
                   {c.topDown.map((s) => (
                     <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
+                      <span className="ox-secgrid-arrow" aria-hidden>▼</span>
                       <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
                       <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
                     </div>
