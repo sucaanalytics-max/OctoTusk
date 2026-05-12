@@ -129,26 +129,34 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
             </header>
 
             <div className="ox-secgrid-card-body">
-              {c.topUp.length === 0 && c.topDown.length === 0 ? (
-                <div className="ox-secgrid-card-empty">awaiting quotes</div>
-              ) : (
-                <>
-                  {c.topUp.map((s) => (
-                    <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
-                      <span className="ox-secgrid-arrow" aria-hidden>▲</span>
-                      <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
-                      <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
-                    </div>
-                  ))}
-                  {c.topDown.map((s) => (
-                    <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
-                      <span className="ox-secgrid-arrow" aria-hidden>▼</span>
-                      <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
-                      <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
-                    </div>
-                  ))}
-                </>
-              )}
+              {[0, 1].map((i) => {
+                const s = c.topUp[i];
+                return s ? (
+                  <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
+                    <span className="ox-secgrid-arrow" aria-hidden>▲</span>
+                    <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
+                    <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
+                  </div>
+                ) : (
+                  <div key={`u-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
+                    <span className="ox-secgrid-row-empty-dot">·</span>
+                  </div>
+                );
+              })}
+              {[0, 1].map((i) => {
+                const s = c.topDown[i];
+                return s ? (
+                  <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
+                    <span className="ox-secgrid-arrow" aria-hidden>▼</span>
+                    <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
+                    <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
+                  </div>
+                ) : (
+                  <div key={`d-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
+                    <span className="ox-secgrid-row-empty-dot">·</span>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="ox-secgrid-card-strip">
