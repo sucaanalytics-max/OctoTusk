@@ -2330,48 +2330,50 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ── Sector Cards (terminal aesthetic — saturated solid bg per direction) ── */
 .ox-secgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: clamp(12px, 0.9vw, 18px);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: clamp(8px, 0.6vw, 12px);
   align-content: start;
   overflow-y: auto;
-  padding: 4px;
+  padding: 2px;
 }
-.ox-secgrid-compact { gap: clamp(6px, 0.5vw, 10px); padding: 2px; }
-.ox-secgrid-compact .ox-secgrid-card { min-height: 110px; padding: 8px 10px; }
-.ox-secgrid-compact .ox-secgrid-card-label { font-size: 11px; letter-spacing: 0.08em; }
-.ox-secgrid-compact .ox-secgrid-card-sub { font-size: 9px; }
-.ox-secgrid-compact .ox-secgrid-card-mean-value { font-size: 14px; }
+.ox-secgrid-compact { gap: clamp(4px, 0.4vw, 8px); padding: 2px; }
+.ox-secgrid-compact .ox-secgrid-card { min-height: 100px; padding: 7px 9px; gap: 5px; }
+.ox-secgrid-compact .ox-secgrid-card-label { font-size: 10px; letter-spacing: 0.06em; }
+.ox-secgrid-compact .ox-secgrid-card-sub { font-size: 8px; }
+.ox-secgrid-compact .ox-secgrid-card-mean-value { font-size: 13px; }
 .ox-secgrid-compact .ox-secgrid-card-mean-label { display: none; }
-.ox-secgrid-compact .ox-secgrid-card-body { gap: 0; padding: 4px 0 0; }
-.ox-secgrid-compact .ox-secgrid-row { font-size: 10px; padding: 1px 0; }
-.ox-secgrid-compact .ox-secgrid-pct { font-size: 10px; min-width: 42px; }
-.ox-secgrid-compact .ox-secgrid-name { font-size: 10px; }
-.ox-secgrid-compact .ox-secgrid-card-strip { margin-top: 4px; }
-.ox-secgrid-compact .ox-secgrid-strip-axis { font-size: 8px; }
-.ox-secgrid-compact .ox-secgrid-strip-track { height: 10px; }
+.ox-secgrid-compact .ox-secgrid-card-body { gap: 0; padding: 0; }
+.ox-secgrid-compact .ox-secgrid-row { font-size: 9px; padding: 0; }
+.ox-secgrid-compact .ox-secgrid-pct { font-size: 9px; min-width: 38px; }
+.ox-secgrid-compact .ox-secgrid-name { font-size: 9px; }
+.ox-secgrid-compact .ox-secgrid-card-strip { margin-top: 2px; gap: 1px; }
+.ox-secgrid-compact .ox-secgrid-strip-axis { font-size: 7px; }
+.ox-secgrid-compact .ox-secgrid-strip-track { height: 8px; }
+.ox-secgrid-compact .ox-secgrid-strip-dot { width: 4px; height: 4px; }
 
 /*
  * Bloomberg/Reuters-style saturated colored cards (per the user's
  * reference images). The card itself communicates direction via solid
  * background color. All text is white. No glass, no separate dark header.
+ * Tightened geometry — more cards per viewport.
  */
 .ox-secgrid-card {
   appearance: none;
-  background: #2B3343; /* default flat — deeper than --ox-ink for the saturation feel */
+  background: #2B3343;
   color: #FFFFFF;
   border: none;
   border-radius: 4px;
-  padding: clamp(12px, 0.85vh, 16px) clamp(14px, 1vw, 18px);
+  padding: clamp(9px, 0.65vh, 13px) clamp(10px, 0.75vw, 14px);
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 0.55vh, 12px);
-  min-height: 200px;
+  gap: clamp(6px, 0.4vh, 9px);
+  min-height: 148px;
   font-family: var(--ox-font-sans);
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(27, 36, 52, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 3px 10px rgba(27, 36, 52, 0.08);
   transition: transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 200ms ease-out, background-color 200ms ease-out;
 }
 .ox-secgrid-card[data-direction="up"]   { background: #0F4F32; }
@@ -2401,8 +2403,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-card-label {
   font-family: var(--ox-font-sans);
-  font-size: clamp(12px, 1vw, 16px);
-  letter-spacing: 0.1em;
+  font-size: clamp(11px, 0.85vw, 13px);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #FFFFFF;
   font-weight: 700;
@@ -2413,7 +2415,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-card-sub {
   font-family: var(--ox-font-mono);
-  font-size: clamp(10px, 0.8vw, 12px);
+  font-size: clamp(9px, 0.68vw, 11px);
   color: rgba(255, 255, 255, 0.65);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
@@ -2425,11 +2427,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 1px;
+  gap: 0;
 }
 .ox-secgrid-card-mean-value {
   font-family: var(--ox-font-mono);
-  font-size: clamp(18px, 1.5vw, 26px);
+  font-size: clamp(15px, 1.15vw, 19px);
   font-weight: 700;
   color: #FFFFFF;
   font-variant-numeric: tabular-nums;
@@ -2438,11 +2440,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-card-mean-label {
   font-family: var(--ox-font-sans);
-  font-size: clamp(8px, 0.65vw, 10px);
-  color: rgba(255, 255, 255, 0.55);
+  font-size: clamp(7px, 0.55vw, 9px);
+  color: rgba(255, 255, 255, 0.5);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-weight: 500;
+  margin-top: 1px;
 }
 
 /* Row 2: top movers list */
@@ -2463,26 +2466,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-row {
   display: grid;
-  grid-template-columns: clamp(56px, 4.5vw, 76px) 1fr;
+  grid-template-columns: clamp(46px, 3.6vw, 60px) 1fr;
   align-items: baseline;
-  gap: clamp(8px, 0.6vw, 14px);
-  padding: clamp(3px, 0.25vh, 5px) 0;
+  gap: clamp(6px, 0.45vw, 10px);
+  padding: clamp(1px, 0.12vh, 3px) 0;
   font-variant-numeric: tabular-nums;
 }
 .ox-secgrid-pct {
   font-family: var(--ox-font-mono);
-  font-size: clamp(13px, 1.05vw, 16px);
+  font-size: clamp(11px, 0.85vw, 13px);
   font-weight: 700;
   text-align: right;
 }
-.ox-secgrid-row[data-side="up"] .ox-secgrid-pct {
-  color: #6EE7A7; /* light emerald — pops on dark green or any direction bg */
-}
-.ox-secgrid-row[data-side="down"] .ox-secgrid-pct {
-  color: #FCA5A5; /* light coral — pops on dark red or any direction bg */
-}
+.ox-secgrid-row[data-side="up"] .ox-secgrid-pct { color: #6EE7A7; }
+.ox-secgrid-row[data-side="down"] .ox-secgrid-pct { color: #FCA5A5; }
 .ox-secgrid-name {
-  font-size: clamp(12px, 0.95vw, 14px);
+  font-size: clamp(10px, 0.8vw, 12px);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.92);
   white-space: nowrap;
@@ -2499,7 +2498,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-strip-track {
   position: relative;
-  height: clamp(14px, 1vh, 18px);
+  height: clamp(10px, 0.75vh, 14px);
   background:
     linear-gradient(to right,
       rgba(255, 255, 255, 0.0) 0%,
@@ -2520,11 +2519,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ox-secgrid-strip-dot {
   position: absolute;
   top: 50%;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.18);
 }
 .ox-secgrid-strip-dot[data-sign="up"]   { background: #86EFAC; }
 .ox-secgrid-strip-dot[data-sign="down"] { background: #FCA5A5; }
@@ -2533,7 +2532,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: flex;
   justify-content: space-between;
   font-family: var(--ox-font-mono);
-  font-size: clamp(9px, 0.7vw, 11px);
+  font-size: clamp(7px, 0.55vw, 9px);
   color: rgba(255, 255, 255, 0.45);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
