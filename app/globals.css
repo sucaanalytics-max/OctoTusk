@@ -2695,26 +2695,33 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   flex-shrink: 0;
   white-space: nowrap;
 }
-.ox-pill-pct {
-  font-family: var(--ox-font-mono);
-  font-size: 14px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  color: inherit;
-  line-height: 1.1;
-}
+/* Price + day-% chips: dark semi-transparent overlay on top of the pill
+   colour, with a hairline inset edge and a soft drop shadow so the numbers
+   read as the most prominent data on each pill regardless of bucket. */
+.ox-pill-pct,
 .ox-pill-cmp {
   font-family: var(--ox-font-mono);
-  font-size: 12px;
   font-variant-numeric: tabular-nums;
   color: inherit;
-  opacity: 0.82;
   letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 4px 9px;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.ox-pill-pct {
+  font-size: 14px;
+  font-weight: 700;
+}
+.ox-pill-cmp {
+  font-size: 12px;
+  font-weight: 600;
 }
 .ox-pill-rupee {
-  opacity: 0.6;
+  opacity: 0.7;
   margin-right: 2px;
 }
 
