@@ -6,7 +6,7 @@ import { Header, type DisplayState } from "./Header";
 import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { SectorGrid } from "./SectorGrid";
 import { SectorOrbital } from "./SectorOrbital";
-import { StockPills } from "./StockPills";
+import { StockPills, type PillVariant } from "./StockPills";
 import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
 import { HoverCard, type HoverStock } from "./HoverCard";
@@ -97,12 +97,14 @@ export default function OctopusClient({
   stockListStale,
   centerpiece = "cards",
   showRail = true,
+  pillVariant = "default",
 }: {
   seed: OctopusSeedStock[];
   displayToken: string;
   stockListStale: boolean;
   centerpiece?: OctopusCenterpiece;
   showRail?: boolean;
+  pillVariant?: PillVariant;
 }) {
   const [feed, setFeed] = useState<FeedPayload | null>(null);
   const [indices, setIndices] = useState<IndicesPayload | null>(null);
@@ -384,6 +386,7 @@ export default function OctopusClient({
                 pinnedTikr={pinnedTikr}
                 onRowHover={handleRowHover}
                 onRowClick={handleRowClick}
+                variant={pillVariant}
               />
             ) : centerpiece === "orbital" ? (
               <SectorOrbital stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />

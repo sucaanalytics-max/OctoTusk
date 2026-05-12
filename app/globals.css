@@ -2725,6 +2725,131 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   margin-right: 2px;
 }
 
+/* ──────────────────────────────────────────────────────────────────────── */
+/* OPTION A — Dark Terminal Pro                                              */
+/* Uniform near-black pill base; direction encoded by left accent bar; the   */
+/* day-% renders in saturated direction colour for instant scanability.      */
+/* ──────────────────────────────────────────────────────────────────────── */
+
+.ox-pill[data-variant="dark-pro"] {
+  background: #0F1419 !important;
+  padding-left: 18px;  /* room for accent bar */
+}
+
+/* Bar via ::before, width scales with magnitude */
+.ox-pill[data-variant="dark-pro"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 4px 0 0 4px;
+}
+.ox-pill[data-variant="dark-pro"][data-intensity="big-up"]::before   { width: 10px; background: #10B981; }
+.ox-pill[data-variant="dark-pro"][data-intensity="med-up"]::before   { width: 7px;  background: #059669; }
+.ox-pill[data-variant="dark-pro"][data-intensity="sm-up"]::before    { width: 4px;  background: #047857; }
+.ox-pill[data-variant="dark-pro"][data-intensity="flat"]::before     { width: 4px;  background: #475467; }
+.ox-pill[data-variant="dark-pro"][data-intensity="sm-down"]::before  { width: 4px;  background: #B91C1C; }
+.ox-pill[data-variant="dark-pro"][data-intensity="med-down"]::before { width: 7px;  background: #DC2626; }
+.ox-pill[data-variant="dark-pro"][data-intensity="big-down"]::before { width: 10px; background: #EF4444; }
+.ox-pill[data-variant="dark-pro"][data-intensity="null"]::before {
+  width: 4px;
+  background: repeating-linear-gradient(0deg, #475467 0 4px, transparent 4px 8px);
+}
+
+/* Day-% takes the direction colour; CMP stays bright white. Chip overlay
+   becomes a subtle WHITE lift (not dark) since base is already near-black. */
+.ox-pill[data-variant="dark-pro"] .ox-pill-pct,
+.ox-pill[data-variant="dark-pro"] .ox-pill-cmp {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 1px 1px rgba(0, 0, 0, 0.4);
+}
+.ox-pill[data-variant="dark-pro"][data-intensity="big-up"]   .ox-pill-pct { color: #10B981; }
+.ox-pill[data-variant="dark-pro"][data-intensity="med-up"]   .ox-pill-pct { color: #34D399; }
+.ox-pill[data-variant="dark-pro"][data-intensity="sm-up"]    .ox-pill-pct { color: #6EE7B7; }
+.ox-pill[data-variant="dark-pro"][data-intensity="flat"]     .ox-pill-pct { color: #94A3B8; }
+.ox-pill[data-variant="dark-pro"][data-intensity="sm-down"]  .ox-pill-pct { color: #FCA5A5; }
+.ox-pill[data-variant="dark-pro"][data-intensity="med-down"] .ox-pill-pct { color: #F87171; }
+.ox-pill[data-variant="dark-pro"][data-intensity="big-down"] .ox-pill-pct { color: #EF4444; }
+.ox-pill[data-variant="dark-pro"][data-intensity="null"]     .ox-pill-pct { color: rgba(255, 255, 255, 0.6); }
+
+.ox-pill[data-variant="dark-pro"] .ox-pill-name { color: #FFFFFF; }
+.ox-pill[data-variant="dark-pro"] .ox-pill-tikr { color: rgba(255, 255, 255, 0.5); }
+.ox-pill[data-variant="dark-pro"] .ox-pill-cmp  { color: rgba(255, 255, 255, 0.92); }
+
+
+/* ──────────────────────────────────────────────────────────────────────── */
+/* OPTION B — Editorial Light                                                */
+/* Warm off-white pill base matches the page canvas; coloured left bar       */
+/* gives the trading-floor cue; deep slate ink keeps the print-feel.         */
+/* ──────────────────────────────────────────────────────────────────────── */
+
+.ox-pill[data-variant="editorial-light"] {
+  background: #FEFDFB !important;
+  color: #1B2434 !important;
+  padding-left: 18px;
+  box-shadow:
+    inset 0 0 0 1px #E7E3DC,
+    0 1px 2px rgba(27, 36, 52, 0.04);
+}
+
+.ox-pill[data-variant="editorial-light"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 4px 0 0 4px;
+}
+.ox-pill[data-variant="editorial-light"][data-intensity="big-up"]::before   { width: 10px; background: #15803D; }
+.ox-pill[data-variant="editorial-light"][data-intensity="med-up"]::before   { width: 7px;  background: #16A34A; }
+.ox-pill[data-variant="editorial-light"][data-intensity="sm-up"]::before    { width: 4px;  background: #22C55E; }
+.ox-pill[data-variant="editorial-light"][data-intensity="flat"]::before     { width: 4px;  background: #94A3B8; }
+.ox-pill[data-variant="editorial-light"][data-intensity="sm-down"]::before  { width: 4px;  background: #DC2626; }
+.ox-pill[data-variant="editorial-light"][data-intensity="med-down"]::before { width: 7px;  background: #B91C1C; }
+.ox-pill[data-variant="editorial-light"][data-intensity="big-down"]::before { width: 10px; background: #991B1B; }
+.ox-pill[data-variant="editorial-light"][data-intensity="null"]::before {
+  width: 4px;
+  background: repeating-linear-gradient(0deg, #94A3B8 0 4px, transparent 4px 8px);
+}
+
+/* Chip overlay uses warm canvas tint so the numbers sit in subtle wells. */
+.ox-pill[data-variant="editorial-light"] .ox-pill-pct,
+.ox-pill[data-variant="editorial-light"] .ox-pill-cmp {
+  background: rgba(231, 227, 220, 0.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(27, 36, 52, 0.06),
+    0 1px 1px rgba(27, 36, 52, 0.04);
+}
+.ox-pill[data-variant="editorial-light"][data-intensity="big-up"]   .ox-pill-pct { color: #0F7A3C; }
+.ox-pill[data-variant="editorial-light"][data-intensity="med-up"]   .ox-pill-pct { color: #15803D; }
+.ox-pill[data-variant="editorial-light"][data-intensity="sm-up"]    .ox-pill-pct { color: #16A34A; }
+.ox-pill[data-variant="editorial-light"][data-intensity="flat"]     .ox-pill-pct { color: #475467; }
+.ox-pill[data-variant="editorial-light"][data-intensity="sm-down"]  .ox-pill-pct { color: #DC2626; }
+.ox-pill[data-variant="editorial-light"][data-intensity="med-down"] .ox-pill-pct { color: #B91C1C; }
+.ox-pill[data-variant="editorial-light"][data-intensity="big-down"] .ox-pill-pct { color: #991B1B; }
+.ox-pill[data-variant="editorial-light"][data-intensity="null"]     .ox-pill-pct { color: #8A95A4; }
+
+.ox-pill[data-variant="editorial-light"] .ox-pill-name { color: #1B2434; }
+.ox-pill[data-variant="editorial-light"] .ox-pill-tikr { color: #8A95A4; }
+.ox-pill[data-variant="editorial-light"] .ox-pill-cmp  { color: #475467; }
+.ox-pill[data-variant="editorial-light"] .ox-pill-rupee { color: #8A95A4; opacity: 1; }
+
+/* Hatched null gets a light-tinted overlay rather than dark */
+.ox-pill[data-variant="editorial-light"][data-intensity="null"] {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(27, 36, 52, 0.04) 0px,
+      rgba(27, 36, 52, 0.04) 6px,
+      transparent 6px,
+      transparent 12px
+    ),
+    #FEFDFB !important;
+}
+
 /* ── Sector Drawer modal ────────────────────────────────────────────────── */
 .ox-drawer-backdrop {
   position: fixed;

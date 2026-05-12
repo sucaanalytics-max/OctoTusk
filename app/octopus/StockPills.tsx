@@ -10,12 +10,15 @@ export interface PillStock {
   cmp: number | null;
 }
 
+export type PillVariant = "default" | "dark-pro" | "editorial-light";
+
 interface Props {
   stocks: PillStock[];
   focusedTikr: string | null;
   pinnedTikr: string | null;
   onRowHover: (tikr: string | null) => void;
   onRowClick: (tikr: string) => void;
+  variant?: PillVariant;
 }
 
 function fmtPctSigned(p: number | null): string {
@@ -64,6 +67,7 @@ export function StockPills({
   pinnedTikr,
   onRowHover,
   onRowClick,
+  variant = "default",
 }: Props) {
   const sorted = useMemo(() => {
     return [...stocks].sort((a, b) => {
@@ -77,7 +81,7 @@ export function StockPills({
   }, [stocks]);
 
   return (
-    <div className="ox-pills">
+    <div className="ox-pills" data-variant={variant === "default" ? undefined : variant}>
       {sorted.map((s) => {
         const dir = dirOf(s.dayPct);
         const intensity = intensityOf(s.dayPct);
@@ -90,6 +94,7 @@ export function StockPills({
             className="ox-pill"
             data-dir={dir}
             data-intensity={intensity}
+            data-variant={variant === "default" ? undefined : variant}
             data-focused={isFocused || undefined}
             data-pinned={isPinned || undefined}
             onMouseEnter={() => onRowHover(s.tikr)}
