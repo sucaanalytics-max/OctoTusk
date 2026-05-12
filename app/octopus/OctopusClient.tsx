@@ -7,18 +7,29 @@ import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { Treemap } from "./Treemap";
 import { TopMovers } from "./TopMovers";
 import { SectorLadder } from "./SectorLadder";
+import { HoverCard, type HoverStock } from "./HoverCard";
 
 export interface OctopusSeedStock {
   tikr: string;
   name: string;
   sector: string;
+  subsector?: string;
+  bearUpside: number | null;
+  baseUpside: number | null;
+  bullUpside: number | null;
+  oneYearUpside: number | null;
 }
 
 interface FeedStock {
   tikr: string;
   name: string;
   sector: string;
+  subsector: string;
   dayPct: number | null;
+  bearUpside: number | null;
+  baseUpside: number | null;
+  bullUpside: number | null;
+  oneYearUpside: number | null;
 }
 
 interface FeedPayload {
@@ -31,6 +42,18 @@ interface IndicesPayload {
   fetchedAt: string;
 }
 
+interface MergedStock {
+  tikr: string;
+  name: string;
+  sector: string;
+  subsector: string;
+  dayPct: number | null;
+  bearUpside: number | null;
+  baseUpside: number | null;
+  bullUpside: number | null;
+  oneYearUpside: number | null;
+}
+
 const FEED_REFRESH_MS = 60 * 1000;
 const INDICES_REFRESH_MS = 60 * 1000;
 const AGE_TICK_MS = 5 * 1000;
@@ -40,6 +63,8 @@ const FAILURE_DISCONNECT = 3;
 const BACKOFF_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000];
 const LOCALSTORAGE_KEY = "octopus:lastFeed";
 const LOCALSTORAGE_IDX = "octopus:lastIndices";
+const FLASH_DELTA_PP = 1.5;
+const FLASH_DURATION_MS = 2000;
 
 function loadCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -73,6 +98,17 @@ export default function OctopusClient({
   const [indices, setIndices] = useState<IndicesPayload | null>(null);
   const [ageSec, setAgeSec] = useState<number | null>(null);
   const [marketOpen, setMarketOpen] = useState<boolean>(false);
+
+  // Interaction state
+  const [hoveredTikr, setHoveredTikr] = useState<string | null>(null);
+  const [pinnedTikr, setPinnedTikr] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [pinnedCursor, setPinnedCursor] = useState<{ x: number; y: number } | null>(null);
+
+  // Flash tracking
+  const prevPctRef = useRef<Map<string, number>>(new Map());
+  const [flashing, setFlashing] = useState<Map<string, "up" | "down">>(new Map());
+
   const failuresRef = useRef(0);
   const feedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const idxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,6 +155,44 @@ export default function OctopusClient({
     }
   }, [displayToken]);
 
+  // ── Detect big intraday tick-to-tick moves; trigger 2s flash ──
+  useEffect(() => {
+    if (!feed?.stocks) return;
+    const prev = prevPctRef.current;
+    const triggered: Array<{ tikr: string; dir: "up" | "down" }> = [];
+    const next = new Map<string, number>();
+    for (const s of feed.stocks) {
+      if (typeof s.dayPct !== "number") continue;
+      next.set(s.tikr, s.dayPct);
+      const before = prev.get(s.tikr);
+      if (typeof before === "number") {
+        const delta = s.dayPct - before;
+        if (Math.abs(delta) >= FLASH_DELTA_PP) {
+          triggered.push({ tikr: s.tikr, dir: delta > 0 ? "up" : "down" });
+        }
+      }
+    }
+    prevPctRef.current = next;
+    if (triggered.length > 0) {
+      setFlashing((current) => {
+        const updated = new Map(current);
+        for (const t of triggered) updated.set(t.tikr, t.dir);
+        return updated;
+      });
+      const timeouts = triggered.map((t) =>
+        setTimeout(() => {
+          setFlashing((current) => {
+            if (!current.has(t.tikr)) return current;
+            const updated = new Map(current);
+            updated.delete(t.tikr);
+            return updated;
+          });
+        }, FLASH_DURATION_MS)
+      );
+      return () => timeouts.forEach((id) => clearTimeout(id));
+    }
+  }, [feed]);
+
   // ── Scheduled polling with off-hours pause + failure backoff ──
   useEffect(() => {
     const tickMarketOpen = () => setMarketOpen(isMarketOpen());
@@ -142,7 +216,7 @@ export default function OctopusClient({
           ? (f >= FAILURE_DISCONNECT
               ? BACKOFF_SCHEDULE_MS[Math.min(f - FAILURE_DISCONNECT, BACKOFF_SCHEDULE_MS.length - 1)]
               : FEED_REFRESH_MS)
-          : 5 * 60 * 1000; // re-check market status every 5min when closed
+          : 5 * 60 * 1000;
         scheduleFeed(next);
       }, delay);
     };
@@ -156,7 +230,6 @@ export default function OctopusClient({
       }, delay);
     };
 
-    // Fire immediately on mount
     (async () => {
       if (isMarketOpen()) {
         await Promise.all([fetchFeed(), fetchIndices()]);
@@ -195,6 +268,28 @@ export default function OctopusClient({
     return () => clearTimeout(t);
   }, []);
 
+  // ── ESC + click-outside to clear pin ──
+  useEffect(() => {
+    if (!pinnedTikr) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPinnedTikr(null);
+    };
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest(".octopus-hover-card")) return;
+      if (target.closest(".octopus-tile-group")) return;
+      if (target.closest(".octopus-mover-row-interactive")) return;
+      setPinnedTikr(null);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onClick);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onClick);
+    };
+  }, [pinnedTikr]);
+
   // ── Derive display state ──
   const state: DisplayState = useMemo(() => {
     if (!marketOpen) return "CLOSED";
@@ -205,8 +300,8 @@ export default function OctopusClient({
     return "LIVE";
   }, [marketOpen, feed, ageSec]);
 
-  // ── Merge seed (snapshot) with live feed so we always have a name+sector even if a quote is missing ──
-  const stocks = useMemo(() => {
+  // ── Merge seed (snapshot) with live feed ──
+  const stocks: MergedStock[] = useMemo(() => {
     const liveByTikr = new Map<string, FeedStock>();
     for (const s of feed?.stocks ?? []) liveByTikr.set(s.tikr, s);
     return seed.map((s) => {
@@ -215,13 +310,18 @@ export default function OctopusClient({
         tikr: s.tikr,
         name: live?.name ?? s.name,
         sector: live?.sector ?? s.sector,
+        subsector: live?.subsector ?? s.subsector ?? "",
         dayPct: live?.dayPct ?? null,
+        bearUpside: live?.bearUpside ?? s.bearUpside ?? null,
+        baseUpside: live?.baseUpside ?? s.baseUpside ?? null,
+        bullUpside: live?.bullUpside ?? s.bullUpside ?? null,
+        oneYearUpside: live?.oneYearUpside ?? s.oneYearUpside ?? null,
       };
     });
   }, [seed, feed]);
 
   const moverStocks = useMemo(
-    () => stocks.map((s) => ({ tikr: s.tikr, dayPct: s.dayPct })),
+    () => stocks.map((s) => ({ tikr: s.tikr, name: s.name, dayPct: s.dayPct })),
     [stocks]
   );
 
@@ -229,6 +329,51 @@ export default function OctopusClient({
     () => stocks.map((s) => ({ sector: s.sector, dayPct: s.dayPct })),
     [stocks]
   );
+
+  const activeTikr = pinnedTikr ?? hoveredTikr;
+  const activeStock = useMemo(
+    () => (activeTikr ? stocks.find((s) => s.tikr === activeTikr) ?? null : null),
+    [activeTikr, stocks]
+  );
+  const activeHoverStock: HoverStock | null = activeStock
+    ? {
+        tikr: activeStock.tikr,
+        name: activeStock.name,
+        sector: activeStock.sector,
+        subsector: activeStock.subsector,
+        dayPct: activeStock.dayPct,
+        bearUpside: activeStock.bearUpside,
+        baseUpside: activeStock.baseUpside,
+        bullUpside: activeStock.bullUpside,
+        oneYearUpside: activeStock.oneYearUpside,
+      }
+    : null;
+
+  const handleTileHover = useCallback(
+    (tikr: string | null, e?: React.MouseEvent) => {
+      setHoveredTikr(tikr);
+      if (e && tikr) setCursor({ x: e.clientX, y: e.clientY });
+    },
+    []
+  );
+
+  const handleTileClick = useCallback(
+    (tikr: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setPinnedCursor({ x: e.clientX, y: e.clientY });
+      setPinnedTikr((current) => (current === tikr ? null : tikr));
+    },
+    []
+  );
+
+  const handleRowHover = useCallback((tikr: string | null) => {
+    setHoveredTikr(tikr);
+  }, []);
+
+  const handleRowClick = useCallback((tikr: string) => {
+    setPinnedTikr((current) => (current === tikr ? null : tikr));
+    // Position pinned card near the row — for keyboard-ish flow, just use last cursor.
+  }, []);
 
   return (
     <div className="octopus-root" data-state={state.toLowerCase()}>
@@ -239,14 +384,35 @@ export default function OctopusClient({
           {stocks.length === 0 ? (
             <div className="octopus-loading">no coverage data</div>
           ) : (
-            <Treemap stocks={stocks} />
+            <Treemap
+              stocks={stocks}
+              focusedTikr={hoveredTikr}
+              pinnedTikr={pinnedTikr}
+              flashing={flashing}
+              onTileHover={handleTileHover}
+              onTileClick={handleTileClick}
+            />
           )}
         </div>
         <div className="octopus-rail">
-          <TopMovers stocks={moverStocks} />
+          <TopMovers
+            stocks={moverStocks}
+            focusedTikr={hoveredTikr}
+            pinnedTikr={pinnedTikr}
+            onRowHover={handleRowHover}
+            onRowClick={handleRowClick}
+          />
           <SectorLadder stocks={ladderStocks} />
         </div>
       </div>
+      {activeHoverStock && (cursor || pinnedCursor) && (
+        <HoverCard
+          stock={activeHoverStock}
+          cursor={pinnedTikr ? pinnedCursor : cursor}
+          pinned={!!pinnedTikr}
+          onUnpin={() => setPinnedTikr(null)}
+        />
+      )}
       {stockListStale && (
         <div className="octopus-stale-ribbon" aria-live="polite">
           Stock list · stale (&gt;7d)

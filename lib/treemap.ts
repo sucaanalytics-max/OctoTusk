@@ -142,6 +142,7 @@ export interface OctopusInput {
   tikr: string;
   name: string;
   sector: string;
+  subsector?: string;
   dayPct: number | null;
 }
 
@@ -149,11 +150,15 @@ export interface OctopusRect extends TreeRect {
   tikr: string;
   name: string;
   sector: string;
+  subsector?: string;
+  cluster: string;
   dayPct: number | null;
 }
 
 export interface OctopusSectorRect extends TreeRect {
-  sector: string;
+  cluster: string;
+  meanDayPct: number | null;
+  stockCount: number;
 }
 
 export interface OctopusLayout {
@@ -161,6 +166,18 @@ export interface OctopusLayout {
   H: number;
   sectorRects: OctopusSectorRect[];
   stockRects: OctopusRect[];
+}
+
+/**
+ * Default cluster key — splits "Financial Services" by subsector (prefixed
+ * with "FIN · ") because that one sector typically holds half the universe.
+ * All other stocks group by their sector as-is.
+ */
+export function defaultClusterKey(s: OctopusInput): string {
+  if (s.sector === "Financial Services" && s.subsector) {
+    return `FIN · ${s.subsector}`;
+  }
+  return s.sector || "Unclassified";
 }
 
 const OCTOPUS_VIEWBOX_W = 1600;
@@ -171,15 +188,20 @@ const TILE_INNER_PAD = 2;
 
 export function computeOctopusLayout(
   stocks: OctopusInput[],
-  opts: { W?: number; H?: number } = {}
+  opts: {
+    W?: number;
+    H?: number;
+    clusterKey?: (s: OctopusInput) => string;
+  } = {}
 ): OctopusLayout {
   const W = opts.W ?? OCTOPUS_VIEWBOX_W;
   const H = opts.H ?? OCTOPUS_VIEWBOX_H;
+  const clusterKey = opts.clusterKey ?? defaultClusterKey;
   if (!stocks.length) return { W, H, sectorRects: [], stockRects: [] };
 
   const groups: Record<string, OctopusInput[]> = {};
   for (const s of stocks) {
-    const k = s.sector || "Unclassified";
+    const k = clusterKey(s);
     (groups[k] ||= []).push(s);
   }
 
@@ -193,8 +215,14 @@ export function computeOctopusLayout(
   const sectorOut: OctopusSectorRect[] = [];
 
   for (const sr of sectorRects) {
-    sectorOut.push({ ...sr, sector: sr.id });
     const list = groups[sr.id] || [];
+    const liveDayPcts = list.map((s) => s.dayPct).filter((p): p is number => typeof p === "number");
+    const meanDayPct =
+      liveDayPcts.length > 0
+        ? liveDayPcts.reduce((a, b) => a + b, 0) / liveDayPcts.length
+        : null;
+    sectorOut.push({ ...sr, cluster: sr.id, meanDayPct, stockCount: list.length });
+
     const stockItems: TreeItem[] = list.map((s) => ({ id: s.tikr, value: 1 }));
     const topPad = sr.h > 40 ? SECTOR_LABEL_PAD : SECTOR_OUTER_PAD;
     const inner = {
@@ -217,6 +245,8 @@ export function computeOctopusLayout(
         tikr: s.tikr,
         name: s.name,
         sector: s.sector,
+        subsector: s.subsector,
+        cluster: sr.id,
         dayPct: s.dayPct,
       });
     }

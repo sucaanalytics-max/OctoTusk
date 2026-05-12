@@ -33,15 +33,27 @@ export interface SectorInfo {
   subsector: string;
 }
 
-export function getSectorInfo(tikr: string): SectorInfo {
+export function getSectorInfo(
+  tikr: string,
+  fallback?: { sector?: string | null; subsector?: string | null }
+): SectorInfo {
   const canonical = ALIAS[tikr] ?? tikr;
   const entry = MAP[canonical] ?? MAP[tikr];
-  if (!entry) return { sector: UNCLASSIFIED, subsector: "" };
-  return { sector: entry.sector || UNCLASSIFIED, subsector: entry.subsector || "" };
+  if (entry && entry.sector) {
+    return { sector: entry.sector, subsector: entry.subsector || fallback?.subsector || "" };
+  }
+  // Fall back to the snapshot's own sector / subsector, then Unclassified.
+  return {
+    sector: fallback?.sector?.trim() || UNCLASSIFIED,
+    subsector: fallback?.subsector?.trim() || "",
+  };
 }
 
-export function getSector(tikr: string): string {
-  return getSectorInfo(tikr).sector;
+export function getSector(
+  tikr: string,
+  fallback?: { sector?: string | null; subsector?: string | null }
+): string {
+  return getSectorInfo(tikr, fallback).sector;
 }
 
 export function sectorMetadata() {

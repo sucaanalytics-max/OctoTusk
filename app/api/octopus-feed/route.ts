@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { unstable_noStore as noStore } from "next/cache";
 import { buildQuotesMap } from "../quotes/route";
-import { getSector } from "@/lib/sectors";
+import { getSectorInfo } from "@/lib/sectors";
 import database from "@/data/database.json";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,12 @@ interface OctopusFeedStock {
   tikr: string;
   name: string;
   sector: string;
+  subsector: string;
   dayPct: number | null;
+  bearUpside: number | null;
+  baseUpside: number | null;
+  bullUpside: number | null;
+  oneYearUpside: number | null;
 }
 
 interface OctopusFeedPayload {
@@ -42,17 +47,38 @@ function configError(detail: string) {
   return NextResponse.json({ error: "Server misconfigured", detail }, { status: 503 });
 }
 
+interface DbStock {
+  tikr: string;
+  official_name?: string;
+  sector?: string;
+  subsector?: string;
+  upside_bear?: number;
+  upside_base?: number;
+  upside_bull?: number;
+  upside_1y?: number;
+}
+
+function pickUpside(n: unknown): number | null {
+  return typeof n === "number" && isFinite(n) ? n : null;
+}
+
 async function buildPayload(): Promise<OctopusFeedPayload> {
   const { quotes } = await buildQuotesMap();
-  const stocks: { tikr: string; official_name?: string }[] = (database as any).stocks ?? [];
+  const stocks: DbStock[] = (database as any).stocks ?? [];
 
   const out: OctopusFeedStock[] = stocks.map((s) => {
     const q = quotes[s.tikr];
+    const info = getSectorInfo(s.tikr, { sector: s.sector, subsector: s.subsector });
     return {
       tikr: s.tikr,
       name: s.official_name ?? s.tikr,
-      sector: getSector(s.tikr),
+      sector: info.sector,
+      subsector: info.subsector,
       dayPct: q && typeof q.changePct === "number" ? q.changePct : null,
+      bearUpside: pickUpside(s.upside_bear),
+      baseUpside: pickUpside(s.upside_base),
+      bullUpside: pickUpside(s.upside_bull),
+      oneYearUpside: pickUpside(s.upside_1y),
     };
   });
 

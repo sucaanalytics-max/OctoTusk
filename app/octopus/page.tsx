@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import db from "@/data/database.json";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
-import { getSector } from "@/lib/sectors";
+import { getSectorInfo } from "@/lib/sectors";
 import OctopusClient, { type OctopusSeedStock } from "./OctopusClient";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,12 @@ const STOCK_LIST_STALE_DAYS = 7;
 interface StockSnapshot {
   tikr: string;
   official_name?: string;
+  sector?: string;
+  subsector?: string;
+  upside_bear?: number;
+  upside_base?: number;
+  upside_bull?: number;
+  upside_1y?: number;
 }
 
 export default async function OctopusPage() {
@@ -50,11 +56,19 @@ export default async function OctopusPage() {
     console.warn("[octopus] Snapshot load failed, using static db:", err instanceof Error ? err.message : err);
   }
 
-  const seed: OctopusSeedStock[] = stocks.map((s) => ({
-    tikr: s.tikr,
-    name: s.official_name ?? s.tikr,
-    sector: getSector(s.tikr),
-  }));
+  const seed: OctopusSeedStock[] = stocks.map((s) => {
+    const info = getSectorInfo(s.tikr, { sector: s.sector, subsector: s.subsector });
+    return {
+      tikr: s.tikr,
+      name: s.official_name ?? s.tikr,
+      sector: info.sector,
+      subsector: info.subsector,
+      bearUpside: typeof s.upside_bear === "number" ? s.upside_bear : null,
+      baseUpside: typeof s.upside_base === "number" ? s.upside_base : null,
+      bullUpside: typeof s.upside_bull === "number" ? s.upside_bull : null,
+      oneYearUpside: typeof s.upside_1y === "number" ? s.upside_1y : null,
+    };
+  });
 
   const stockListStale = snapshotSyncedAt
     ? Date.now() - new Date(snapshotSyncedAt).getTime() > STOCK_LIST_STALE_DAYS * 24 * 60 * 60 * 1000

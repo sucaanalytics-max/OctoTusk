@@ -1446,7 +1446,37 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: block;
 }
 .octopus-rect {
-  transition: fill 400ms ease-out;
+  transition: fill 400ms ease-out, filter 180ms ease-out, transform 180ms ease-out;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.octopus-tile-group {
+  transition: filter 180ms ease-out;
+}
+.octopus-tile-group:hover .octopus-rect,
+.octopus-tile-group[data-focused="true"] .octopus-rect {
+  filter: brightness(1.08) drop-shadow(0 8px 22px rgba(0, 0, 0, 0.22));
+  transform: scale(1.04);
+}
+.octopus-tile-group[data-pinned="true"] .octopus-rect {
+  stroke: var(--color-accent-tusk);
+  stroke-width: 2.5;
+}
+.octopus-tile-group[data-flash="up"] .octopus-rect {
+  animation: octopus-flash-up 2s ease-out forwards;
+}
+.octopus-tile-group[data-flash="down"] .octopus-rect {
+  animation: octopus-flash-down 2s ease-out forwards;
+}
+@keyframes octopus-flash-up {
+  0%   { filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0)); }
+  18%  { filter: drop-shadow(0 0 18px rgba(34, 197, 94, 0.75)); }
+  100% { filter: drop-shadow(0 0 0 rgba(34, 197, 94, 0)); }
+}
+@keyframes octopus-flash-down {
+  0%   { filter: drop-shadow(0 0 0 rgba(220, 38, 38, 0)); }
+  18%  { filter: drop-shadow(0 0 18px rgba(220, 38, 38, 0.75)); }
+  100% { filter: drop-shadow(0 0 0 rgba(220, 38, 38, 0)); }
 }
 .octopus-sector-label {
   fill: var(--color-text-secondary);
@@ -1456,6 +1486,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   text-transform: uppercase;
   pointer-events: none;
 }
+.octopus-cluster-mean {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.octopus-cluster-mean-pos { fill: var(--color-positive); }
+.octopus-cluster-mean-neg { fill: var(--color-negative); }
+.octopus-cluster-mean-flat { fill: var(--color-text-muted); }
 .octopus-tile-text {
   fill: #fff;
   font-family: var(--font-sans);
@@ -1512,6 +1552,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   align-items: center;
   gap: clamp(8px, 0.7vw, 14px);
   font-variant-numeric: tabular-nums;
+  padding: clamp(2px, 0.2vh, 4px) clamp(6px, 0.4vw, 10px);
+  border-radius: var(--radius-sm);
+  transition: background 160ms ease-out;
+}
+.octopus-mover-row-interactive {
+  cursor: pointer;
+}
+.octopus-mover-row-interactive:hover,
+.octopus-mover-row[data-focused="true"] {
+  background: var(--color-bg-hover);
+}
+.octopus-mover-row[data-pinned="true"] {
+  background: var(--color-bg-hover);
+  outline: 2px solid var(--color-accent-tusk);
+  outline-offset: -2px;
 }
 .octopus-mover-arrow {
   font-size: clamp(14px, 1.2vw, 22px);
@@ -1629,4 +1684,90 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: clamp(16px, 1.5vw, 28px);
   padding: 2rem;
   text-align: center;
+}
+
+/* ── Hover card ─────────────────────────────────────────────────────────── */
+
+.octopus-hover-card {
+  position: fixed;
+  z-index: 100;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--color-bg-elevated, var(--color-bg-card));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+  padding: clamp(10px, 0.9vh, 16px) clamp(12px, 0.9vw, 18px);
+  font-variant-numeric: tabular-nums;
+  animation: octopus-hover-in 180ms ease-out;
+  pointer-events: auto;
+}
+@keyframes octopus-hover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.octopus-hover-card-pinned {
+  border-color: var(--color-accent-tusk);
+  box-shadow: 0 0 0 1px var(--color-accent-tusk), 0 16px 40px rgba(0, 0, 0, 0.16);
+}
+.octopus-hover-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(6px, 0.4vw, 10px);
+}
+.octopus-hover-name {
+  font-size: clamp(15px, 1.2vw, 20px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.octopus-hover-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: clamp(11px, 0.9vw, 14px);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+.octopus-hover-close:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+.octopus-hover-meta {
+  margin-top: 2px;
+  font-size: clamp(10px, 0.75vw, 12px);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+.octopus-hover-divider {
+  height: 1px;
+  background: var(--color-border-subtle, var(--color-border));
+  margin: clamp(6px, 0.5vh, 10px) 0;
+}
+.octopus-hover-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  padding: clamp(2px, 0.2vh, 4px) 0;
+}
+.octopus-hover-row-emph {
+  padding-top: clamp(4px, 0.4vh, 8px);
+  margin-top: clamp(2px, 0.2vh, 4px);
+  border-top: 1px dashed var(--color-border-subtle, var(--color-border));
+}
+.octopus-hover-label {
+  font-size: clamp(11px, 0.85vw, 14px);
+  color: var(--color-text-secondary);
+}
+.octopus-hover-value {
+  font-family: var(--font-mono);
+  font-size: clamp(13px, 1vw, 17px);
+  font-weight: 600;
+  text-align: right;
 }
