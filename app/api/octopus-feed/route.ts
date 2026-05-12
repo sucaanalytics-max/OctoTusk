@@ -65,6 +65,28 @@ function pickUpside(n: unknown): number | null {
   return typeof n === "number" && isFinite(n) ? n : null;
 }
 
+/**
+ * Recorded CMP overrides for unlisted / illiquid stocks where the live
+ * Yahoo lookup is unreliable or absent. Wins over both the live quote and
+ * the snapshot's `cmp` field. Keys are TIKR-as-stored-in-Supabase; lookup
+ * is case-insensitive so minor casing drift between sync runs doesn't
+ * silently break the pin.
+ */
+const RECORDED_CMP_OVERRIDES: Record<string, number> = (() => {
+  const raw: Record<string, number> = {
+    "NSE": 2000,
+    "National Stock Exchange": 2000,
+    "Capitaland India REIT": 85,
+  };
+  return Object.fromEntries(
+    Object.entries(raw).map(([k, v]) => [k.toLowerCase(), v])
+  );
+})();
+
+function recordedCmp(tikr: string): number | null {
+  return RECORDED_CMP_OVERRIDES[tikr.toLowerCase()] ?? null;
+}
+
 async function loadStocks(): Promise<DbStock[]> {
   // Mirror app/octopus/page.tsx: prefer the Supabase snapshot (which is
   // refreshed by the GitHub Action / OneDrive sync), fall back to the
@@ -102,10 +124,14 @@ async function buildPayload(): Promise<OctopusFeedPayload> {
   const out: OctopusFeedStock[] = stocks.map((s) => {
     const q = quotes[s.tikr];
     const info = getSectorInfo(s.tikr, { sector: s.sector, subsector: s.subsector });
-    // CMP: prefer live quote, fall back to the snapshot's recorded research
-    // CMP (covers unlisted stocks like NSE that have no public ticker).
+    // CMP resolution order:
+    //   1. Recorded override (for unlisted stocks where live data is unreliable)
+    //   2. Live Yahoo / Dhan quote
+    //   3. Snapshot's recorded research CMP
+    //   4. null
+    const override = recordedCmp(s.tikr);
     const liveCmp = q && typeof q.price === "number" ? q.price : null;
-    const cmp = liveCmp ?? (typeof s.cmp === "number" ? s.cmp : null);
+    const cmp = override ?? liveCmp ?? (typeof s.cmp === "number" ? s.cmp : null);
     return {
       tikr: s.tikr,
       name: s.official_name ?? s.tikr,
