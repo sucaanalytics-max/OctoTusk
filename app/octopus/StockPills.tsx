@@ -90,7 +90,6 @@ export function StockPills({
             onMouseLeave={() => onRowHover(null)}
             onClick={() => onRowClick(s.tikr)}
           >
-            <span className="ox-pill-bar" aria-hidden />
             <span className="ox-pill-row ox-pill-row-1">
               <span className="ox-pill-tikr">{s.tikr}</span>
               <span className="ox-pill-pct" data-dir={dir}>

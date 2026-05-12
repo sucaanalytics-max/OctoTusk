@@ -96,11 +96,13 @@ export default function OctopusClient({
   displayToken,
   stockListStale,
   centerpiece = "cards",
+  showRail = true,
 }: {
   seed: OctopusSeedStock[];
   displayToken: string;
   stockListStale: boolean;
   centerpiece?: OctopusCenterpiece;
+  showRail?: boolean;
 }) {
   const [feed, setFeed] = useState<FeedPayload | null>(null);
   const [indices, setIndices] = useState<IndicesPayload | null>(null);
@@ -370,7 +372,7 @@ export default function OctopusClient({
     <div className="octopus-root" data-state={state.toLowerCase()}>
       <Header state={state} ageSeconds={ageSec} onOpenPalette={() => setPaletteOpen(true)} />
       <IndexStrip ticks={indices?.indices ?? null} />
-      <div className="octopus-body">
+      <div className={`octopus-body${showRail ? "" : " octopus-body-full"}`}>
         <div className="octopus-sectorgrid-wrap">
           {stocks.length === 0 ? (
             <div className="octopus-loading">no coverage data</div>
@@ -390,15 +392,17 @@ export default function OctopusClient({
             )
           )}
         </div>
-        <div className="octopus-rail">
-          <TopMovers
-            stocks={moverStocks}
-            focusedTikr={hoveredTikr}
-            pinnedTikr={pinnedTikr}
-            onRowHover={handleRowHover}
-            onRowClick={handleRowClick}
-          />
-        </div>
+        {showRail && (
+          <div className="octopus-rail">
+            <TopMovers
+              stocks={moverStocks}
+              focusedTikr={hoveredTikr}
+              pinnedTikr={pinnedTikr}
+              onRowHover={handleRowHover}
+              onRowClick={handleRowClick}
+            />
+          </div>
+        )}
       </div>
       {activeHoverStock && (cursor || pinnedCursor) && (
         <HoverCard

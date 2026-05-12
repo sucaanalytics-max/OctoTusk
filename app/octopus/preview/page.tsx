@@ -93,6 +93,7 @@ export default async function OctopusPreviewPage() {
       displayToken={displayToken}
       stockListStale={stockListStale}
       centerpiece="pills"
+      showRail={false}
     />
   );
 }
