@@ -2,16 +2,14 @@
 
 import { useEffect, useMemo } from "react";
 import { displayName } from "@/lib/displayName";
-import type { PreviewStock } from "./GridView";
+import type { SectorGridStock } from "./SectorGrid";
 
 interface Props {
   open: boolean;
   cluster: string | null;
-  stocks: PreviewStock[];
+  stocks: SectorGridStock[];
   onClose: () => void;
 }
-
-type SortKey = "dayPct" | "name";
 
 function fmtPct(p: number | null, asFraction: boolean): string {
   if (p == null || !isFinite(p)) return "—";
@@ -34,7 +32,6 @@ function pctClass(p: number | null): string {
 }
 
 export function SectorDrawer({ open, cluster, stocks, onClose }: Props) {
-  // ESC closes
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -48,7 +45,6 @@ export function SectorDrawer({ open, cluster, stocks, onClose }: Props) {
   }, [open, onClose]);
 
   const rows = useMemo(() => {
-    // Sort by day% descending — winners on top, then losers, then null (greyed).
     return [...stocks].sort((a, b) => {
       const ap = a.dayPct;
       const bp = b.dayPct;
@@ -59,7 +55,9 @@ export function SectorDrawer({ open, cluster, stocks, onClose }: Props) {
     });
   }, [stocks]);
 
-  const live = stocks.filter((s) => typeof s.dayPct === "number") as Array<PreviewStock & { dayPct: number }>;
+  const live = stocks.filter((s) => typeof s.dayPct === "number") as Array<
+    SectorGridStock & { dayPct: number }
+  >;
   const mean = live.length ? live.reduce((s, x) => s + x.dayPct, 0) / live.length : null;
   const upCount = live.filter((s) => s.dayPct > 0).length;
   const downCount = live.filter((s) => s.dayPct < 0).length;

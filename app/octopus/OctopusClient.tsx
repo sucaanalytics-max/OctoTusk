@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isMarketOpen, nextDailyResetMs } from "@/lib/marketHours";
 import { Header, type DisplayState } from "./Header";
 import { IndexStrip, type IndexTick } from "./IndexStrip";
-import { Treemap } from "./Treemap";
+import { SectorGrid } from "./SectorGrid";
+import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
 import { SectorLadder } from "./SectorLadder";
 import { HoverCard, type HoverStock } from "./HoverCard";
 import { CommandPalette } from "./CommandPalette";
+import { defaultClusterKey } from "@/lib/treemap";
 
 export interface OctopusSeedStock {
   tikr: string;
@@ -66,8 +68,6 @@ const FAILURE_DISCONNECT = 3;
 const BACKOFF_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000];
 const LOCALSTORAGE_KEY = "octopus:lastFeed";
 const LOCALSTORAGE_IDX = "octopus:lastIndices";
-const FLASH_DELTA_PP = 1.5;
-const FLASH_DURATION_MS = 2000;
 
 function loadCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -108,10 +108,7 @@ export default function OctopusClient({
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [pinnedCursor, setPinnedCursor] = useState<{ x: number; y: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
-
-  // Flash tracking
-  const prevPctRef = useRef<Map<string, number>>(new Map());
-  const [flashing, setFlashing] = useState<Map<string, "up" | "down">>(new Map());
+  const [openCluster, setOpenCluster] = useState<string | null>(null);
 
   const failuresRef = useRef(0);
   const feedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -158,44 +155,6 @@ export default function OctopusClient({
       console.warn("[octopus] indices fetch failed:", err instanceof Error ? err.message : err);
     }
   }, [displayToken]);
-
-  // ── Detect big intraday tick-to-tick moves; trigger 2s flash ──
-  useEffect(() => {
-    if (!feed?.stocks) return;
-    const prev = prevPctRef.current;
-    const triggered: Array<{ tikr: string; dir: "up" | "down" }> = [];
-    const next = new Map<string, number>();
-    for (const s of feed.stocks) {
-      if (typeof s.dayPct !== "number") continue;
-      next.set(s.tikr, s.dayPct);
-      const before = prev.get(s.tikr);
-      if (typeof before === "number") {
-        const delta = s.dayPct - before;
-        if (Math.abs(delta) >= FLASH_DELTA_PP) {
-          triggered.push({ tikr: s.tikr, dir: delta > 0 ? "up" : "down" });
-        }
-      }
-    }
-    prevPctRef.current = next;
-    if (triggered.length > 0) {
-      setFlashing((current) => {
-        const updated = new Map(current);
-        for (const t of triggered) updated.set(t.tikr, t.dir);
-        return updated;
-      });
-      const timeouts = triggered.map((t) =>
-        setTimeout(() => {
-          setFlashing((current) => {
-            if (!current.has(t.tikr)) return current;
-            const updated = new Map(current);
-            updated.delete(t.tikr);
-            return updated;
-          });
-        }, FLASH_DURATION_MS)
-      );
-      return () => timeouts.forEach((id) => clearTimeout(id));
-    }
-  }, [feed]);
 
   // ── Scheduled polling with off-hours pause + failure backoff ──
   useEffect(() => {
@@ -282,7 +241,8 @@ export default function OctopusClient({
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (target.closest(".ox-hover-card")) return;
-      if (target.closest(".octopus-tile-group")) return;
+      if (target.closest(".ox-secgrid-card")) return;
+      if (target.closest(".ox-drawer")) return;
       if (target.closest(".ox-mover-row")) return;
       if (target.closest(".ox-palette")) return;
       setPinnedTikr(null);
@@ -354,6 +314,20 @@ export default function OctopusClient({
     [stocks]
   );
 
+  const drawerStocks = useMemo(() => {
+    if (!openCluster) return [] as MergedStock[];
+    return stocks.filter(
+      (s) =>
+        defaultClusterKey({
+          tikr: s.tikr,
+          name: s.name,
+          sector: s.sector,
+          subsector: s.subsector,
+          dayPct: s.dayPct,
+        }) === openCluster
+    );
+  }, [stocks, openCluster]);
+
   const activeTikr = pinnedTikr ?? hoveredTikr;
   const activeStock = useMemo(
     () => (activeTikr ? stocks.find((s) => s.tikr === activeTikr) ?? null : null),
@@ -374,22 +348,14 @@ export default function OctopusClient({
       }
     : null;
 
-  const handleTileHover = useCallback(
-    (tikr: string | null, e?: React.MouseEvent) => {
-      setHoveredTikr(tikr);
-      if (e && tikr) setCursor({ x: e.clientX, y: e.clientY });
-    },
-    []
-  );
-
-  const handleTileClick = useCallback(
-    (tikr: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      setPinnedCursor({ x: e.clientX, y: e.clientY });
-      setPinnedTikr((current) => (current === tikr ? null : tikr));
-    },
-    []
-  );
+  // Global cursor tracking so the HoverCard can anchor on any interaction
+  // (top-mover row hover, palette-driven pin, sector-card hover, etc.).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onMove = (e: MouseEvent) => setCursor({ x: e.clientX, y: e.clientY });
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
 
   const handleRowHover = useCallback((tikr: string | null) => {
     setHoveredTikr(tikr);
@@ -405,18 +371,11 @@ export default function OctopusClient({
       <Header state={state} ageSeconds={ageSec} onOpenPalette={() => setPaletteOpen(true)} />
       <IndexStrip ticks={indices?.indices ?? null} />
       <div className="octopus-body">
-        <div className="octopus-treemap-wrap">
+        <div className="octopus-sectorgrid-wrap">
           {stocks.length === 0 ? (
             <div className="octopus-loading">no coverage data</div>
           ) : (
-            <Treemap
-              stocks={stocks}
-              focusedTikr={hoveredTikr}
-              pinnedTikr={pinnedTikr}
-              flashing={flashing}
-              onTileHover={handleTileHover}
-              onTileClick={handleTileClick}
-            />
+            <SectorGrid stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />
           )}
         </div>
         <div className="octopus-rail">
@@ -443,6 +402,12 @@ export default function OctopusClient({
           Stock list · stale (&gt;7d)
         </div>
       )}
+      <SectorDrawer
+        open={!!openCluster}
+        cluster={openCluster}
+        stocks={drawerStocks}
+        onClose={() => setOpenCluster(null)}
+      />
       <CommandPalette
         open={paletteOpen}
         stocks={stocks}

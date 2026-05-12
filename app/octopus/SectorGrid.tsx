@@ -4,7 +4,14 @@ import { useMemo } from "react";
 import { displayName } from "@/lib/displayName";
 import { defaultClusterKey } from "@/lib/treemap";
 
-export interface PreviewStock {
+/**
+ * Stock shape consumed by the sector-card centerpiece.
+ *
+ * Matches the MergedStock shape produced by OctopusClient so the same
+ * object can flow into both the cards (summary) and the drawer
+ * (full detail) without reshaping.
+ */
+export interface SectorGridStock {
   tikr: string;
   name: string;
   sector: string;
@@ -18,15 +25,8 @@ export interface PreviewStock {
 }
 
 interface Props {
-  stocks: PreviewStock[];
-  focusedTikr: string | null;
-  pinnedTikr: string | null;
-  /** Unused — kept for prop-compatibility with the other preview views. */
-  onTileHover: (tikr: string | null, e?: React.MouseEvent) => void;
-  /** Unused — kept for prop-compatibility with the other preview views. */
-  onTileClick: (tikr: string, e: React.MouseEvent) => void;
-  onClusterSelect?: (cluster: string) => void;
-  compact?: boolean;
+  stocks: SectorGridStock[];
+  onClusterSelect: (cluster: string) => void;
 }
 
 function fmtPctSigned(p: number | null): string {
@@ -37,27 +37,25 @@ function fmtPctSigned(p: number | null): string {
 
 interface ClusterAggregate {
   cluster: string;
-  stocks: PreviewStock[];
+  stocks: SectorGridStock[];
   liveCount: number;
   upCount: number;
   downCount: number;
   mean: number | null;
-  best: number | null;
-  worst: number | null;
-  topUp: PreviewStock[];
-  topDown: PreviewStock[];
+  topUp: SectorGridStock[];
+  topDown: SectorGridStock[];
 }
 
-const STRIP_RANGE = 5; // Distribution strip range: -5% to +5%
+const STRIP_RANGE = 5; // distribution strip: -5%..+5%
 
 function dotXPosition(dayPct: number): number {
   const clamped = Math.max(-STRIP_RANGE, Math.min(STRIP_RANGE, dayPct));
   return ((clamped + STRIP_RANGE) / (STRIP_RANGE * 2)) * 100;
 }
 
-export function GridView({ stocks, onClusterSelect, compact = false }: Props) {
+export function SectorGrid({ stocks, onClusterSelect }: Props) {
   const clusters = useMemo<ClusterAggregate[]>(() => {
-    const groups: Record<string, PreviewStock[]> = {};
+    const groups: Record<string, SectorGridStock[]> = {};
     for (const s of stocks) {
       const k = defaultClusterKey({
         tikr: s.tikr,
@@ -70,7 +68,9 @@ export function GridView({ stocks, onClusterSelect, compact = false }: Props) {
     }
     return Object.entries(groups)
       .map(([cluster, list]) => {
-        const live = list.filter((s): s is PreviewStock & { dayPct: number } => typeof s.dayPct === "number");
+        const live = list.filter(
+          (s): s is SectorGridStock & { dayPct: number } => typeof s.dayPct === "number"
+        );
         const upCount = live.filter((s) => s.dayPct > 0).length;
         const downCount = live.filter((s) => s.dayPct < 0).length;
         const mean = live.length ? live.reduce((sum, s) => sum + s.dayPct, 0) / live.length : null;
@@ -83,8 +83,6 @@ export function GridView({ stocks, onClusterSelect, compact = false }: Props) {
           upCount,
           downCount,
           mean,
-          best: sortedDesc[0]?.dayPct ?? null,
-          worst: sortedAsc[0]?.dayPct ?? null,
           topUp: sortedDesc.slice(0, 2).filter((s) => s.dayPct > 0),
           topDown: sortedAsc.slice(0, 2).filter((s) => s.dayPct < 0),
         };
@@ -93,20 +91,21 @@ export function GridView({ stocks, onClusterSelect, compact = false }: Props) {
   }, [stocks]);
 
   return (
-    <div className={`ox-secgrid${compact ? " ox-secgrid-compact" : ""}`}>
+    <div className="ox-secgrid">
       {clusters.map((c) => {
         const direction =
           c.mean == null ? "flat" : c.mean > 0 ? "up" : c.mean < 0 ? "down" : "flat";
-        const liveStocks = c.stocks.filter((s): s is PreviewStock & { dayPct: number } => typeof s.dayPct === "number");
+        const liveStocks = c.stocks.filter(
+          (s): s is SectorGridStock & { dayPct: number } => typeof s.dayPct === "number"
+        );
         return (
           <button
             key={c.cluster}
             type="button"
             className="ox-secgrid-card"
             data-direction={direction}
-            onClick={() => onClusterSelect?.(c.cluster)}
+            onClick={() => onClusterSelect(c.cluster)}
           >
-            {/* Row 1: name | count | mean (mirrors the reference's "Dow 30 / 0.11% / 26.56" pattern) */}
             <header className="ox-secgrid-card-head">
               <div className="ox-secgrid-card-titleblock">
                 <span className="ox-secgrid-card-label">{c.cluster}</span>
@@ -128,8 +127,6 @@ export function GridView({ stocks, onClusterSelect, compact = false }: Props) {
               </div>
             </header>
 
-            {/* Row 2: top mover list. Mirrors reference's "value + H/L" cluster — */}
-            {/* but for sector cards, the analogous "extremes" are top up + top down stocks. */}
             <div className="ox-secgrid-card-body">
               {c.topUp.length === 0 && c.topDown.length === 0 ? (
                 <div className="ox-secgrid-card-empty">awaiting quotes</div>
@@ -151,9 +148,6 @@ export function GridView({ stocks, onClusterSelect, compact = false }: Props) {
               )}
             </div>
 
-            {/* Row 3: distribution strip — every stock's dayPct as a dot on a -5%..+5% axis. */}
-            {/* The spatial analog of the reference's intraday sparkline (which we can't compute */}
-            {/* without intraday history). Communicates sector composition at a glance. */}
             <div className="ox-secgrid-card-strip">
               <div className="ox-secgrid-strip-track" aria-hidden>
                 <div className="ox-secgrid-strip-zero" />
