@@ -2180,6 +2180,309 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   text-align: right;
 }
 
+/* ── Previews route (treemap alternatives comparison) ──────────────────── */
+.ox-previews-root {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: clamp(10px, 0.9vh, 16px);
+  overflow: auto;
+}
+.ox-previews-masthead {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: clamp(12px, 1vw, 22px);
+  padding-bottom: clamp(8px, 0.7vh, 14px);
+  border-bottom: 1px solid var(--ox-rule-strong);
+}
+.ox-previews-back {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ox-font-sans);
+  font-size: var(--ox-text-meta);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ox-ink-soft);
+  grid-row: 1;
+  grid-column: 1;
+}
+.ox-previews-back:hover { color: var(--ox-ink); }
+.ox-previews-title {
+  margin: 0;
+  font-family: var(--ox-serif);
+  font-weight: 500;
+  font-size: clamp(28px, 2.4vw, 44px);
+  color: var(--ox-ink);
+  display: inline-flex;
+  align-items: baseline;
+  gap: clamp(8px, 0.6vw, 14px);
+  letter-spacing: -0.01em;
+}
+.ox-previews-letter {
+  color: var(--ox-accent);
+  font-family: var(--ox-font-mono);
+  font-size: 0.55em;
+  font-weight: 600;
+}
+.ox-previews-sub {
+  margin: clamp(2px, 0.3vh, 6px) 0 0 0;
+  font-size: var(--ox-text-meta);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ox-ink-mute);
+}
+.ox-previews-link {
+  font-family: var(--ox-font-sans);
+  font-size: var(--ox-text-meta);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ox-ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ox-rule);
+  padding-bottom: 2px;
+  transition: color 160ms ease-out, border-color 160ms ease-out;
+}
+.ox-previews-link:hover {
+  color: var(--ox-ink);
+  border-bottom-color: var(--ox-ink);
+}
+.ox-previews-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: clamp(14px, 1.2vw, 24px);
+  min-height: 0;
+}
+.ox-previews-card {
+  appearance: none;
+  background: var(--ox-paper);
+  border: 1px solid var(--ox-rule);
+  border-radius: 4px;
+  padding: clamp(12px, 0.9vh, 18px) clamp(14px, 1vw, 22px);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: clamp(8px, 0.5vh, 12px);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--ox-font-sans);
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out, transform 200ms ease-out;
+  min-height: 0;
+}
+.ox-previews-card:hover {
+  border-color: var(--ox-ink-mute);
+  box-shadow: 0 12px 28px rgba(27, 36, 52, 0.10);
+  transform: translateY(-2px);
+}
+.ox-previews-card-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: clamp(8px, 0.5vw, 14px);
+  align-items: baseline;
+}
+.ox-previews-card-letter {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(18px, 1.5vw, 26px);
+  font-weight: 600;
+  color: var(--ox-accent);
+}
+.ox-previews-card-title {
+  margin: 0;
+  font-family: var(--ox-serif);
+  font-weight: 500;
+  font-size: clamp(16px, 1.3vw, 22px);
+  color: var(--ox-ink);
+  line-height: 1.2;
+}
+.ox-previews-card-sub {
+  margin: 2px 0 0 0;
+  font-size: var(--ox-text-caption);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ox-ink-mute);
+}
+.ox-previews-card-canvas {
+  background: var(--ox-canvas);
+  border: 1px solid var(--ox-rule);
+  border-radius: 2px;
+  padding: clamp(6px, 0.4vh, 10px);
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+}
+.ox-previews-card-canvas > * { width: 100%; height: 100%; }
+.ox-previews-card-line {
+  margin: 0;
+  font-size: var(--ox-text-caption);
+  color: var(--ox-ink-soft);
+}
+.ox-previews-canvas {
+  background: var(--ox-paper);
+  border: 1px solid var(--ox-rule);
+  border-radius: 4px;
+  padding: clamp(10px, 0.8vh, 16px);
+  min-height: 0;
+  display: flex;
+}
+.ox-previews-canvas > * { width: 100%; height: 100%; }
+
+/* ── GridView (uniform sector grid) ─────────────────────────────────────── */
+.ox-gridview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: clamp(10px, 0.8vw, 16px);
+  align-content: start;
+  overflow-y: auto;
+  padding: 4px;
+}
+.ox-gridview-compact { font-size: 0.85em; gap: clamp(6px, 0.5vw, 10px); }
+.ox-gridview-compact .ox-gridview-cluster { gap: 4px; }
+.ox-gridview-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ox-gridview-cluster-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ox-rule);
+}
+.ox-gridview-cluster-label {
+  font-size: var(--ox-text-meta);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ox-ink-soft);
+  font-weight: 600;
+}
+.ox-gridview-cluster-mean {
+  font-family: var(--ox-font-mono);
+  font-size: var(--ox-text-caption);
+  font-weight: 600;
+}
+.ox-gridview-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 4px;
+}
+.ox-gridview-cell {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 2px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  text-align: left;
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.ox-gridview-cell:hover,
+.ox-gridview-cell[data-focused="true"] {
+  transform: scale(1.03);
+  box-shadow: 0 6px 16px rgba(27, 36, 52, 0.18);
+}
+.ox-gridview-cell[data-pinned="true"] {
+  outline: 2px solid var(--ox-accent);
+  outline-offset: -2px;
+}
+.ox-gridview-cell-name {
+  font-family: var(--ox-font-sans);
+  font-size: clamp(11px, 0.9vw, 14px);
+  font-weight: 600;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.ox-gridview-cell-pct {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(10px, 0.8vw, 12px);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.95;
+}
+
+/* ── BubbleView ─────────────────────────────────────────────────────────── */
+.ox-bubbleview { width: 100%; height: 100%; display: block; }
+.ox-bubble { transition: filter 160ms ease-out, transform 160ms ease-out; transform-origin: center; transform-box: fill-box; }
+.ox-bubble-group:hover .ox-bubble,
+.ox-bubble-group[data-focused="true"] .ox-bubble {
+  filter: brightness(1.08) drop-shadow(0 6px 16px rgba(27, 36, 52, 0.2));
+  transform: scale(1.05);
+}
+.ox-bubble-group[data-pinned="true"] .ox-bubble {
+  stroke: var(--ox-accent);
+  stroke-width: 2.5;
+}
+
+/* ── HexView ────────────────────────────────────────────────────────────── */
+.ox-hexview { width: 100%; height: 100%; display: block; }
+.ox-hex { transition: filter 160ms ease-out, transform 160ms ease-out; transform-origin: center; transform-box: fill-box; }
+.ox-hex-group:hover .ox-hex,
+.ox-hex-group[data-focused="true"] .ox-hex {
+  filter: brightness(1.08) drop-shadow(0 4px 12px rgba(27, 36, 52, 0.2));
+  transform: scale(1.06);
+}
+.ox-hex-group[data-pinned="true"] .ox-hex {
+  stroke: var(--ox-accent);
+  stroke-width: 2.5;
+}
+
+/* ── ScatterView ────────────────────────────────────────────────────────── */
+.ox-scatterview { width: 100%; height: 100%; display: block; background: var(--ox-paper); }
+.ox-scatter-grid { stroke: var(--ox-rule); stroke-width: 0.5; }
+.ox-scatter-axis-zero { stroke: var(--ox-ink-mute); stroke-width: 1; stroke-dasharray: 2 3; }
+.ox-scatter-q-tr { fill: rgba(15, 122, 60, 0.04); }
+.ox-scatter-q-bl { fill: rgba(168, 40, 40, 0.04); }
+.ox-scatter-quad {
+  font-family: var(--ox-font-sans);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  fill: var(--ox-ink-mute);
+  font-weight: 600;
+}
+.ox-scatter-quad-tr { fill: var(--ox-pos); }
+.ox-scatter-quad-bl { fill: var(--ox-neg); }
+.ox-scatter-tick {
+  font-family: var(--ox-font-mono);
+  font-size: 11px;
+  fill: var(--ox-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.ox-scatter-axis-title {
+  font-family: var(--ox-font-sans);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  fill: var(--ox-ink-mute);
+  font-weight: 500;
+}
+.ox-scatter-dot { transition: r 160ms ease-out; }
+.ox-scatter-dot-group:hover .ox-scatter-dot,
+.ox-scatter-dot-group[data-focused="true"] .ox-scatter-dot {
+  filter: drop-shadow(0 4px 10px rgba(27, 36, 52, 0.3));
+}
+.ox-scatter-dot-group[data-pinned="true"] .ox-scatter-dot {
+  stroke: var(--ox-accent);
+  stroke-width: 2.5;
+}
+.ox-scatter-label {
+  font-family: var(--ox-font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--ox-ink);
+  paint-order: stroke;
+  stroke: var(--ox-paper);
+  stroke-width: 3;
+}
+
 /* ── Misc system bits (loading, stale ribbon, config error) ─────────────── */
 .octopus-stale-ribbon {
   position: fixed;
