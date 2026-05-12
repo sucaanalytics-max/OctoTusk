@@ -5,6 +5,7 @@ import { isMarketOpen, nextDailyResetMs } from "@/lib/marketHours";
 import { Header, type DisplayState } from "./Header";
 import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { SectorGrid } from "./SectorGrid";
+import { SectorOrbital } from "./SectorOrbital";
 import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
 import { HoverCard, type HoverStock } from "./HoverCard";
@@ -87,14 +88,18 @@ function saveCache(key: string, value: unknown): void {
   }
 }
 
+export type OctopusCenterpiece = "cards" | "orbital";
+
 export default function OctopusClient({
   seed,
   displayToken,
   stockListStale,
+  centerpiece = "cards",
 }: {
   seed: OctopusSeedStock[];
   displayToken: string;
   stockListStale: boolean;
+  centerpiece?: OctopusCenterpiece;
 }) {
   const [feed, setFeed] = useState<FeedPayload | null>(null);
   const [indices, setIndices] = useState<IndicesPayload | null>(null);
@@ -369,7 +374,11 @@ export default function OctopusClient({
           {stocks.length === 0 ? (
             <div className="octopus-loading">no coverage data</div>
           ) : (
-            <SectorGrid stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />
+            centerpiece === "orbital" ? (
+              <SectorOrbital stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />
+            ) : (
+              <SectorGrid stocks={stocks} onClusterSelect={(c) => setOpenCluster(c)} />
+            )
           )}
         </div>
         <div className="octopus-rail">

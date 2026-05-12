@@ -2505,6 +2505,79 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   text-overflow: ellipsis;
 }
 
+/* ── Sector Orbital (polar wedges, alphabetical) ────────────────────────── */
+.ox-orbital-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 1vh, 20px);
+}
+.ox-orbital {
+  width: 100%;
+  height: 100%;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: visible;
+}
+.ox-orbital-wedge {
+  cursor: pointer;
+  transition: filter 200ms ease-out, transform 200ms ease-out;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+.ox-orbital-wedge:hover {
+  filter: brightness(1.08) drop-shadow(0 6px 18px rgba(27, 36, 52, 0.18));
+}
+.ox-orbital-label {
+  font-family: var(--ox-font-sans);
+  font-size: 17px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  fill: var(--ox-ink, #1B2434);
+  pointer-events: none;
+}
+.ox-orbital-label-value {
+  font-family: var(--ox-font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+.ox-orbital-label-value[data-dir="up"]   { fill: var(--ox-pos, #0F7A3C); }
+.ox-orbital-label-value[data-dir="down"] { fill: var(--ox-neg, #A82828); }
+.ox-orbital-label-value[data-dir="flat"] { fill: var(--ox-ink-mute, #8A95A4); }
+.ox-orbital-hub-label {
+  font-family: var(--ox-font-sans);
+  font-size: 16px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+  fill: var(--ox-ink-mute, #8A95A4);
+}
+.ox-orbital-hub-value {
+  font-family: var(--ox-font-mono);
+  font-size: 48px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+.ox-orbital-hub-value[data-dir="up"]   { fill: var(--ox-pos, #0F7A3C); }
+.ox-orbital-hub-value[data-dir="down"] { fill: var(--ox-neg, #A82828); }
+.ox-orbital-hub-value[data-dir="flat"] { fill: var(--ox-ink, #1B2434); }
+.ox-orbital-hub-meta {
+  font-family: var(--ox-font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  fill: var(--ox-ink-mute, #8A95A4);
+}
+
 /* ── Sector Drawer modal ────────────────────────────────────────────────── */
 .ox-drawer-backdrop {
   position: fixed;
