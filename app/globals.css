@@ -2318,154 +2318,135 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   color: var(--ox-ink-soft);
 }
 .ox-previews-canvas {
-  position: relative;
-  background:
-    radial-gradient(circle at 88% 14%, rgba(212, 189, 153, 0.22), transparent 55%),
-    radial-gradient(circle at 12% 78%, rgba(110, 132, 168, 0.18), transparent 60%),
-    radial-gradient(circle at 50% 50%, rgba(233, 69, 96, 0.05), transparent 65%),
-    var(--ox-paper);
+  background: var(--ox-paper);
   border: 1px solid var(--ox-rule);
   border-radius: 6px;
   padding: clamp(10px, 0.8vh, 16px);
   min-height: 0;
   display: flex;
-  overflow: hidden;
 }
-.ox-previews-canvas > * { width: 100%; height: 100%; position: relative; z-index: 1; }
+.ox-previews-canvas > * { width: 100%; height: 100%; }
 
-/* ── Sector Cards Grid (progressive disclosure, high-contrast) ──────────── */
+/* ── Sector Cards (terminal aesthetic — saturated solid bg per direction) ── */
 .ox-secgrid {
-  position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: clamp(12px, 0.9vw, 18px);
   align-content: start;
   overflow-y: auto;
-  padding: 6px;
+  padding: 4px;
 }
 .ox-secgrid-compact { gap: clamp(6px, 0.5vw, 10px); padding: 2px; }
-.ox-secgrid-compact .ox-secgrid-card { min-height: 130px; border-left-width: 3px; border-radius: 8px; }
-.ox-secgrid-compact .ox-secgrid-card-head { padding: 6px 10px; }
-.ox-secgrid-compact .ox-secgrid-card-label { font-size: 11px; letter-spacing: 0.1em; }
-.ox-secgrid-compact .ox-secgrid-card-mean { font-size: 12px; }
-.ox-secgrid-compact .ox-secgrid-card-meta { padding: 4px 10px 0; font-size: 10px; }
-.ox-secgrid-compact .ox-secgrid-card-body { padding: 4px 10px 6px; }
-.ox-secgrid-compact .ox-secgrid-card-foot { display: none; }
-.ox-secgrid-compact .ox-secgrid-row { font-size: 11px; padding: 1px 4px; }
-.ox-secgrid-compact .ox-secgrid-pct { font-size: 11px; }
-.ox-secgrid-compact .ox-secgrid-name { font-size: 11px; }
+.ox-secgrid-compact .ox-secgrid-card { min-height: 110px; padding: 8px 10px; }
+.ox-secgrid-compact .ox-secgrid-card-label { font-size: 11px; letter-spacing: 0.08em; }
+.ox-secgrid-compact .ox-secgrid-card-sub { font-size: 9px; }
+.ox-secgrid-compact .ox-secgrid-card-mean-value { font-size: 14px; }
+.ox-secgrid-compact .ox-secgrid-card-mean-label { display: none; }
+.ox-secgrid-compact .ox-secgrid-card-body { gap: 0; padding: 4px 0 0; }
+.ox-secgrid-compact .ox-secgrid-row { font-size: 10px; padding: 1px 0; }
+.ox-secgrid-compact .ox-secgrid-pct { font-size: 10px; min-width: 42px; }
+.ox-secgrid-compact .ox-secgrid-name { font-size: 10px; }
+.ox-secgrid-compact .ox-secgrid-card-strip { margin-top: 4px; }
+.ox-secgrid-compact .ox-secgrid-strip-axis { font-size: 8px; }
+.ox-secgrid-compact .ox-secgrid-strip-track { height: 10px; }
 
-/* Glass material — translucent paper, backdrop blur, soft edge highlight */
+/*
+ * Bloomberg/Reuters-style saturated colored cards (per the user's
+ * reference images). The card itself communicates direction via solid
+ * background color. All text is white. No glass, no separate dark header.
+ */
 .ox-secgrid-card {
   appearance: none;
-  background: rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  border-left: 4px solid var(--ox-rule-strong);
-  border-radius: 14px;
-  padding: 0;
+  background: #2B3343; /* default flat — deeper than --ox-ink for the saturation feel */
+  color: #FFFFFF;
+  border: none;
+  border-radius: 4px;
+  padding: clamp(12px, 0.85vh, 16px) clamp(14px, 1vw, 18px);
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  min-height: 220px;
+  gap: clamp(8px, 0.55vh, 12px);
+  min-height: 200px;
   font-family: var(--ox-font-sans);
+  position: relative;
   overflow: hidden;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 2px 6px rgba(27, 36, 52, 0.04),
-    0 12px 36px rgba(27, 36, 52, 0.10);
-  transform: translateZ(0);
-  will-change: backdrop-filter, transform;
-  transition:
-    border-color 200ms ease-out,
-    box-shadow 200ms ease-out,
-    transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1),
-    background-color 200ms ease-out;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 14px rgba(27, 36, 52, 0.10);
+  transition: transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 200ms ease-out, background-color 200ms ease-out;
 }
-.ox-secgrid-card[data-direction="up"] { border-left-color: var(--ox-pos); }
-.ox-secgrid-card[data-direction="down"] { border-left-color: var(--ox-neg); }
+.ox-secgrid-card[data-direction="up"]   { background: #0F4F32; }
+.ox-secgrid-card[data-direction="down"] { background: #591A1A; }
+.ox-secgrid-card[data-direction="flat"] { background: #2B3343; }
 .ox-secgrid-card:hover {
-  background: rgba(255, 255, 255, 0.62);
-  -webkit-backdrop-filter: blur(32px) saturate(190%);
-  backdrop-filter: blur(32px) saturate(190%);
-  border-color: rgba(255, 255, 255, 0.75);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.75),
-    0 4px 10px rgba(27, 36, 52, 0.06),
-    0 20px 48px rgba(27, 36, 52, 0.14);
-  transform: translateY(-3px) translateZ(0);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 28px rgba(27, 36, 52, 0.20);
 }
+.ox-secgrid-card[data-direction="up"]:hover   { background: #16633E; }
+.ox-secgrid-card[data-direction="down"]:hover { background: #6E2222; }
+.ox-secgrid-card[data-direction="flat"]:hover { background: #353D4F; }
 
-/* Translucent-dark header — coheres with the glass body */
+/* Row 1: sector name + composition (left) + mean % (right) */
 .ox-secgrid-card-head {
-  background: rgba(27, 36, 52, 0.92);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  backdrop-filter: blur(14px) saturate(140%);
-  color: #FFFFFF;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: clamp(8px, 0.5vw, 12px);
-  padding: clamp(10px, 0.75vh, 14px) clamp(14px, 1vw, 18px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  gap: clamp(10px, 0.7vw, 16px);
+}
+.ox-secgrid-card-titleblock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 .ox-secgrid-card-label {
   font-family: var(--ox-font-sans);
-  font-size: clamp(13px, 1.05vw, 17px);
-  letter-spacing: 0.12em;
+  font-size: clamp(12px, 1vw, 16px);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #FFFFFF;
   font-weight: 700;
-  line-height: 1.2;
-  flex: 1;
-  min-width: 0;
+  line-height: 1.15;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.ox-secgrid-card-mean {
+.ox-secgrid-card-sub {
   font-family: var(--ox-font-mono);
-  font-size: clamp(14px, 1.1vw, 18px);
-  font-weight: 700;
+  font-size: clamp(10px, 0.8vw, 12px);
+  color: rgba(255, 255, 255, 0.65);
+  letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
 }
-/* Brighter direction colors on the dark header (default --ox-pos/neg are too dark) */
-.ox-secgrid-card-head .ox-pos,
-.ox-secgrid-card-mean.ox-pos { color: #4ADE80; }
-.ox-secgrid-card-head .ox-neg,
-.ox-secgrid-card-mean.ox-neg { color: #F87171; }
-.ox-secgrid-card-head .ox-flat,
-.ox-secgrid-card-mean.ox-flat { color: rgba(255, 255, 255, 0.65); }
-
-/* Meta line directly below the header */
-.ox-secgrid-card-meta {
-  padding: clamp(8px, 0.55vh, 12px) clamp(14px, 1vw, 18px) clamp(4px, 0.25vh, 6px);
-  font-size: var(--ox-text-caption);
-  color: var(--ox-ink-mute);
-  letter-spacing: 0.06em;
+.ox-secgrid-meta-dot { color: rgba(255, 255, 255, 0.35); }
+.ox-secgrid-meta-up   { color: rgba(255, 255, 255, 0.85); font-weight: 600; }
+.ox-secgrid-meta-down { color: rgba(255, 255, 255, 0.85); font-weight: 600; }
+.ox-secgrid-card-mean {
   display: flex;
-  align-items: baseline;
-  gap: clamp(8px, 0.6vw, 14px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
 }
-.ox-secgrid-meta-count {
-  color: var(--ox-ink);
-  font-weight: 600;
-}
-.ox-secgrid-meta-split {
-  display: inline-flex;
-  align-items: baseline;
-  gap: clamp(4px, 0.3vw, 8px);
+.ox-secgrid-card-mean-value {
   font-family: var(--ox-font-mono);
+  font-size: clamp(18px, 1.5vw, 26px);
+  font-weight: 700;
+  color: #FFFFFF;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+.ox-secgrid-card-mean-label {
+  font-family: var(--ox-font-sans);
+  font-size: clamp(8px, 0.65vw, 10px);
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   font-weight: 500;
 }
-.ox-secgrid-meta-dot { color: var(--ox-rule-strong); }
 
-/* Body — the top movers list */
+/* Row 2: top movers list */
 .ox-secgrid-card-body {
-  padding: clamp(4px, 0.3vh, 8px) clamp(14px, 1vw, 18px) clamp(8px, 0.5vh, 12px);
   display: flex;
   flex-direction: column;
   gap: clamp(2px, 0.15vh, 4px);
@@ -2473,7 +2454,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   min-height: 0;
 }
 .ox-secgrid-card-empty {
-  color: var(--ox-ink-mute);
+  color: rgba(255, 255, 255, 0.55);
   font-size: var(--ox-text-caption);
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -2482,22 +2463,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-row {
   display: grid;
-  grid-template-columns: 16px clamp(58px, 4.5vw, 78px) 1fr;
+  grid-template-columns: clamp(56px, 4.5vw, 76px) 1fr;
   align-items: baseline;
-  gap: clamp(8px, 0.5vw, 12px);
-  padding: clamp(4px, 0.3vh, 6px) clamp(6px, 0.4vw, 8px);
+  gap: clamp(8px, 0.6vw, 14px);
+  padding: clamp(3px, 0.25vh, 5px) 0;
   font-variant-numeric: tabular-nums;
-  border-radius: 4px;
-  transition: background 140ms ease-out;
-}
-/* Row tints removed — glass clarity prevails; colored arrows + %s carry direction */
-.ox-secgrid-row:hover {
-  background: rgba(27, 36, 52, 0.04);
-}
-.ox-secgrid-arrow {
-  font-size: 0.82em;
-  line-height: 1;
-  text-align: center;
 }
 .ox-secgrid-pct {
   font-family: var(--ox-font-mono);
@@ -2505,94 +2475,68 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-weight: 700;
   text-align: right;
 }
+.ox-secgrid-row[data-side="up"] .ox-secgrid-pct {
+  color: #6EE7A7; /* light emerald — pops on dark green or any direction bg */
+}
+.ox-secgrid-row[data-side="down"] .ox-secgrid-pct {
+  color: #FCA5A5; /* light coral — pops on dark red or any direction bg */
+}
 .ox-secgrid-name {
-  font-size: clamp(13px, 1vw, 15px);
-  font-weight: 600;
-  color: var(--ox-ink);
+  font-size: clamp(12px, 0.95vw, 14px);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ox-secgrid-divider {
-  height: 1px;
-  background: var(--ox-rule);
-  margin: clamp(3px, 0.2vh, 5px) clamp(6px, 0.4vw, 8px);
-}
 
-/* Footer — button-style "View all N →" */
-.ox-secgrid-card-foot {
-  margin: clamp(2px, 0.2vh, 4px) clamp(14px, 1vw, 18px) clamp(12px, 0.9vh, 16px);
-}
-.ox-secgrid-cta {
+/* Row 3: distribution strip — each live stock as a dot on a -5%..+5% axis */
+.ox-secgrid-card-strip {
+  margin-top: auto;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(6px, 0.4vw, 10px);
-  padding: clamp(8px, 0.55vh, 11px) clamp(12px, 0.9vw, 16px);
+  flex-direction: column;
+  gap: 2px;
+}
+.ox-secgrid-strip-track {
+  position: relative;
+  height: clamp(14px, 1vh, 18px);
+  background:
+    linear-gradient(to right,
+      rgba(255, 255, 255, 0.0) 0%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0.0) 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+}
+.ox-secgrid-strip-zero {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
   background: rgba(255, 255, 255, 0.35);
-  border: 1px solid rgba(27, 36, 52, 0.18);
-  border-radius: 8px;
-  font-size: var(--ox-text-meta);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--ox-ink);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
-  transition: background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out;
+  transform: translateX(-50%);
 }
-.ox-secgrid-card:hover .ox-secgrid-cta {
-  background: rgba(27, 36, 52, 0.88);
-  color: #FFFFFF;
-  border-color: rgba(27, 36, 52, 0.92);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+.ox-secgrid-strip-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.18);
 }
-.ox-secgrid-arrow-go {
+.ox-secgrid-strip-dot[data-sign="up"]   { background: #86EFAC; }
+.ox-secgrid-strip-dot[data-sign="down"] { background: #FCA5A5; }
+.ox-secgrid-strip-dot[data-sign="flat"] { background: rgba(255, 255, 255, 0.55); }
+.ox-secgrid-strip-axis {
+  display: flex;
+  justify-content: space-between;
   font-family: var(--ox-font-mono);
-  transition: transform 160ms ease-out;
-}
-.ox-secgrid-card:hover .ox-secgrid-arrow-go {
-  transform: translateX(4px);
-}
-
-/* Fallback for browsers without backdrop-filter — solid paper, sharper edges */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .ox-secgrid-card,
-  .ox-secgrid-card:hover {
-    background: var(--ox-paper);
-    border-color: var(--ox-rule);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.7),
-      0 12px 30px rgba(27, 36, 52, 0.10);
-  }
-  .ox-secgrid-card-head {
-    background: var(--ox-ink);
-  }
-  .ox-secgrid-cta {
-    background: var(--ox-paper);
-    border-color: var(--ox-rule-strong);
-  }
-  .ox-drawer {
-    background: var(--ox-paper);
-  }
-}
-
-/* Accessibility: respect reduced-transparency preference */
-@media (prefers-reduced-transparency: reduce) {
-  .ox-secgrid-card,
-  .ox-secgrid-card:hover,
-  .ox-drawer,
-  .ox-drawer-backdrop,
-  .ox-palette-backdrop {
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-  .ox-secgrid-card,
-  .ox-secgrid-card:hover { background: var(--ox-paper); }
-  .ox-drawer { background: var(--ox-paper); }
-  .ox-drawer-backdrop,
-  .ox-palette-backdrop { background: rgba(27, 36, 52, 0.7); }
+  font-size: clamp(9px, 0.7vw, 11px);
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Sector Drawer modal ────────────────────────────────────────────────── */
