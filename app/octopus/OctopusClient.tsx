@@ -26,6 +26,7 @@ interface FeedStock {
   sector: string;
   subsector: string;
   dayPct: number | null;
+  cmp: number | null;
   bearUpside: number | null;
   baseUpside: number | null;
   bullUpside: number | null;
@@ -48,6 +49,7 @@ interface MergedStock {
   sector: string;
   subsector: string;
   dayPct: number | null;
+  cmp: number | null;
   bearUpside: number | null;
   baseUpside: number | null;
   bullUpside: number | null;
@@ -312,6 +314,7 @@ export default function OctopusClient({
         sector: live?.sector ?? s.sector,
         subsector: live?.subsector ?? s.subsector ?? "",
         dayPct: live?.dayPct ?? null,
+        cmp: live?.cmp ?? null,
         bearUpside: live?.bearUpside ?? s.bearUpside ?? null,
         baseUpside: live?.baseUpside ?? s.baseUpside ?? null,
         bullUpside: live?.bullUpside ?? s.bullUpside ?? null,
@@ -321,7 +324,7 @@ export default function OctopusClient({
   }, [seed, feed]);
 
   const moverStocks = useMemo(
-    () => stocks.map((s) => ({ tikr: s.tikr, name: s.name, dayPct: s.dayPct })),
+    () => stocks.map((s) => ({ tikr: s.tikr, name: s.name, dayPct: s.dayPct, cmp: s.cmp })),
     [stocks]
   );
 
@@ -342,6 +345,7 @@ export default function OctopusClient({
         sector: activeStock.sector,
         subsector: activeStock.subsector,
         dayPct: activeStock.dayPct,
+        cmp: activeStock.cmp,
         bearUpside: activeStock.bearUpside,
         baseUpside: activeStock.baseUpside,
         bullUpside: activeStock.bullUpside,

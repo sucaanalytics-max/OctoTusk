@@ -73,16 +73,17 @@ export function Treemap({
       onMouseLeave={() => onTileHover(null)}
     >
       {sectorRects.map((sr: OctopusSectorRect) => {
-        const labelFontSize = Math.min(18, Math.max(9, sr.h / 36));
+        const labelFontSize = Math.min(14, Math.max(8, sr.h / 48));
         const meanLabel = fmtPctSigned(sr.meanDayPct);
         const meanColorClass =
           sr.meanDayPct == null
-            ? "octopus-cluster-mean-flat"
+            ? "ox-cluster-mean-flat"
             : sr.meanDayPct > 0
-            ? "octopus-cluster-mean-pos"
+            ? "ox-cluster-mean-pos"
             : sr.meanDayPct < 0
-            ? "octopus-cluster-mean-neg"
-            : "octopus-cluster-mean-flat";
+            ? "ox-cluster-mean-neg"
+            : "ox-cluster-mean-flat";
+        const showHeader = sr.h > 50 && sr.w > 90;
         return (
           <g key={`sec-${sr.cluster}`} pointerEvents="none">
             <rect
@@ -91,29 +92,39 @@ export function Treemap({
               width={sr.w}
               height={sr.h}
               fill="transparent"
-              stroke="rgba(0,0,0,0.06)"
+              stroke="rgba(27,36,52,0.05)"
               strokeWidth={1}
             />
-            {sr.h > 40 && sr.w > 80 && (
+            {showHeader && (
               <>
                 <text
-                  className="octopus-sector-label"
+                  className="ox-cluster-label"
                   x={sr.x + 8}
-                  y={sr.y + 16}
+                  y={sr.y + 14}
                   fontSize={labelFontSize}
                 >
                   {sr.cluster}
                 </text>
                 {meanLabel && sr.w > 160 && (
                   <text
-                    className={`octopus-cluster-mean ${meanColorClass}`}
+                    className={`ox-cluster-mean ${meanColorClass}`}
                     x={sr.x + sr.w - 8}
-                    y={sr.y + 16}
+                    y={sr.y + 14}
                     fontSize={labelFontSize}
                     textAnchor="end"
                   >
                     {meanLabel}
                   </text>
+                )}
+                {sr.h > 80 && (
+                  <line
+                    x1={sr.x + 8}
+                    x2={sr.x + sr.w - 8}
+                    y1={sr.y + 20}
+                    y2={sr.y + 20}
+                    stroke="rgba(27,36,52,0.08)"
+                    strokeWidth={1}
+                  />
                 )}
               </>
             )}

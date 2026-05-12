@@ -26,6 +26,7 @@ interface OctopusFeedStock {
   sector: string;
   subsector: string;
   dayPct: number | null;
+  cmp: number | null;
   bearUpside: number | null;
   baseUpside: number | null;
   bullUpside: number | null;
@@ -75,6 +76,7 @@ async function buildPayload(): Promise<OctopusFeedPayload> {
       sector: info.sector,
       subsector: info.subsector,
       dayPct: q && typeof q.changePct === "number" ? q.changePct : null,
+      cmp: q && typeof q.price === "number" ? q.price : null,
       bearUpside: pickUpside(s.upside_bear),
       baseUpside: pickUpside(s.upside_base),
       bullUpside: pickUpside(s.upside_bull),

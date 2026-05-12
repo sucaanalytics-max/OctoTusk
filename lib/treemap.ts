@@ -117,16 +117,23 @@ export function heatmapColor(value: number | null | undefined, mode: string): st
       ? value * 100
       : value;
   const t = Math.max(-1, Math.min(1, pct / range));
+  // Editorial mode pulls the saturated endpoints toward grey by 15% so the
+  // wall display reads as "calm broadsheet" rather than "candy heatmap".
+  const editorial = mode === "octopusDay";
+  const lerp = (start: number, end: number, weight: number) => {
+    const target = editorial ? start + (end - start) * 0.85 : end;
+    return Math.round(start + (target - start) * weight);
+  };
   if (t >= 0) {
-    const r = Math.round(45 + (20 - 45) * t);
-    const g = Math.round(48 + (170 - 48) * t);
-    const b = Math.round(55 + (70 - 55) * t);
+    const r = lerp(45, 20, t);
+    const g = lerp(48, 170, t);
+    const b = lerp(55, 70, t);
     return `rgb(${r}, ${g}, ${b})`;
   } else {
     const at = -t;
-    const r = Math.round(45 + (210 - 45) * at);
-    const g = Math.round(48 + (35 - 48) * at);
-    const b = Math.round(55 + (35 - 55) * at);
+    const r = lerp(45, 210, at);
+    const g = lerp(48, 35, at);
+    const b = lerp(55, 35, at);
     return `rgb(${r}, ${g}, ${b})`;
   }
 }

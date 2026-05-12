@@ -9,6 +9,7 @@ export interface HoverStock {
   sector: string;
   subsector?: string;
   dayPct: number | null;
+  cmp: number | null;
   bearUpside: number | null;
   baseUpside: number | null;
   bullUpside: number | null;
@@ -24,11 +25,17 @@ function fmtPct(p: number | null, asFraction: boolean): string {
   return `${s}${v.toFixed(1)}%`;
 }
 
+function fmtCmp(v: number | null): string {
+  if (v == null || !isFinite(v)) return "—";
+  if (v >= 1000) return v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  return v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function pctClass(p: number | null): string {
-  if (p == null) return "octopus-pct-flat";
-  if (p > 0) return "octopus-pct-pos";
-  if (p < 0) return "octopus-pct-neg";
-  return "octopus-pct-flat";
+  if (p == null) return "ox-flat";
+  if (p > 0) return "ox-pos";
+  if (p < 0) return "ox-neg";
+  return "ox-flat";
 }
 
 export function HoverCard({
@@ -49,35 +56,33 @@ export function HoverCard({
     if (!cursor || !ref.current) return;
     const el = ref.current;
     const w = el.offsetWidth || 280;
-    const h = el.offsetHeight || 200;
+    const h = el.offsetHeight || 240;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    // Prefer right of cursor; flip to left if it would overflow.
     let left = cursor.x + OFFSET;
     if (left + w > vw - 8) left = Math.max(8, cursor.x - w - OFFSET);
-    // Prefer below cursor; flip up if it overflows the viewport.
     let top = cursor.y + OFFSET;
     if (top + h > vh - 8) top = Math.max(8, cursor.y - h - OFFSET);
     setPlacement({ left, top });
   }, [cursor]);
 
   const subsector = stock.subsector && stock.subsector !== stock.sector ? stock.subsector : "";
-  const meta = subsector ? `${stock.tikr} · ${subsector}` : stock.tikr;
+  const metaSuffix = subsector ? ` · ${subsector}` : "";
 
   return (
     <div
       ref={ref}
-      className={`octopus-hover-card${pinned ? " octopus-hover-card-pinned" : ""}`}
+      className={`ox-hover-card${pinned ? " ox-hover-card-pinned" : ""}`}
       style={{ left: placement.left, top: placement.top }}
       role="tooltip"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="octopus-hover-head">
-        <div className="octopus-hover-name">{displayName(stock.tikr, stock.name)}</div>
+      <div className="ox-hover-head">
+        <h3 className="ox-hover-name">{displayName(stock.tikr, stock.name)}</h3>
         {pinned && (
           <button
             type="button"
-            className="octopus-hover-close"
+            className="ox-hover-close"
             aria-label="Unpin"
             onClick={(e) => {
               e.stopPropagation();
@@ -88,38 +93,49 @@ export function HoverCard({
           </button>
         )}
       </div>
-      <div className="octopus-hover-meta">{meta}</div>
-      <div className="octopus-hover-divider" />
-      <div className="octopus-hover-row">
-        <span className="octopus-hover-label">Day</span>
-        <span className={`octopus-hover-value ${pctClass(stock.dayPct)}`}>
+      <div className="ox-hover-meta">
+        <span className="ox-hover-meta-tikr">{stock.tikr}</span>
+        {metaSuffix}
+      </div>
+
+      <div className="ox-hover-cmp-row">
+        <span className="ox-hover-cmp">
+          <span className="ox-rupee">₹</span>
+          {fmtCmp(stock.cmp)}
+        </span>
+        <span className={`ox-hover-day ${pctClass(stock.dayPct)}`}>
           {fmtPct(stock.dayPct, false)}
         </span>
       </div>
-      <div className="octopus-hover-divider" />
-      <div className="octopus-hover-row">
-        <span className="octopus-hover-label">Bear</span>
-        <span className={`octopus-hover-value ${pctClass(stock.bearUpside)}`}>
-          {fmtPct(stock.bearUpside, true)}
-        </span>
-      </div>
-      <div className="octopus-hover-row">
-        <span className="octopus-hover-label">Base</span>
-        <span className={`octopus-hover-value ${pctClass(stock.baseUpside)}`}>
-          {fmtPct(stock.baseUpside, true)}
-        </span>
-      </div>
-      <div className="octopus-hover-row">
-        <span className="octopus-hover-label">Bull</span>
-        <span className={`octopus-hover-value ${pctClass(stock.bullUpside)}`}>
-          {fmtPct(stock.bullUpside, true)}
-        </span>
-      </div>
-      <div className="octopus-hover-row octopus-hover-row-emph">
-        <span className="octopus-hover-label">1Y target</span>
-        <span className={`octopus-hover-value ${pctClass(stock.oneYearUpside)}`}>
-          {fmtPct(stock.oneYearUpside, true)}
-        </span>
+
+      <div className="ox-hover-divider" />
+
+      <div className="ox-hover-section">
+        <div className="ox-hover-section-label">Upside vs CMP</div>
+        <div className="ox-hover-row">
+          <span className="ox-hover-label">Bear</span>
+          <span className={`ox-hover-value ${pctClass(stock.bearUpside)}`}>
+            {fmtPct(stock.bearUpside, true)}
+          </span>
+        </div>
+        <div className="ox-hover-row">
+          <span className="ox-hover-label">Base</span>
+          <span className={`ox-hover-value ${pctClass(stock.baseUpside)}`}>
+            {fmtPct(stock.baseUpside, true)}
+          </span>
+        </div>
+        <div className="ox-hover-row">
+          <span className="ox-hover-label">Bull</span>
+          <span className={`ox-hover-value ${pctClass(stock.bullUpside)}`}>
+            {fmtPct(stock.bullUpside, true)}
+          </span>
+        </div>
+        <div className="ox-hover-row ox-hover-row-emph">
+          <span className="ox-hover-label">1Y target</span>
+          <span className={`ox-hover-value ${pctClass(stock.oneYearUpside)}`}>
+            {fmtPct(stock.oneYearUpside, true)}
+          </span>
+        </div>
       </div>
     </div>
   );

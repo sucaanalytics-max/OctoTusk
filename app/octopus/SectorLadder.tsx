@@ -14,7 +14,7 @@ interface Row {
   count: number;
 }
 
-const BAR_RANGE_PCT = 2; // full-width edge corresponds to ±2 %
+const BAR_RANGE_PCT = 2; // ±2% maps to the full scale width
 
 function fmtPctSigned(p: number): string {
   const s = p >= 0 ? "+" : "";
@@ -37,36 +37,37 @@ export function SectorLadder({ stocks }: { stocks: LadderStock[] }) {
   }, [stocks]);
 
   return (
-    <div className="octopus-panel">
-      <div className="octopus-panel-title">Sector heat</div>
-      <div className="octopus-ladder">
+    <section className="ox-panel ox-panel-ladder">
+      <header className="ox-section-head">
+        <span className="ox-section-label">Sector Heat</span>
+        <span className="ox-section-trail" aria-hidden />
+      </header>
+      <div className="ox-ladder">
         {rows.length === 0 ? (
-          <div className="octopus-loading">waiting for data…</div>
+          <div className="ox-ladder-empty">awaiting data</div>
         ) : (
           rows.map((r) => {
             const clamped = Math.max(-BAR_RANGE_PCT, Math.min(BAR_RANGE_PCT, r.mean));
-            const widthPct = (Math.abs(clamped) / BAR_RANGE_PCT) * 50;
-            const fillColor = r.mean >= 0 ? "var(--color-positive)" : "var(--color-negative)";
-            const fillStyle = r.mean >= 0
-              ? { left: "50%", width: `${widthPct}%` }
-              : { right: "50%", width: `${widthPct}%` };
-            const pctClass = r.mean > 0 ? "octopus-pct-pos" : r.mean < 0 ? "octopus-pct-neg" : "octopus-pct-flat";
+            // Position dot 0%..100% across the scale, with 50% being zero.
+            const dotPosPct = 50 + (clamped / BAR_RANGE_PCT) * 50;
+            const cls = r.mean > 0 ? "ox-pos" : r.mean < 0 ? "ox-neg" : "ox-flat";
             return (
-              <div key={r.sector} className="octopus-ladder-row" title={`${r.count} stocks`}>
-                <span className="octopus-ladder-name">{r.sector}</span>
-                <div className="octopus-ladder-bar">
-                  <span className="octopus-ladder-bar-zero" aria-hidden />
+              <div key={r.sector} className="ox-ladder-row" title={`${r.count} stocks`}>
+                <span className="ox-ladder-name">{r.sector}</span>
+                <div className="ox-ladder-scale">
+                  <span className="ox-ladder-track" aria-hidden />
+                  <span className="ox-ladder-zero" aria-hidden />
                   <span
-                    className="octopus-ladder-bar-fill"
-                    style={{ ...fillStyle, background: fillColor }}
+                    className={`ox-ladder-dot ${cls}`}
+                    style={{ left: `${dotPosPct}%` }}
                   />
                 </div>
-                <span className={`octopus-ladder-pct ${pctClass}`}>{fmtPctSigned(r.mean)}</span>
+                <span className={`ox-ladder-pct ${cls}`}>{fmtPctSigned(r.mean)}</span>
               </div>
             );
           })
         )}
       </div>
-    </div>
+    </section>
   );
 }
