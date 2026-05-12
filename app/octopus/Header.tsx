@@ -34,15 +34,19 @@ function formatAge(seconds: number | null): string {
 export function Header({
   state,
   ageSeconds,
+  onOpenPalette,
 }: {
   state: DisplayState;
   ageSeconds: number | null;
+  onOpenPalette?: () => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
+  const [isMac, setIsMac] = useState(false);
 
   useEffect(() => {
     setNow(new Date());
     const t = setInterval(() => setNow(new Date()), 1000);
+    setIsMac(/Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent));
     return () => clearInterval(t);
   }, []);
 
@@ -61,6 +65,19 @@ export function Header({
         </p>
       </div>
       <div className="ox-masthead-state">
+        <button
+          type="button"
+          className="ox-search-hint"
+          onClick={onOpenPalette}
+          aria-label="Search stocks"
+          title="Search stocks (⌘K)"
+        >
+          <span className="ox-search-icon" aria-hidden>⌕</span>
+          <span className="ox-search-text">Search</span>
+          <kbd className="ox-search-kbd" suppressHydrationWarning>
+            {isMac ? "⌘ K" : "Ctrl K"}
+          </kbd>
+        </button>
         <span className={`ox-pill ${pill.className}`}>
           <span className="ox-pill-dot" aria-hidden />
           <span className="ox-pill-label">{pill.label}</span>

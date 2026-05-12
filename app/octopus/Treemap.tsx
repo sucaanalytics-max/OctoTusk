@@ -19,12 +19,18 @@ interface Props {
   onTileClick: (tikr: string, e: React.MouseEvent) => void;
 }
 
-const TILE_TIER_BOTH = 6400;
-const TILE_TIER_NAME = 2500;
+const PADDING_X = 4;
+const PADDING_Y = 4;
+const LINE_HEIGHT_MULT = 1.18;
+const CHAR_ADVANCE = 0.55;
+
+const AREA_HIDE = 1800;
+const AREA_SINGLE = 4000;
+const AREA_BOTH = 8000;
 
 function fontSizeForArea(area: number): number {
-  const s = Math.sqrt(area) / 8;
-  return Math.max(11, Math.min(28, s));
+  const s = Math.sqrt(area) / 9;
+  return Math.max(10, Math.min(24, s));
 }
 
 function fmtPctSigned(p: number | null | undefined): string {
@@ -33,13 +39,71 @@ function fmtPctSigned(p: number | null | undefined): string {
   return `${s}${p.toFixed(1)}%`;
 }
 
-function shortLabel(name: string, max: number): string {
-  if (name.length <= max) return name;
-  return name.slice(0, Math.max(1, max - 1)) + "…";
+function fits(s: string, maxWidth: number, fontSize: number): boolean {
+  return s.length * fontSize * CHAR_ADVANCE <= maxWidth;
 }
 
-function approxCharFit(width: number, fontSize: number): number {
-  return Math.max(1, Math.floor(width / (fontSize * 0.55)));
+/**
+ * Greedy word-wrap for SVG <tspan> rendering.
+ *
+ * - Splits on whitespace and packs words onto lines that fit `maxWidth`.
+ * - If a single word doesn't fit, breaks it at a character boundary.
+ * - Truncates the last visible line with "…" if content exceeds `maxLines`.
+ */
+function wrapText(text: string, maxWidth: number, fontSize: number, maxLines: number): string[] {
+  if (maxLines <= 0) return [];
+  if (fits(text, maxWidth, fontSize)) return [text];
+
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = "";
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const trial = current ? `${current} ${word}` : word;
+    if (fits(trial, maxWidth, fontSize)) {
+      current = trial;
+    } else {
+      if (current) {
+        lines.push(current);
+        if (lines.length >= maxLines) break;
+        current = "";
+      }
+      if (fits(word, maxWidth, fontSize)) {
+        current = word;
+      } else {
+        // Character-break a single word that exceeds the line.
+        let buf = "";
+        for (const ch of word) {
+          if (fits(buf + ch, maxWidth, fontSize)) {
+            buf += ch;
+          } else {
+            lines.push(buf);
+            if (lines.length >= maxLines) break;
+            buf = ch;
+          }
+        }
+        if (lines.length < maxLines && buf) current = buf;
+      }
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+
+  // Did we run out of room? Truncate the last visible line.
+  if (lines.length === maxLines) {
+    // Reconstruct the rendered portion and the remainder.
+    const rendered = lines.join(" ");
+    if (rendered.length < text.length - 2) {
+      const last = lines[maxLines - 1];
+      // Trim characters until "…" fits.
+      let trimmed = last;
+      while (trimmed.length > 0 && !fits(trimmed + "…", maxWidth, fontSize)) {
+        trimmed = trimmed.slice(0, -1);
+      }
+      lines[maxLines - 1] = (trimmed || last.slice(0, 1)) + "…";
+    }
+  }
+  return lines;
 }
 
 export function Treemap({
@@ -53,7 +117,6 @@ export function Treemap({
   const layout = useMemo(() => computeOctopusLayout(stocks), [stocks]);
   const { W, H, sectorRects, stockRects } = layout;
 
-  // Sort so the focused tile renders last (= on top, no z-index needed for SVG).
   const renderRects = useMemo(() => {
     if (!focusedTikr && !pinnedTikr) return stockRects;
     const focus = pinnedTikr ?? focusedTikr;
@@ -134,15 +197,35 @@ export function Treemap({
       {renderRects.map((r: OctopusRect) => {
         const area = r.w * r.h;
         const fill = heatmapColor(r.dayPct ?? null, "octopusDay");
-        const fs = fontSizeForArea(area);
-        const showBoth = area >= TILE_TIER_BOTH;
-        const showName = !showBoth && area >= TILE_TIER_NAME;
-        const cx = r.x + r.w / 2;
-        const cy = r.y + r.h / 2;
-        const label = displayName(r.tikr, r.name);
         const isFocused = focusedTikr === r.tikr || pinnedTikr === r.tikr;
         const isPinned = pinnedTikr === r.tikr;
         const flashState = flashing.get(r.tikr);
+        const label = displayName(r.tikr, r.name);
+
+        // Tile content tier: hide entirely on the smallest tiles.
+        const showAny = area >= AREA_HIDE;
+        const showBoth = area >= AREA_BOTH;
+        const allowWrap = area >= AREA_SINGLE;
+
+        const fs = fontSizeForArea(area);
+        const lineHeight = fs * LINE_HEIGHT_MULT;
+        const innerW = Math.max(r.w - PADDING_X * 2, 4);
+        const innerH = Math.max(r.h - PADDING_Y * 2, 4);
+
+        // How many lines can fit, reserving one for day-% if applicable.
+        const maxLinesAvailable = Math.max(1, Math.floor(innerH / lineHeight));
+        const reservedForPct = showBoth ? 1 : 0;
+        const maxNameLines = Math.max(1, maxLinesAvailable - reservedForPct);
+
+        const nameLines: string[] = showAny
+          ? allowWrap
+            ? wrapText(label, innerW, fs, Math.min(maxNameLines, 3))
+            : wrapText(label, innerW, fs, 1)
+          : [];
+
+        const totalLines = nameLines.length + reservedForPct;
+        const stackHeight = totalLines * lineHeight;
+        const startY = r.y + r.h / 2 - stackHeight / 2 + fs * 0.78;
 
         return (
           <g
@@ -151,7 +234,6 @@ export function Treemap({
             data-focused={isFocused || undefined}
             data-pinned={isPinned || undefined}
             data-flash={flashState || undefined}
-            style={{ cursor: "pointer" }}
             onMouseEnter={(e) => onTileHover(r.tikr, e)}
             onMouseMove={(e) => onTileHover(r.tikr, e)}
             onClick={(e) => onTileClick(r.tikr, e)}
@@ -166,40 +248,30 @@ export function Treemap({
               rx={2}
               ry={2}
             />
-            {showBoth && (
-              <>
-                <text
-                  className="octopus-tile-text"
-                  x={cx}
-                  y={cy - fs * 0.45}
-                  fontSize={fs}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                >
-                  {shortLabel(label, approxCharFit(r.w, fs))}
-                </text>
-                <text
-                  className="octopus-tile-text-pct"
-                  x={cx}
-                  y={cy + fs * 0.55}
-                  fontSize={fs * 0.85}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                >
-                  {fmtPctSigned(r.dayPct)}
-                </text>
-              </>
-            )}
-            {showName && (
+            {showAny && nameLines.length > 0 && (
               <text
                 className="octopus-tile-text"
-                x={cx}
-                y={cy}
+                x={r.x + r.w / 2}
+                y={startY}
                 fontSize={fs}
                 textAnchor="middle"
-                dominantBaseline="central"
               >
-                {shortLabel(label, approxCharFit(r.w, fs))}
+                {nameLines.map((line, i) => (
+                  <tspan key={i} x={r.x + r.w / 2} dy={i === 0 ? 0 : lineHeight}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            )}
+            {showBoth && (
+              <text
+                className="octopus-tile-text-pct"
+                x={r.x + r.w / 2}
+                y={startY + nameLines.length * lineHeight}
+                fontSize={fs * 0.85}
+                textAnchor="middle"
+              >
+                {fmtPctSigned(r.dayPct)}
               </text>
             )}
           </g>

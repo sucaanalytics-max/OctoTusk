@@ -1,6 +1,6 @@
 "use client";
 
-import { OCTOPUS_INDICES } from "@/lib/indices";
+import { OCTOPUS_INDICES_BROAD, OCTOPUS_INDICES_SECTOR, type IndexSymbol } from "@/lib/indices";
 
 export interface IndexTick {
   label: string;
@@ -33,20 +33,23 @@ function arrow(p: number | null): string {
   return "·";
 }
 
-export function IndexStrip({ ticks }: { ticks: IndexTick[] | null }) {
-  const lookup = new Map<string, IndexTick>();
-  for (const t of ticks ?? []) lookup.set(t.label, t);
-
+function Row({
+  indices,
+  lookup,
+  variant,
+}: {
+  indices: IndexSymbol[];
+  lookup: Map<string, IndexTick>;
+  variant: "broad" | "sector";
+}) {
   return (
-    <section
-      className="ox-index-strip"
-      style={{ gridTemplateColumns: `repeat(${OCTOPUS_INDICES.length}, 1fr)` }}
-      aria-label="NSE sector indices"
+    <div
+      className={`ox-index-row ox-index-row-${variant}`}
+      style={{ gridTemplateColumns: `repeat(${indices.length}, 1fr)` }}
     >
-      {OCTOPUS_INDICES.map((cfg, i) => {
+      {indices.map((cfg, i) => {
         const t = lookup.get(cfg.label);
         const dayPct = t?.dayPct ?? null;
-        const cls = pctClass(dayPct);
         return (
           <div
             key={cfg.label}
@@ -55,13 +58,25 @@ export function IndexStrip({ ticks }: { ticks: IndexTick[] | null }) {
           >
             <div className="ox-index-label">{cfg.label}</div>
             <div className="ox-index-value">{fmtValue(t?.value ?? null)}</div>
-            <div className={`ox-index-pct ${cls}`}>
+            <div className={`ox-index-pct ${pctClass(dayPct)}`}>
               <span className="ox-index-arrow">{arrow(dayPct)}</span>
               {fmtPct(dayPct)}
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+export function IndexStrip({ ticks }: { ticks: IndexTick[] | null }) {
+  const lookup = new Map<string, IndexTick>();
+  for (const t of ticks ?? []) lookup.set(t.label, t);
+
+  return (
+    <section className="ox-index-strip" aria-label="NSE indices and macro">
+      <Row indices={OCTOPUS_INDICES_BROAD} lookup={lookup} variant="broad" />
+      <Row indices={OCTOPUS_INDICES_SECTOR} lookup={lookup} variant="sector" />
     </section>
   );
 }

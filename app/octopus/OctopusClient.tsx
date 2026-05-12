@@ -8,6 +8,7 @@ import { Treemap } from "./Treemap";
 import { TopMovers } from "./TopMovers";
 import { SectorLadder } from "./SectorLadder";
 import { HoverCard, type HoverStock } from "./HoverCard";
+import { CommandPalette } from "./CommandPalette";
 
 export interface OctopusSeedStock {
   tikr: string;
@@ -106,6 +107,7 @@ export default function OctopusClient({
   const [pinnedTikr, setPinnedTikr] = useState<string | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const [pinnedCursor, setPinnedCursor] = useState<{ x: number; y: number } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   // Flash tracking
   const prevPctRef = useRef<Map<string, number>>(new Map());
@@ -270,18 +272,19 @@ export default function OctopusClient({
     return () => clearTimeout(t);
   }, []);
 
-  // ── ESC + click-outside to clear pin ──
+  // ── ESC + click-outside to clear pin (skip while palette is open — it owns ESC) ──
   useEffect(() => {
-    if (!pinnedTikr) return;
+    if (!pinnedTikr || paletteOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setPinnedTikr(null);
     };
     const onClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest(".octopus-hover-card")) return;
+      if (target.closest(".ox-hover-card")) return;
       if (target.closest(".octopus-tile-group")) return;
-      if (target.closest(".octopus-mover-row-interactive")) return;
+      if (target.closest(".ox-mover-row")) return;
+      if (target.closest(".ox-palette")) return;
       setPinnedTikr(null);
     };
     window.addEventListener("keydown", onKey);
@@ -290,7 +293,25 @@ export default function OctopusClient({
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("mousedown", onClick);
     };
-  }, [pinnedTikr]);
+  }, [pinnedTikr, paletteOpen]);
+
+  // ── Global Cmd/Ctrl+K (and "/" alone) opens the command palette ──
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        !!target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      } else if (e.key === "/" && !isTyping) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // ── Derive display state ──
   const state: DisplayState = useMemo(() => {
@@ -381,7 +402,7 @@ export default function OctopusClient({
 
   return (
     <div className="octopus-root" data-state={state.toLowerCase()}>
-      <Header state={state} ageSeconds={ageSec} />
+      <Header state={state} ageSeconds={ageSec} onOpenPalette={() => setPaletteOpen(true)} />
       <IndexStrip ticks={indices?.indices ?? null} />
       <div className="octopus-body">
         <div className="octopus-treemap-wrap">
@@ -422,6 +443,19 @@ export default function OctopusClient({
           Stock list · stale (&gt;7d)
         </div>
       )}
+      <CommandPalette
+        open={paletteOpen}
+        stocks={stocks}
+        onClose={() => setPaletteOpen(false)}
+        onSelect={(tikr) => {
+          // Centre the hover card on the viewport for keyboard-driven pin.
+          if (typeof window !== "undefined") {
+            setPinnedCursor({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+          }
+          setPinnedTikr(tikr);
+          setPaletteOpen(false);
+        }}
+      />
     </div>
   );
 }
