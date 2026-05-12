@@ -2608,8 +2608,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 14px;
-  align-items: center;
-  min-height: 60px;
+  align-items: stretch;
+  min-height: 64px;
   font-family: var(--ox-font-sans);
   transition: transform 140ms ease-out, filter 140ms ease-out, outline-color 140ms ease-out;
   outline: 2px solid transparent;
@@ -2617,15 +2617,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Clean monotonic palette: WHITE text always, magnitude encoded by hue depth
-   within a single direction. No pastels. Greens get brighter for bigger
-   gainers; reds get brighter for bigger losers. */
+   within a single direction. No pastels. Reds desaturated toward brick /
+   burgundy so they feel editorial rather than alarming — green dominance
+   stays calm. */
 .ox-pill[data-intensity="big-up"]   { background: #16A34A; }  /* ≥+3% */
 .ox-pill[data-intensity="med-up"]   { background: #166534; }  /* +1..+3% */
 .ox-pill[data-intensity="sm-up"]    { background: #14532D; }  /* 0..+1% */
 .ox-pill[data-intensity="flat"]     { background: #2B3343; }  /* ≈0% */
-.ox-pill[data-intensity="sm-down"]  { background: #7F1D1D; }  /* 0..−1% */
-.ox-pill[data-intensity="med-down"] { background: #991B1B; }  /* −1..−3% */
-.ox-pill[data-intensity="big-down"] { background: #B91C1C; }  /* ≤−3% */
+.ox-pill[data-intensity="sm-down"]  { background: #5C2828; }  /* 0..−1% */
+.ox-pill[data-intensity="med-down"] { background: #833535; }  /* −1..−3% */
+.ox-pill[data-intensity="big-down"] { background: #A04848; }  /* ≤−3% */
 .ox-pill[data-intensity="null"] {
   background:
     repeating-linear-gradient(
@@ -2648,12 +2649,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline-color: var(--color-accent-tusk, #FF6B9D);
 }
 
-/* Left column — Name (primary) + TIKR (subtitle) */
+/* Left column — Name pinned top, TIKR pinned bottom (anchor edges so
+   every pill in a row lines up at top and bottom). */
 .ox-pill-left {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 3px;
+  justify-content: space-between;
+  gap: 4px;
   min-width: 0;
 }
 .ox-pill-name {
@@ -2681,14 +2683,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   text-overflow: ellipsis;
 }
 
-/* Right column — Day % (primary) + CMP (secondary), both right-aligned */
+/* Right column — Day % pinned top, CMP pinned bottom (mirrors the left
+   column so % aligns with name, CMP aligns with TIKR across pills). */
 .ox-pill-right {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: flex-end;
   text-align: right;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
   white-space: nowrap;
 }
