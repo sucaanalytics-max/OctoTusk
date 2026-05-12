@@ -2337,53 +2337,38 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ── Sector Cards (terminal aesthetic — saturated solid bg per direction) ── */
 .ox-secgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: clamp(6px, 0.5vw, 10px);
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: clamp(8px, 0.7vh, 12px);
   align-content: start;
   overflow-y: auto;
   padding: 2px;
 }
-.ox-secgrid-compact { gap: clamp(4px, 0.4vw, 8px); padding: 2px; }
-.ox-secgrid-compact .ox-secgrid-card { min-height: 100px; padding: 7px 9px; gap: 5px; }
-.ox-secgrid-compact .ox-secgrid-card-label { font-size: 10px; letter-spacing: 0.06em; }
-.ox-secgrid-compact .ox-secgrid-card-sub { font-size: 8px; }
-.ox-secgrid-compact .ox-secgrid-card-mean-value { font-size: 13px; }
-.ox-secgrid-compact .ox-secgrid-card-mean-label { display: none; }
-.ox-secgrid-compact .ox-secgrid-card-body { gap: 0; padding: 0; }
-.ox-secgrid-compact .ox-secgrid-row { font-size: 9px; padding: 0; }
-.ox-secgrid-compact .ox-secgrid-pct { font-size: 9px; min-width: 38px; }
-.ox-secgrid-compact .ox-secgrid-name { font-size: 9px; }
-.ox-secgrid-compact .ox-secgrid-card-strip { margin-top: 2px; gap: 1px; }
-.ox-secgrid-compact .ox-secgrid-card-strip { height: 8px; }
-.ox-secgrid-compact .ox-secgrid-strip-dot { width: 4px; height: 4px; }
 
 /*
- * Bloomberg/Reuters-style saturated colored cards (per the user's
- * reference images). The card itself communicates direction via solid
- * background color. All text is white. No glass, no separate dark header.
- * Tightened geometry — more cards per viewport.
+ * Glance-tier cards: each answers ONE question (how is this sector moving?).
+ * Hero mean % dominates. Distribution strip is secondary. Stock count is
+ * a low-priority footer. Stock names live in the drawer, not on the card.
  */
 .ox-secgrid-card {
   appearance: none;
   background: #2B3343;
   color: #FFFFFF;
   border: none;
-  border-radius: 6px;
-  padding: clamp(8px, 0.6vh, 12px) clamp(10px, 0.7vw, 14px);
+  border-radius: 8px;
+  padding: clamp(12px, 0.9vh, 18px) clamp(14px, 1vw, 20px);
   text-align: left;
   cursor: pointer;
-  /* Four explicit zones: title (auto) / hero (auto) / body (auto) / strip (auto) */
+  /* Four zones — each does one thing: title / hero / strip / caption */
   display: grid;
-  grid-template-rows: auto auto auto auto;
-  gap: clamp(5px, 0.4vh, 8px);
-  min-height: clamp(140px, 13vh, 168px);
+  grid-template-rows: auto 1fr auto auto;
+  gap: clamp(10px, 0.9vh, 16px);
+  min-height: clamp(160px, 16vh, 200px);
   font-family: var(--ox-font-sans);
   position: relative;
   overflow: hidden;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 3px 9px rgba(27, 36, 52, 0.10);
   transition: transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 200ms ease-out, background-color 200ms ease-out;
 }
-/* Subtle vertical lift: top edge slightly lighter, bottom slightly darker — gives the card dimension without sheen */
 .ox-secgrid-card[data-direction="up"] {
   background: linear-gradient(180deg, #1A7345 0%, #15663E 55%, #114F30 100%);
 }
@@ -2407,18 +2392,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: linear-gradient(180deg, #3D4459 0%, #353D4F 55%, #2D3343 100%);
 }
 
-/* ZONE 1 — Title bar: sector name + chevron affordance + hairline */
+/* ZONE 1 — Title (sector name + chevron + hairline) */
 .ox-secgrid-card-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: clamp(6px, 0.4vw, 10px);
-  padding-bottom: clamp(4px, 0.3vh, 6px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  padding-bottom: clamp(6px, 0.45vh, 9px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
 }
 .ox-secgrid-card-label {
   font-family: var(--ox-font-sans);
-  font-size: clamp(11px, 0.88vw, 13px);
+  font-size: clamp(13px, 1.05vw, 17px);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #FFFFFF;
@@ -2432,8 +2417,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-card-chevron {
   font-family: var(--ox-font-mono);
-  font-size: clamp(14px, 1vw, 18px);
-  color: rgba(255, 255, 255, 0.35);
+  font-size: clamp(15px, 1.05vw, 19px);
+  color: rgba(255, 255, 255, 0.4);
   line-height: 1;
   flex-shrink: 0;
   transition: color 200ms ease-out, transform 200ms ease-out;
@@ -2443,106 +2428,29 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   transform: translateX(3px);
 }
 
-/* ZONE 2 — Hero stat row: big mean % on left, composition inline on right */
+/* ZONE 2 — Hero mean % (single dominant element) */
 .ox-secgrid-card-hero {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: clamp(8px, 0.6vw, 14px);
-  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
 }
 .ox-secgrid-card-mean-value {
   font-family: var(--ox-font-mono);
-  font-size: clamp(22px, 1.75vw, 30px);
+  font-size: clamp(36px, 3vw, 56px);
   font-weight: 800;
   color: #FFFFFF;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-.ox-secgrid-card-stats {
-  font-family: var(--ox-font-mono);
-  font-size: clamp(9px, 0.7vw, 11px);
-  color: rgba(255, 255, 255, 0.78);
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  display: inline-flex;
-  align-items: baseline;
-  gap: clamp(5px, 0.35vw, 8px);
-  white-space: nowrap;
-}
-.ox-secgrid-stat-count {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 600;
-  font-size: 0.92em;
-}
-.ox-secgrid-stat-dot { color: rgba(255, 255, 255, 0.35); }
-.ox-secgrid-stat-up   { color: #86EFAC; font-weight: 700; }
-.ox-secgrid-stat-down { color: #FCA5A5; font-weight: 700; }
-
-/* ZONE 3 — Extremes (1 winner + 1 loser) */
-.ox-secgrid-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(2px, 0.18vh, 4px);
-  min-height: 0;
-}
-.ox-secgrid-row {
-  display: grid;
-  grid-template-columns: 12px clamp(46px, 3.6vw, 60px) 1fr;
-  align-items: center;
-  gap: clamp(6px, 0.45vw, 10px);
-  font-variant-numeric: tabular-nums;
-  min-height: 20px;
-}
-.ox-secgrid-arrow {
-  font-size: clamp(9px, 0.68vw, 11px);
-  line-height: 1;
-  text-align: center;
-  font-weight: 700;
-}
-.ox-secgrid-row[data-side="up"] .ox-secgrid-arrow { color: #86EFAC; }
-.ox-secgrid-row[data-side="down"] .ox-secgrid-arrow { color: #FCA5A5; }
-.ox-secgrid-pct {
-  font-family: var(--ox-font-mono);
-  font-size: clamp(12px, 0.92vw, 14px);
-  font-weight: 700;
-  text-align: right;
-  color: #FFFFFF;
-  letter-spacing: -0.01em;
-}
-.ox-secgrid-name {
-  font-size: clamp(11px, 0.85vw, 13px);
-  font-weight: 500;
-  color: #FFFFFF;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ox-secgrid-row-empty {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: clamp(6px, 0.45vw, 10px);
-}
-.ox-secgrid-row-empty-dot {
-  color: rgba(255, 255, 255, 0.18);
-  font-size: 14px;
-  letter-spacing: 0.5em;
+  letter-spacing: -0.025em;
   line-height: 1;
 }
 
-/* Row 3: distribution strip — each live stock as a dot on a -5%..+5% axis */
-/* ZONE 4 — Distribution strip: clean hairline track with quartile ticks
-   (no axis labels — the three vertical ticks at 25%/50%/75% carry context) */
+/* ZONE 3 — Distribution strip: hairline track, quartile ticks, one dot per stock */
 .ox-secgrid-card-strip {
   position: relative;
-  height: clamp(12px, 0.85vh, 16px);
+  height: clamp(18px, 1.4vh, 24px);
   display: flex;
   align-items: center;
-  margin-top: 2px;
 }
 .ox-secgrid-card-strip::after {
   content: "";
@@ -2564,8 +2472,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-strip-zero {
   position: absolute;
-  top: 12%;
-  bottom: 12%;
+  top: 10%;
+  bottom: 10%;
   left: 50%;
   width: 1.5px;
   background: rgba(255, 255, 255, 0.6);
@@ -2574,15 +2482,28 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ox-secgrid-strip-dot {
   position: absolute;
   top: 50%;
-  width: 6px;
-  height: 6px;
+  width: clamp(10px, 0.7vw, 14px);
+  height: clamp(10px, 0.7vw, 14px);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
 }
 .ox-secgrid-strip-dot[data-sign="up"]   { background: #4ADE80; }
 .ox-secgrid-strip-dot[data-sign="down"] { background: #F87171; }
 .ox-secgrid-strip-dot[data-sign="flat"] { background: rgba(255, 255, 255, 0.7); }
+
+/* ZONE 4 — Caption: tiny footer with composition (count, up, down) */
+.ox-secgrid-card-caption {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(10px, 0.78vw, 12px);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.72);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* ── Sector Drawer modal ────────────────────────────────────────────────── */
 .ox-drawer-backdrop {

@@ -1,17 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { displayName } from "@/lib/displayName";
 import { defaultClusterKey } from "@/lib/treemap";
 import { displayClusterName } from "@/lib/sectors";
 
-/**
- * Stock shape consumed by the sector-card centerpiece.
- *
- * Matches the MergedStock shape produced by OctopusClient so the same
- * object can flow into both the cards (summary) and the drawer
- * (full detail) without reshaping.
- */
 export interface SectorGridStock {
   tikr: string;
   name: string;
@@ -43,8 +35,6 @@ interface ClusterAggregate {
   upCount: number;
   downCount: number;
   mean: number | null;
-  topUp: SectorGridStock[];
-  topDown: SectorGridStock[];
 }
 
 const STRIP_RANGE = 5;
@@ -75,8 +65,6 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
         const upCount = live.filter((s) => s.dayPct > 0).length;
         const downCount = live.filter((s) => s.dayPct < 0).length;
         const mean = live.length ? live.reduce((sum, s) => sum + s.dayPct, 0) / live.length : null;
-        const sortedDesc = [...live].sort((a, b) => b.dayPct - a.dayPct);
-        const sortedAsc = [...live].sort((a, b) => a.dayPct - b.dayPct);
         return {
           cluster,
           stocks: list,
@@ -84,8 +72,6 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
           upCount,
           downCount,
           mean,
-          topUp: sortedDesc.slice(0, 1).filter((s) => s.dayPct > 0),
-          topDown: sortedAsc.slice(0, 1).filter((s) => s.dayPct < 0),
         };
       })
       .sort((a, b) => b.stocks.length - a.stocks.length);
@@ -99,6 +85,10 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
         const liveStocks = c.stocks.filter(
           (s): s is SectorGridStock & { dayPct: number } => typeof s.dayPct === "number"
         );
+        const caption =
+          c.liveCount > 0
+            ? `${c.stocks.length} ${c.stocks.length === 1 ? "stock" : "stocks"} · ${c.upCount} ↑ · ${c.downCount} ↓`
+            : `${c.stocks.length} ${c.stocks.length === 1 ? "stock" : "stocks"}`;
         return (
           <button
             key={c.cluster}
@@ -107,56 +97,18 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
             data-direction={direction}
             onClick={() => onClusterSelect(c.cluster)}
           >
-            {/* ZONE 1 — Title bar with click affordance */}
+            {/* ZONE 1 — Title (sector name + chevron + hairline) */}
             <header className="ox-secgrid-card-title">
               <span className="ox-secgrid-card-label">{displayClusterName(c.cluster)}</span>
               <span className="ox-secgrid-card-chevron" aria-hidden>→</span>
             </header>
 
-            {/* ZONE 2 — Hero stat row: big mean % + inline composition */}
+            {/* ZONE 2 — Hero mean % (single dominant element) */}
             <div className="ox-secgrid-card-hero">
               <span className="ox-secgrid-card-mean-value">{fmtPctSigned(c.mean)}</span>
-              <span className="ox-secgrid-card-stats">
-                <span className="ox-secgrid-stat-count">
-                  {c.stocks.length} {c.stocks.length === 1 ? "stock" : "stocks"}
-                </span>
-                {c.liveCount > 0 && (
-                  <>
-                    <span className="ox-secgrid-stat-dot" aria-hidden>·</span>
-                    <span className="ox-secgrid-stat-up">{c.upCount} ↑</span>
-                    <span className="ox-secgrid-stat-down">{c.downCount} ↓</span>
-                  </>
-                )}
-              </span>
             </div>
 
-            {/* ZONE 3 — Extremes (best + worst stock in this sector) */}
-            <div className="ox-secgrid-card-body">
-              {c.topUp[0] ? (
-                <div className="ox-secgrid-row" data-side="up">
-                  <span className="ox-secgrid-arrow" aria-hidden>▲</span>
-                  <span className="ox-secgrid-pct">{fmtPctSigned(c.topUp[0].dayPct)}</span>
-                  <span className="ox-secgrid-name">{displayName(c.topUp[0].tikr, c.topUp[0].name)}</span>
-                </div>
-              ) : (
-                <div className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
-                  <span className="ox-secgrid-row-empty-dot">·</span>
-                </div>
-              )}
-              {c.topDown[0] ? (
-                <div className="ox-secgrid-row" data-side="down">
-                  <span className="ox-secgrid-arrow" aria-hidden>▼</span>
-                  <span className="ox-secgrid-pct">{fmtPctSigned(c.topDown[0].dayPct)}</span>
-                  <span className="ox-secgrid-name">{displayName(c.topDown[0].tikr, c.topDown[0].name)}</span>
-                </div>
-              ) : (
-                <div className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
-                  <span className="ox-secgrid-row-empty-dot">·</span>
-                </div>
-              )}
-            </div>
-
-            {/* ZONE 4 — Distribution strip (no axis labels; ticks carry context) */}
+            {/* ZONE 3 — Distribution strip */}
             <div className="ox-secgrid-card-strip" aria-hidden>
               <span className="ox-secgrid-strip-tick" style={{ left: "25%" }} />
               <span className="ox-secgrid-strip-zero" />
@@ -170,6 +122,9 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
                 />
               ))}
             </div>
+
+            {/* ZONE 4 — Footer caption */}
+            <div className="ox-secgrid-card-caption">{caption}</div>
           </button>
         );
       })}
