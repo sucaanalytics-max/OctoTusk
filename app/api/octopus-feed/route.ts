@@ -81,6 +81,24 @@ function recordedCmp(tikr: string): number | null {
   return null;
 }
 
+/**
+ * Normalize a TIKR string so different shapes of the same stock identifier
+ * collapse to the same key. Lets the feed match a Supabase TIKR like
+ * "ITC HOTELS LIMITED (XNSE:ITCHOTELS)" against a ticker_map key like
+ * "ITCHOTELS" (or vice versa) without needing every variant pre-registered.
+ */
+function normalizeTikr(t: string): string {
+  return t
+    .toLowerCase()
+    // strip trailing "(xnse:foo)" / "(xbom:123)" parenthetical
+    .replace(/\s*\(x(?:nse|bom):[^)]+\)\s*$/i, "")
+    // strip leading "xnse:" / "xbom:" prefix
+    .replace(/^x(?:nse|bom):/i, "")
+    // strip trailing " limited" / " ltd"
+    .replace(/\s+(?:limited|ltd\.?)\s*$/i, "")
+    .trim();
+}
+
 async function loadStocks(): Promise<DbStock[]> {
   // Mirror app/octopus/page.tsx: prefer the Supabase snapshot (which is
   // refreshed by the GitHub Action / OneDrive sync), fall back to the
@@ -115,8 +133,30 @@ async function loadStocks(): Promise<DbStock[]> {
 async function buildPayload(): Promise<OctopusFeedPayload> {
   const [{ quotes }, stocks] = await Promise.all([buildQuotesMap(), loadStocks()]);
 
+  // Build a normalized lookup so Supabase TIKR variants resolve against
+  // ticker_map keys even when they don't string-match exactly. Tries
+  // exact first (cheap, common case), then case-insensitive, then full
+  // normalization (strips parens / exchange prefixes / "Limited" tails).
+  const quotesByLower = new Map<string, (typeof quotes)[string]>();
+  const quotesByNormalized = new Map<string, (typeof quotes)[string]>();
+  for (const [k, v] of Object.entries(quotes)) {
+    quotesByLower.set(k.toLowerCase(), v);
+    const norm = normalizeTikr(k);
+    if (norm && !quotesByNormalized.has(norm)) quotesByNormalized.set(norm, v);
+  }
+  const lookupQuote = (tikr: string): (typeof quotes)[string] | undefined => {
+    return (
+      quotes[tikr] ??
+      quotesByLower.get(tikr.toLowerCase()) ??
+      quotesByNormalized.get(normalizeTikr(tikr))
+    );
+  };
+
+  let aliasHits = 0;
   const out: OctopusFeedStock[] = stocks.map((s) => {
-    const q = quotes[s.tikr];
+    const exact = quotes[s.tikr];
+    const q = exact ?? lookupQuote(s.tikr);
+    if (!exact && q) aliasHits++;
     const info = getSectorInfo(s.tikr, { sector: s.sector, subsector: s.subsector });
     // CMP resolution order:
     //   1. Recorded override (for unlisted stocks where live data is unreliable)
@@ -139,6 +179,12 @@ async function buildPayload(): Promise<OctopusFeedPayload> {
       oneYearUpside: pickUpside(s.upside_1y),
     };
   });
+
+  const stocksWithCmp = out.filter((x) => x.cmp != null).length;
+  const stocksMissingCmp = out.length - stocksWithCmp;
+  console.log(
+    `[octopus-feed] stocks=${out.length} withCmp=${stocksWithCmp} missingCmp=${stocksMissingCmp} aliasHits=${aliasHits}`
+  );
 
   return { stocks: out, fetchedAt: new Date().toISOString() };
 }
