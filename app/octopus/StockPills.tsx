@@ -18,9 +18,6 @@ interface Props {
   onRowClick: (tikr: string) => void;
 }
 
-const MAG_FULL_PCT = 3; // ±3% day → full background saturation
-const SLATE = "#1B2434";
-
 function fmtPctSigned(p: number | null): string {
   if (p == null || !isFinite(p)) return "—";
   const s = p >= 0 ? "+" : "";
@@ -33,24 +30,32 @@ function fmtCmp(v: number | null): string {
   return v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+type Intensity =
+  | "big-up"
+  | "med-up"
+  | "sm-up"
+  | "flat"
+  | "sm-down"
+  | "med-down"
+  | "big-down"
+  | "null";
+
+// Buckets from the Bloomberg-saturated palette: lightness encodes magnitude.
+// Thresholds are |day %|: small <1, medium 1-3, big ≥3.
+function intensityOf(p: number | null): Intensity {
+  if (p == null || !isFinite(p)) return "null";
+  if (Math.abs(p) < 0.1) return "flat";
+  if (p >= 3) return "big-up";
+  if (p >= 1) return "med-up";
+  if (p > 0) return "sm-up";
+  if (p <= -3) return "big-down";
+  if (p <= -1) return "med-down";
+  return "sm-down";
+}
+
 function dirOf(p: number | null): "up" | "down" | "flat" {
   if (p == null || Math.abs(p) < 0.05) return "flat";
   return p > 0 ? "up" : "down";
-}
-
-function bgFor(p: number | null): string {
-  const d = dirOf(p);
-  if (d === "flat" || p == null) return SLATE;
-  const t = Math.min(1, Math.abs(p) / MAG_FULL_PCT);
-  // strong tint on the left, fades right. Editorial palette colors.
-  if (d === "up") {
-    const aL = 0.12 + t * 0.34;
-    const aR = 0.04 + t * 0.06;
-    return `linear-gradient(to right, rgba(22, 163, 74, ${aL.toFixed(2)}), rgba(22, 163, 74, ${aR.toFixed(2)})), ${SLATE}`;
-  }
-  const aL = 0.12 + t * 0.34;
-  const aR = 0.04 + t * 0.06;
-  return `linear-gradient(to right, rgba(220, 38, 38, ${aL.toFixed(2)}), rgba(220, 38, 38, ${aR.toFixed(2)})), ${SLATE}`;
 }
 
 export function StockPills({
@@ -75,6 +80,7 @@ export function StockPills({
     <div className="ox-pills">
       {sorted.map((s) => {
         const dir = dirOf(s.dayPct);
+        const intensity = intensityOf(s.dayPct);
         const isFocused = focusedTikr === s.tikr || pinnedTikr === s.tikr;
         const isPinned = pinnedTikr === s.tikr;
         return (
@@ -83,9 +89,9 @@ export function StockPills({
             type="button"
             className="ox-pill"
             data-dir={dir}
+            data-intensity={intensity}
             data-focused={isFocused || undefined}
             data-pinned={isPinned || undefined}
-            style={{ background: bgFor(s.dayPct) }}
             onMouseEnter={() => onRowHover(s.tikr)}
             onMouseLeave={() => onRowHover(null)}
             onClick={() => onRowClick(s.tikr)}
