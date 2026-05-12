@@ -94,6 +94,7 @@ export default async function OctopusPreviewPage() {
       stockListStale={stockListStale}
       centerpiece="pills"
       showRail={false}
+      pillVariant="editorial-light"
     />
   );
 }
