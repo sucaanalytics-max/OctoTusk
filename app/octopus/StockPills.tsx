@@ -96,14 +96,14 @@ export function StockPills({
             onMouseLeave={() => onRowHover(null)}
             onClick={() => onRowClick(s.tikr)}
           >
-            <span className="ox-pill-row ox-pill-row-1">
+            <span className="ox-pill-left">
+              <span className="ox-pill-name">{displayName(s.tikr, s.name)}</span>
               <span className="ox-pill-tikr">{s.tikr}</span>
-              <span className="ox-pill-pct" data-dir={dir}>
+            </span>
+            <span className="ox-pill-right">
+              <span className="ox-pill-pct">
                 {fmtPctSigned(s.dayPct)} {dir === "up" ? "▲" : dir === "down" ? "▼" : ""}
               </span>
-            </span>
-            <span className="ox-pill-row ox-pill-row-2">
-              <span className="ox-pill-name">{displayName(s.tikr, s.name)}</span>
               <span className="ox-pill-cmp">
                 {s.cmp != null ? <><span className="ox-pill-rupee">₹</span>{fmtCmp(s.cmp)}</> : "—"}
               </span>
