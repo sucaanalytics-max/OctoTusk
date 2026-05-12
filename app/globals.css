@@ -2327,54 +2327,68 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-previews-canvas > * { width: 100%; height: 100%; }
 
-/* ── Sector Cards Grid (progressive disclosure) ─────────────────────────── */
+/* ── Sector Cards Grid (progressive disclosure, high-contrast) ──────────── */
 .ox-secgrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: clamp(10px, 0.8vw, 16px);
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: clamp(12px, 0.9vw, 18px);
   align-content: start;
   overflow-y: auto;
   padding: 4px;
 }
 .ox-secgrid-compact { gap: clamp(6px, 0.5vw, 10px); }
-.ox-secgrid-compact .ox-secgrid-card { padding: 10px 12px; min-height: 120px; }
+.ox-secgrid-compact .ox-secgrid-card { min-height: 130px; border-left-width: 3px; }
+.ox-secgrid-compact .ox-secgrid-card-head { padding: 6px 10px; }
+.ox-secgrid-compact .ox-secgrid-card-label { font-size: 11px; letter-spacing: 0.1em; }
+.ox-secgrid-compact .ox-secgrid-card-mean { font-size: 12px; }
+.ox-secgrid-compact .ox-secgrid-card-meta { padding: 4px 10px 0; font-size: 10px; }
+.ox-secgrid-compact .ox-secgrid-card-body { padding: 4px 10px 6px; }
 .ox-secgrid-compact .ox-secgrid-card-foot { display: none; }
-.ox-secgrid-compact .ox-secgrid-row { font-size: 0.85em; }
+.ox-secgrid-compact .ox-secgrid-row { font-size: 11px; padding: 1px 0; }
+.ox-secgrid-compact .ox-secgrid-pct { font-size: 11px; }
+.ox-secgrid-compact .ox-secgrid-name { font-size: 11px; }
 
 .ox-secgrid-card {
   appearance: none;
   background: var(--ox-paper);
   border: 1px solid var(--ox-rule);
+  border-left: 4px solid var(--ox-rule-strong);
   border-radius: 3px;
-  padding: clamp(12px, 0.9vh, 16px) clamp(14px, 1vw, 18px);
+  padding: 0;
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: clamp(6px, 0.4vh, 10px);
-  min-height: 180px;
+  min-height: 220px;
   font-family: var(--ox-font-sans);
+  overflow: hidden;
   transition: border-color 160ms ease-out, box-shadow 160ms ease-out, transform 200ms ease-out;
 }
+.ox-secgrid-card[data-direction="up"] { border-left-color: var(--ox-pos); }
+.ox-secgrid-card[data-direction="down"] { border-left-color: var(--ox-neg); }
 .ox-secgrid-card:hover {
-  border-color: var(--ox-ink-mute);
-  box-shadow: 0 12px 26px rgba(27, 36, 52, 0.10);
+  border-color: var(--ox-ink-soft);
+  box-shadow: 0 16px 32px rgba(27, 36, 52, 0.12);
   transform: translateY(-2px);
 }
+
+/* Dark header band — high-contrast anchor for the sector name */
 .ox-secgrid-card-head {
+  background: var(--ox-ink);
+  color: #FFFFFF;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: clamp(8px, 0.5vw, 12px);
-  padding-bottom: clamp(6px, 0.4vh, 10px);
-  border-bottom: 1px solid var(--ox-rule);
+  padding: clamp(10px, 0.75vh, 14px) clamp(14px, 1vw, 18px);
 }
 .ox-secgrid-card-label {
-  font-size: var(--ox-text-meta);
-  letter-spacing: 0.14em;
+  font-family: var(--ox-font-sans);
+  font-size: clamp(13px, 1.05vw, 17px);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ox-ink);
-  font-weight: 600;
+  color: #FFFFFF;
+  font-weight: 700;
   line-height: 1.2;
   flex: 1;
   min-width: 0;
@@ -2384,19 +2398,47 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-card-mean {
   font-family: var(--ox-font-mono);
-  font-size: clamp(13px, 1vw, 16px);
-  font-weight: 600;
+  font-size: clamp(14px, 1.1vw, 18px);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+/* Brighter direction colors on the dark header (default --ox-pos/neg are too dark) */
+.ox-secgrid-card-head .ox-pos,
+.ox-secgrid-card-mean.ox-pos { color: #4ADE80; }
+.ox-secgrid-card-head .ox-neg,
+.ox-secgrid-card-mean.ox-neg { color: #F87171; }
+.ox-secgrid-card-head .ox-flat,
+.ox-secgrid-card-mean.ox-flat { color: rgba(255, 255, 255, 0.65); }
+
+/* Meta line directly below the header */
 .ox-secgrid-card-meta {
+  padding: clamp(8px, 0.55vh, 12px) clamp(14px, 1vw, 18px) clamp(4px, 0.25vh, 6px);
   font-size: var(--ox-text-caption);
   color: var(--ox-ink-mute);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: baseline;
+  gap: clamp(8px, 0.6vw, 14px);
 }
+.ox-secgrid-meta-count {
+  color: var(--ox-ink);
+  font-weight: 600;
+}
+.ox-secgrid-meta-split {
+  display: inline-flex;
+  align-items: baseline;
+  gap: clamp(4px, 0.3vw, 8px);
+  font-family: var(--ox-font-mono);
+  font-weight: 500;
+}
+.ox-secgrid-meta-dot { color: var(--ox-rule-strong); }
+
+/* Body — the top movers list */
 .ox-secgrid-card-body {
+  padding: clamp(4px, 0.3vh, 8px) clamp(14px, 1vw, 18px) clamp(8px, 0.5vh, 12px);
   display: flex;
   flex-direction: column;
-  gap: clamp(2px, 0.2vh, 4px);
+  gap: clamp(2px, 0.15vh, 4px);
   flex: 1;
   min-height: 0;
 }
@@ -2410,25 +2452,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-secgrid-row {
   display: grid;
-  grid-template-columns: 14px clamp(50px, 4vw, 64px) 1fr;
+  grid-template-columns: 16px clamp(58px, 4.5vw, 78px) 1fr;
   align-items: baseline;
-  gap: clamp(6px, 0.4vw, 10px);
-  padding: clamp(2px, 0.2vh, 4px) 0;
+  gap: clamp(8px, 0.5vw, 12px);
+  padding: clamp(4px, 0.3vh, 6px) clamp(6px, 0.4vw, 8px);
   font-variant-numeric: tabular-nums;
+  border-radius: 2px;
+  transition: background 120ms ease-out;
 }
+.ox-secgrid-row[data-side="up"] { background: rgba(15, 122, 60, 0.06); }
+.ox-secgrid-row[data-side="down"] { background: rgba(168, 40, 40, 0.06); }
 .ox-secgrid-arrow {
-  font-size: 0.78em;
+  font-size: 0.82em;
   line-height: 1;
+  text-align: center;
 }
 .ox-secgrid-pct {
   font-family: var(--ox-font-mono);
-  font-size: clamp(12px, 0.95vw, 15px);
-  font-weight: 600;
+  font-size: clamp(13px, 1.05vw, 16px);
+  font-weight: 700;
   text-align: right;
 }
 .ox-secgrid-name {
-  font-size: clamp(12px, 0.95vw, 14px);
-  font-weight: 500;
+  font-size: clamp(13px, 1vw, 15px);
+  font-weight: 600;
   color: var(--ox-ink);
   white-space: nowrap;
   overflow: hidden;
@@ -2437,30 +2484,39 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ox-secgrid-divider {
   height: 1px;
   background: var(--ox-rule);
-  margin: clamp(2px, 0.2vh, 5px) 0;
+  margin: clamp(3px, 0.2vh, 5px) clamp(6px, 0.4vw, 8px);
 }
+
+/* Footer — button-style "View all N →" */
 .ox-secgrid-card-foot {
-  margin-top: clamp(4px, 0.3vh, 8px);
-  padding-top: clamp(6px, 0.4vh, 10px);
-  border-top: 1px solid var(--ox-rule);
-  font-size: var(--ox-text-caption);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ox-ink-mute);
+  margin: clamp(2px, 0.2vh, 4px) clamp(14px, 1vw, 18px) clamp(12px, 0.9vh, 16px);
+}
+.ox-secgrid-cta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  transition: color 160ms ease-out;
+  justify-content: center;
+  gap: clamp(6px, 0.4vw, 10px);
+  padding: clamp(8px, 0.55vh, 11px) clamp(12px, 0.9vw, 16px);
+  border: 1px solid var(--ox-rule-strong);
+  border-radius: 3px;
+  font-size: var(--ox-text-meta);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ox-ink);
+  transition: background 160ms ease-out, color 160ms ease-out, border-color 160ms ease-out;
 }
-.ox-secgrid-card:hover .ox-secgrid-card-foot {
-  color: var(--ox-accent);
+.ox-secgrid-card:hover .ox-secgrid-cta {
+  background: var(--ox-ink);
+  color: #FFFFFF;
+  border-color: var(--ox-ink);
 }
 .ox-secgrid-arrow-go {
   font-family: var(--ox-font-mono);
   transition: transform 160ms ease-out;
 }
 .ox-secgrid-card:hover .ox-secgrid-arrow-go {
-  transform: translateX(3px);
+  transform: translateX(4px);
 }
 
 /* ── Sector Drawer modal ────────────────────────────────────────────────── */

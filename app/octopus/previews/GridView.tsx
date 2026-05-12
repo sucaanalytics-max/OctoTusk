@@ -96,11 +96,14 @@ export function GridView({
     <div className={`ox-secgrid${compact ? " ox-secgrid-compact" : ""}`}>
       {clusters.map((c) => {
         const meanCls = pctClass(c.mean);
+        const direction =
+          c.mean == null ? "flat" : c.mean > 0 ? "up" : c.mean < 0 ? "down" : "flat";
         return (
           <button
             key={c.cluster}
             type="button"
             className="ox-secgrid-card"
+            data-direction={direction}
             onClick={() => onClusterSelect?.(c.cluster)}
           >
             <header className="ox-secgrid-card-head">
@@ -108,14 +111,15 @@ export function GridView({
               <span className={`ox-secgrid-card-mean ${meanCls}`}>{fmtPctSigned(c.mean)}</span>
             </header>
             <div className="ox-secgrid-card-meta">
-              {c.stocks.length} {c.stocks.length === 1 ? "stock" : "stocks"}
+              <strong className="ox-secgrid-meta-count">
+                {c.stocks.length} {c.stocks.length === 1 ? "stock" : "stocks"}
+              </strong>
               {c.liveCount > 0 && (
-                <>
-                  {" · "}
+                <span className="ox-secgrid-meta-split">
                   <span className="ox-pos">{c.upCount} up</span>
-                  {" · "}
+                  <span className="ox-secgrid-meta-dot" aria-hidden>·</span>
                   <span className="ox-neg">{c.downCount} down</span>
-                </>
+                </span>
               )}
             </div>
             <div className="ox-secgrid-card-body">
@@ -124,7 +128,7 @@ export function GridView({
               ) : (
                 <>
                   {c.topUp.map((s) => (
-                    <div key={`u-${s.tikr}`} className="ox-secgrid-row">
+                    <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
                       <span className="ox-secgrid-arrow ox-pos">▲</span>
                       <span className="ox-secgrid-pct ox-pos">{fmtPctSigned(s.dayPct)}</span>
                       <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
@@ -134,7 +138,7 @@ export function GridView({
                     <div className="ox-secgrid-divider" aria-hidden />
                   )}
                   {c.topDown.map((s) => (
-                    <div key={`d-${s.tikr}`} className="ox-secgrid-row">
+                    <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
                       <span className="ox-secgrid-arrow ox-neg">▼</span>
                       <span className="ox-secgrid-pct ox-neg">{fmtPctSigned(s.dayPct)}</span>
                       <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
@@ -144,7 +148,10 @@ export function GridView({
               )}
             </div>
             <footer className="ox-secgrid-card-foot">
-              View all {c.stocks.length} <span className="ox-secgrid-arrow-go" aria-hidden>→</span>
+              <span className="ox-secgrid-cta">
+                View all {c.stocks.length}
+                <span className="ox-secgrid-arrow-go" aria-hidden>→</span>
+              </span>
             </footer>
           </button>
         );
