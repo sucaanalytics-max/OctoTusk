@@ -2327,8 +2327,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-previews-canvas > * { width: 100%; height: 100%; }
 
-/* ── GridView (uniform sector grid) ─────────────────────────────────────── */
-.ox-gridview {
+/* ── Sector Cards Grid (progressive disclosure) ─────────────────────────── */
+.ox-secgrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: clamp(10px, 0.8vw, 16px);
@@ -2336,76 +2336,280 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   overflow-y: auto;
   padding: 4px;
 }
-.ox-gridview-compact { font-size: 0.85em; gap: clamp(6px, 0.5vw, 10px); }
-.ox-gridview-compact .ox-gridview-cluster { gap: 4px; }
-.ox-gridview-cluster {
+.ox-secgrid-compact { gap: clamp(6px, 0.5vw, 10px); }
+.ox-secgrid-compact .ox-secgrid-card { padding: 10px 12px; min-height: 120px; }
+.ox-secgrid-compact .ox-secgrid-card-foot { display: none; }
+.ox-secgrid-compact .ox-secgrid-row { font-size: 0.85em; }
+
+.ox-secgrid-card {
+  appearance: none;
+  background: var(--ox-paper);
+  border: 1px solid var(--ox-rule);
+  border-radius: 3px;
+  padding: clamp(12px, 0.9vh, 16px) clamp(14px, 1vw, 18px);
+  text-align: left;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-width: 0;
+  gap: clamp(6px, 0.4vh, 10px);
+  min-height: 180px;
+  font-family: var(--ox-font-sans);
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out, transform 200ms ease-out;
 }
-.ox-gridview-cluster-head {
+.ox-secgrid-card:hover {
+  border-color: var(--ox-ink-mute);
+  box-shadow: 0 12px 26px rgba(27, 36, 52, 0.10);
+  transform: translateY(-2px);
+}
+.ox-secgrid-card-head {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  padding-bottom: 4px;
+  justify-content: space-between;
+  gap: clamp(8px, 0.5vw, 12px);
+  padding-bottom: clamp(6px, 0.4vh, 10px);
   border-bottom: 1px solid var(--ox-rule);
 }
-.ox-gridview-cluster-label {
+.ox-secgrid-card-label {
   font-size: var(--ox-text-meta);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ox-ink-soft);
-  font-weight: 600;
-}
-.ox-gridview-cluster-mean {
-  font-family: var(--ox-font-mono);
-  font-size: var(--ox-text-caption);
-  font-weight: 600;
-}
-.ox-gridview-cells {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-  gap: 4px;
-}
-.ox-gridview-cell {
-  appearance: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px 10px;
-  border-radius: 2px;
-  min-height: 56px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  text-align: left;
-  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
-}
-.ox-gridview-cell:hover,
-.ox-gridview-cell[data-focused="true"] {
-  transform: scale(1.03);
-  box-shadow: 0 6px 16px rgba(27, 36, 52, 0.18);
-}
-.ox-gridview-cell[data-pinned="true"] {
-  outline: 2px solid var(--ox-accent);
-  outline-offset: -2px;
-}
-.ox-gridview-cell-name {
-  font-family: var(--ox-font-sans);
-  font-size: clamp(11px, 0.9vw, 14px);
+  color: var(--ox-ink);
   font-weight: 600;
   line-height: 1.2;
-  word-break: break-word;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.ox-gridview-cell-pct {
+.ox-secgrid-card-mean {
   font-family: var(--ox-font-mono);
-  font-size: clamp(10px, 0.8vw, 12px);
+  font-size: clamp(13px, 1vw, 16px);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  opacity: 0.95;
+}
+.ox-secgrid-card-meta {
+  font-size: var(--ox-text-caption);
+  color: var(--ox-ink-mute);
+  letter-spacing: 0.04em;
+}
+.ox-secgrid-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2px, 0.2vh, 4px);
+  flex: 1;
+  min-height: 0;
+}
+.ox-secgrid-card-empty {
+  color: var(--ox-ink-mute);
+  font-size: var(--ox-text-caption);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: clamp(8px, 0.6vh, 14px) 0;
+}
+.ox-secgrid-row {
+  display: grid;
+  grid-template-columns: 14px clamp(50px, 4vw, 64px) 1fr;
+  align-items: baseline;
+  gap: clamp(6px, 0.4vw, 10px);
+  padding: clamp(2px, 0.2vh, 4px) 0;
+  font-variant-numeric: tabular-nums;
+}
+.ox-secgrid-arrow {
+  font-size: 0.78em;
+  line-height: 1;
+}
+.ox-secgrid-pct {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(12px, 0.95vw, 15px);
+  font-weight: 600;
+  text-align: right;
+}
+.ox-secgrid-name {
+  font-size: clamp(12px, 0.95vw, 14px);
+  font-weight: 500;
+  color: var(--ox-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ox-secgrid-divider {
+  height: 1px;
+  background: var(--ox-rule);
+  margin: clamp(2px, 0.2vh, 5px) 0;
+}
+.ox-secgrid-card-foot {
+  margin-top: clamp(4px, 0.3vh, 8px);
+  padding-top: clamp(6px, 0.4vh, 10px);
+  border-top: 1px solid var(--ox-rule);
+  font-size: var(--ox-text-caption);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ox-ink-mute);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color 160ms ease-out;
+}
+.ox-secgrid-card:hover .ox-secgrid-card-foot {
+  color: var(--ox-accent);
+}
+.ox-secgrid-arrow-go {
+  font-family: var(--ox-font-mono);
+  transition: transform 160ms ease-out;
+}
+.ox-secgrid-card:hover .ox-secgrid-arrow-go {
+  transform: translateX(3px);
+}
+
+/* ── Sector Drawer modal ────────────────────────────────────────────────── */
+.ox-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(27, 36, 52, 0.42);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8vh;
+  animation: ox-palette-backdrop-in 180ms ease-out;
+}
+.ox-drawer {
+  width: min(960px, 92vw);
+  max-height: 84vh;
+  background: var(--ox-paper);
+  border: 1px solid var(--ox-rule-strong);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(27, 36, 52, 0.08), 0 32px 60px rgba(27, 36, 52, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ox-palette-in 220ms ease-out;
+}
+.ox-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(8px, 0.6vw, 14px);
+  padding: clamp(16px, 1.2vh, 24px) clamp(20px, 1.4vw, 30px);
+  border-bottom: 1px solid var(--ox-rule);
+}
+.ox-drawer-title {
+  margin: 0;
+  font-family: var(--ox-serif);
+  font-weight: 500;
+  font-size: clamp(22px, 1.7vw, 32px);
+  color: var(--ox-ink);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.ox-drawer-sub {
+  margin: clamp(2px, 0.2vh, 4px) 0 0 0;
+  font-size: var(--ox-text-meta);
+  letter-spacing: 0.06em;
+  color: var(--ox-ink-mute);
+}
+.ox-drawer-close {
+  appearance: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--ox-ink-mute);
+  font-size: 16px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  line-height: 1;
+}
+.ox-drawer-close:hover {
+  background: rgba(27, 36, 52, 0.06);
+  color: var(--ox-ink);
+}
+.ox-drawer-table-wrap {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.ox-drawer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.ox-drawer-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--ox-paper);
+  font-family: var(--ox-font-sans);
+  font-size: var(--ox-text-caption);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ox-ink-soft);
+  padding: clamp(10px, 0.8vh, 14px) clamp(12px, 0.9vw, 16px);
+  border-bottom: 1px solid var(--ox-rule-strong);
+  text-align: right;
+}
+.ox-drawer-th-name { text-align: left; }
+.ox-drawer-table tbody tr {
+  transition: background 120ms ease-out;
+}
+.ox-drawer-table tbody tr:hover {
+  background: rgba(27, 36, 52, 0.03);
+}
+.ox-drawer-table tbody td {
+  padding: clamp(8px, 0.6vh, 12px) clamp(12px, 0.9vw, 16px);
+  border-bottom: 1px solid var(--ox-rule);
+  font-size: var(--ox-text-body);
+}
+.ox-drawer-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.ox-drawer-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ox-drawer-name-display {
+  font-weight: 500;
+  color: var(--ox-ink);
+  font-size: var(--ox-text-body);
+}
+.ox-drawer-name-tikr {
+  font-family: var(--ox-font-mono);
+  font-size: var(--ox-text-caption);
+  color: var(--ox-ink-mute);
+  letter-spacing: 0.04em;
+}
+.ox-drawer-num {
+  font-family: var(--ox-font-mono);
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+.ox-drawer-foot {
+  padding: clamp(8px, 0.5vh, 12px) clamp(20px, 1.4vw, 30px);
+  border-top: 1px solid var(--ox-rule);
+  background: var(--ox-canvas);
+  font-size: var(--ox-text-caption);
+  color: var(--ox-ink-mute);
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+.ox-drawer-foot kbd {
+  display: inline-block;
+  font-family: var(--ox-font-mono);
+  font-size: 0.95em;
+  padding: 1px 6px;
+  margin: 0 4px;
+  background: var(--ox-paper);
+  border: 1px solid var(--ox-rule-strong);
+  border-radius: 3px;
+  color: var(--ox-ink-soft);
 }
 
 /* ── BubbleView ─────────────────────────────────────────────────────────── */

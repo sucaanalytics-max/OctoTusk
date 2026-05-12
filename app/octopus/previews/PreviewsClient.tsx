@@ -6,6 +6,8 @@ import { GridView, type PreviewStock } from "./GridView";
 import { BubbleView } from "./BubbleView";
 import { HexView } from "./HexView";
 import { ScatterView, type ScatterStock } from "./ScatterView";
+import { SectorDrawer } from "./SectorDrawer";
+import { defaultClusterKey } from "@/lib/treemap";
 
 export interface PreviewSeedStock {
   tikr: string;
@@ -41,9 +43,9 @@ type ViewKind = "grid" | "bubble" | "hex" | "scatter";
 const VIEW_META: Record<ViewKind, { letter: string; name: string; sub: string; oneLiner: string }> = {
   grid: {
     letter: "A",
-    name: "Uniform Grid",
-    sub: "predictable · max readability",
-    oneLiner: "Equal cells, full names always visible. Loses cluster-size signal.",
+    name: "Sector Cards",
+    sub: "summary · click to expand",
+    oneLiner: "One card per sector with top movers; click reveals the full stock table.",
   },
   bubble: {
     letter: "B",
@@ -78,9 +80,9 @@ export default function PreviewsClient({
   const [selected, setSelected] = useState<ViewKind | null>(null);
   const [focusedTikr, setFocusedTikr] = useState<string | null>(null);
   const [pinnedTikr, setPinnedTikr] = useState<string | null>(null);
+  const [openCluster, setOpenCluster] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Feed polling ──
   const fetchFeed = useCallback(async () => {
     try {
       const res = await fetch(`/api/octopus-feed?token=${encodeURIComponent(displayToken)}`, {
@@ -102,7 +104,6 @@ export default function PreviewsClient({
     };
   }, [fetchFeed]);
 
-  // ── Merge seed with live feed (same pattern as OctopusClient) ──
   const stocks: PreviewStock[] = useMemo(() => {
     const live = new Map<string, FeedStock>();
     for (const s of feed?.stocks ?? []) live.set(s.tikr, s);
@@ -114,31 +115,46 @@ export default function PreviewsClient({
         sector: l?.sector ?? s.sector,
         subsector: l?.subsector ?? s.subsector,
         dayPct: l?.dayPct ?? null,
+        cmp: l?.cmp ?? null,
+        bearUpside: l?.bearUpside ?? s.bearUpside ?? null,
+        baseUpside: l?.baseUpside ?? s.baseUpside ?? null,
+        bullUpside: l?.bullUpside ?? s.bullUpside ?? null,
+        oneYearUpside: l?.oneYearUpside ?? s.oneYearUpside ?? null,
       };
     });
   }, [seed, feed]);
 
-  const scatterStocks: ScatterStock[] = useMemo(() => {
-    const live = new Map<string, FeedStock>();
-    for (const s of feed?.stocks ?? []) live.set(s.tikr, s);
-    return seed.map((s) => {
-      const l = live.get(s.tikr);
-      return {
+  const scatterStocks: ScatterStock[] = useMemo(
+    () =>
+      stocks.map((s) => ({
         tikr: s.tikr,
-        name: l?.name ?? s.name,
-        sector: l?.sector ?? s.sector,
-        dayPct: l?.dayPct ?? null,
-        oneYearUpside: l?.oneYearUpside ?? s.oneYearUpside,
-      };
-    });
-  }, [seed, feed]);
+        name: s.name,
+        sector: s.sector,
+        dayPct: s.dayPct,
+        oneYearUpside: s.oneYearUpside,
+      })),
+    [stocks]
+  );
 
-  const handleHover = useCallback((tikr: string | null) => {
-    setFocusedTikr(tikr);
-  }, []);
+  const drawerStocks = useMemo(() => {
+    if (!openCluster) return [] as PreviewStock[];
+    return stocks.filter(
+      (s) =>
+        defaultClusterKey({
+          tikr: s.tikr,
+          name: s.name,
+          sector: s.sector,
+          subsector: s.subsector,
+          dayPct: s.dayPct,
+        }) === openCluster
+    );
+  }, [stocks, openCluster]);
+
+  const handleHover = useCallback((tikr: string | null) => setFocusedTikr(tikr), []);
   const handleClick = useCallback((tikr: string) => {
     setPinnedTikr((cur) => (cur === tikr ? null : tikr));
   }, []);
+  const handleClusterSelect = useCallback((cluster: string) => setOpenCluster(cluster), []);
 
   const renderView = (kind: ViewKind, options: { compact?: boolean } = {}) => {
     const common = {
@@ -149,7 +165,14 @@ export default function PreviewsClient({
     };
     switch (kind) {
       case "grid":
-        return <GridView stocks={stocks} compact={options.compact} {...common} />;
+        return (
+          <GridView
+            stocks={stocks}
+            onClusterSelect={handleClusterSelect}
+            compact={options.compact}
+            {...common}
+          />
+        );
       case "bubble":
         return <BubbleView stocks={stocks} {...common} />;
       case "hex":
@@ -163,11 +186,7 @@ export default function PreviewsClient({
     return (
       <div className="octopus-root ox-previews-root" data-state="live">
         <header className="ox-previews-masthead">
-          <button
-            type="button"
-            className="ox-previews-back"
-            onClick={() => setSelected(null)}
-          >
+          <button type="button" className="ox-previews-back" onClick={() => setSelected(null)}>
             ← all previews
           </button>
           <h1 className="ox-previews-title">
@@ -179,6 +198,12 @@ export default function PreviewsClient({
           </Link>
         </header>
         <div className="ox-previews-canvas">{renderView(selected)}</div>
+        <SectorDrawer
+          open={!!openCluster}
+          cluster={openCluster}
+          stocks={drawerStocks}
+          onClose={() => setOpenCluster(null)}
+        />
       </div>
     );
   }
@@ -220,6 +245,12 @@ export default function PreviewsClient({
           );
         })}
       </div>
+      <SectorDrawer
+        open={!!openCluster}
+        cluster={openCluster}
+        stocks={drawerStocks}
+        onClose={() => setOpenCluster(null)}
+      />
     </div>
   );
 }
