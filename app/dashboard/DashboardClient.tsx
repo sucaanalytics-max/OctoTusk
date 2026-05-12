@@ -3,6 +3,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef, useId, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { getSebiSegment, SEBI_LABELS, SEGMENT_ORDER, type SebiSegment } from "@/lib/sebi";
+import { isMarketOpen } from "@/lib/marketHours";
+import { squarify, heatmapColor, type TreeItem, type TreeRect } from "@/lib/treemap";
 import { SegmentsTab } from "./SegmentsTab";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
@@ -247,16 +249,6 @@ const CountdownTimer = ({ active, onTick }: { active: boolean; onTick: () => voi
 };
 
 // ── Utilities ──
-const isMarketOpen = (): boolean => {
-  const now = new Date();
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60 * 1000);
-  const day = ist.getDay();
-  if (day === 0 || day === 6) return false;
-  const m = ist.getHours() * 60 + ist.getMinutes();
-  return m >= 555 && m <= 930;
-};
-
 const fmt = (n: number | undefined | null, d = 0): string => {
   if (n == null || isNaN(n)) return "—";
   return n.toLocaleString("en-IN", { maximumFractionDigits: d });
@@ -392,94 +384,6 @@ const getCompanyShort = (stock: Stock): string => {
 };
 
 // ── Treemap Heatmap Utilities ──
-interface TreeRect { id: string; x: number; y: number; w: number; h: number; value: number }
-interface TreeItem { id: string; value: number }
-
-function squarify(items: TreeItem[], container: { x: number; y: number; w: number; h: number }): TreeRect[] {
-  if (!items.length) return [];
-  const sorted = [...items].sort((a, b) => b.value - a.value);
-  const totalValue = sorted.reduce((s, i) => s + i.value, 0);
-  if (totalValue <= 0) return [];
-  const result: TreeRect[] = [];
-  let cx = container.x, cy = container.y, cw = container.w, ch = container.h;
-  let remaining = totalValue;
-
-  const worstRatio = (row: TreeItem[], rowTotal: number, side: number, span: number): number => {
-    let worst = 0;
-    for (const it of row) {
-      const d = (it.value / rowTotal) * side;
-      if (d > 0 && span > 0) worst = Math.max(worst, Math.max(span / d, d / span));
-      else worst = Infinity;
-    }
-    return worst;
-  };
-
-  const layoutRow = (row: TreeItem[], rowTotal: number) => {
-    const isVert = cw >= ch;
-    const span = remaining > 0 ? (rowTotal / remaining) * (isVert ? cw : ch) : 0;
-    const side = isVert ? ch : cw;
-    let off = 0;
-    for (const item of row) {
-      const frac = item.value / rowTotal;
-      const d = frac * side;
-      if (isVert) {
-        result.push({ id: item.id, x: cx, y: cy + off, w: span, h: d, value: item.value });
-        off += d;
-      } else {
-        result.push({ id: item.id, x: cx + off, y: cy, w: d, h: span, value: item.value });
-        off += d;
-      }
-    }
-    if (isVert) { cx += span; cw -= span; } else { cy += span; ch -= span; }
-    remaining -= rowTotal;
-  };
-
-  let idx = 0;
-  while (idx < sorted.length && cw > 0.1 && ch > 0.1) {
-    const isVert = cw >= ch;
-    const side = isVert ? ch : cw;
-    let row: TreeItem[] = [];
-    let rowTotal = 0;
-    let bestWorst = Infinity;
-
-    while (idx < sorted.length) {
-      const c = sorted[idx];
-      const nt = rowTotal + c.value;
-      const span = remaining > 0 ? (nt / remaining) * (isVert ? cw : ch) : 0;
-      if (span <= 0) { idx++; continue; }
-      const w = worstRatio([...row, c], nt, side, span);
-      if (row.length > 0 && w > bestWorst) break;
-      row.push(c); rowTotal = nt; bestWorst = w; idx++;
-    }
-    if (row.length > 0) layoutRow(row, rowTotal);
-  }
-  return result;
-}
-
-function heatmapColor(value: number | null | undefined, mode: string): string {
-  if (value == null || isNaN(value)) return "rgb(45, 48, 55)";
-  if (mode === "conviction") {
-    const v = Math.max(1, Math.min(5, value));
-    const blues: Record<number, string> = { 5: "rgb(37, 99, 235)", 4: "rgb(59, 130, 246)", 3: "rgb(96, 165, 250)", 2: "rgb(71, 85, 105)", 1: "rgb(100, 116, 139)" };
-    return blues[Math.round(v)] || "rgb(45, 48, 55)";
-  }
-  const range = (mode === "upsideBase" || mode === "upsideBear" || mode === "upsideBull") ? 30 : mode === "pnl" ? 30 : 3;
-  const pct = (mode === "upsideBase" || mode === "upsideBear" || mode === "upsideBull" || mode === "pnl") ? value * 100 : value;
-  const t = Math.max(-1, Math.min(1, pct / range));
-  if (t >= 0) {
-    const r = Math.round(45 + (20 - 45) * t);
-    const g = Math.round(48 + (170 - 48) * t);
-    const b = Math.round(55 + (70 - 55) * t);
-    return `rgb(${r}, ${g}, ${b})`;
-  } else {
-    const at = -t;
-    const r = Math.round(45 + (210 - 45) * at);
-    const g = Math.round(48 + (35 - 48) * at);
-    const b = Math.round(55 + (35 - 55) * at);
-    return `rgb(${r}, ${g}, ${b})`;
-  }
-}
-
 // ── CountUp Component ──
 const CountUp = ({ value, prefix = "", suffix = "", decimals = 0, duration = 800 }: { value: number; prefix?: string; suffix?: string; decimals?: number; duration?: number }) => {
   const [display, setDisplay] = useState("0");
