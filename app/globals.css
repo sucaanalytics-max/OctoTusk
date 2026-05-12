@@ -2376,9 +2376,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   /* Explicit grid: header (auto) / body (1fr — always 4 rows tall via placeholders) / strip (auto) */
   display: grid;
   grid-template-rows: auto 1fr auto;
-  gap: clamp(7px, 0.55vh, 11px);
-  /* Fixed height for uniform structure across all 17 cards regardless of content */
-  height: clamp(160px, 14vh, 200px);
+  gap: clamp(8px, 0.6vh, 12px);
+  /* Min-height (was fixed height) so cards have a comfortable floor for the 4-row body
+     but can absorb a slightly taller content footprint without overlapping the strip. */
+  min-height: clamp(188px, 16vh, 220px);
   font-family: var(--ox-font-sans);
   position: relative;
   overflow: hidden;
@@ -2458,12 +2459,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   margin-top: 2px;
 }
 
-/* Row 2: top movers list (always 4 slots tall for uniform card height) */
+/* Row 2: top movers list — flex column with min-height per row prevents
+   text from being crushed (and overlapping the strip) when all 4 slots fill. */
 .ox-secgrid-card-body {
-  display: grid;
-  grid-template-rows: repeat(4, 1fr);
-  gap: clamp(2px, 0.18vh, 4px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.22vh, 5px);
   min-height: 0;
+  justify-content: space-around;
 }
 .ox-secgrid-row {
   display: grid;
@@ -2471,6 +2474,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   align-items: center;
   gap: clamp(6px, 0.45vw, 10px);
   font-variant-numeric: tabular-nums;
+  min-height: 20px;
 }
 .ox-secgrid-arrow {
   font-size: clamp(9px, 0.68vw, 11px);
