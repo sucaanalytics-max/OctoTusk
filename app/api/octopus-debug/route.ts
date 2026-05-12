@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import YahooFinance from "yahoo-finance2";
 import database from "@/data/database.json";
 import dhanByTikr from "@/data/dhan-eq-instruments-by-tikr.json";
+import { auth } from "@/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -59,16 +60,23 @@ function pickDhanInfo(rawData: unknown, secId: number): Record<string, unknown> 
 export async function GET(request: Request) {
   noStore();
   const expected = process.env.OCTOPUS_DISPLAY_TOKEN;
-  if (!expected) {
-    return NextResponse.json(
-      { error: "Server misconfigured", detail: "OCTOPUS_DISPLAY_TOKEN is not set" },
-      { status: 503 }
-    );
-  }
   const url = new URL(request.url);
   const provided =
     url.searchParams.get("token") ?? request.headers.get("x-octopus-token");
-  if (provided !== expected) {
+
+  // Accept EITHER the display token (for programmatic / wall-display use)
+  // OR a valid NextAuth session (for browsing the report in your browser).
+  const tokenOk = !!expected && provided === expected;
+  let sessionOk = false;
+  if (!tokenOk) {
+    try {
+      const session = await auth();
+      sessionOk = !!session?.user;
+    } catch {
+      sessionOk = false;
+    }
+  }
+  if (!tokenOk && !sessionOk) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
