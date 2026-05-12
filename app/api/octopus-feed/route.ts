@@ -53,6 +53,7 @@ interface DbStock {
   official_name?: string;
   sector?: string;
   subsector?: string;
+  cmp?: number;
   upside_bear?: number;
   upside_base?: number;
   upside_bull?: number;
@@ -70,13 +71,17 @@ async function buildPayload(): Promise<OctopusFeedPayload> {
   const out: OctopusFeedStock[] = stocks.map((s) => {
     const q = quotes[s.tikr];
     const info = getSectorInfo(s.tikr, { sector: s.sector, subsector: s.subsector });
+    // CMP: prefer live quote, fall back to the snapshot's recorded research
+    // CMP (covers unlisted stocks like NSE that have no public ticker).
+    const liveCmp = q && typeof q.price === "number" ? q.price : null;
+    const cmp = liveCmp ?? (typeof s.cmp === "number" ? s.cmp : null);
     return {
       tikr: s.tikr,
       name: s.official_name ?? s.tikr,
       sector: info.sector,
       subsector: info.subsector,
       dayPct: q && typeof q.changePct === "number" ? q.changePct : null,
-      cmp: q && typeof q.price === "number" ? q.price : null,
+      cmp,
       bearUpside: pickUpside(s.upside_bear),
       baseUpside: pickUpside(s.upside_base),
       bullUpside: pickUpside(s.upside_bull),

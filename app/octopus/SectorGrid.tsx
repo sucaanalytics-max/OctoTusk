@@ -84,8 +84,8 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
           upCount,
           downCount,
           mean,
-          topUp: sortedDesc.slice(0, 2).filter((s) => s.dayPct > 0),
-          topDown: sortedAsc.slice(0, 2).filter((s) => s.dayPct < 0),
+          topUp: sortedDesc.slice(0, 1).filter((s) => s.dayPct > 0),
+          topDown: sortedAsc.slice(0, 1).filter((s) => s.dayPct < 0),
         };
       })
       .sort((a, b) => b.stocks.length - a.stocks.length);
@@ -130,63 +130,45 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
               </span>
             </div>
 
-            {/* ZONE 3 — Movers (winners group / dashed divider / losers group) */}
+            {/* ZONE 3 — Extremes (best + worst stock in this sector) */}
             <div className="ox-secgrid-card-body">
-              <div className="ox-secgrid-group" data-side="up">
-                {[0, 1].map((i) => {
-                  const s = c.topUp[i];
-                  return s ? (
-                    <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
-                      <span className="ox-secgrid-arrow" aria-hidden>▲</span>
-                      <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
-                      <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
-                    </div>
-                  ) : (
-                    <div key={`u-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
-                      <span className="ox-secgrid-row-empty-dot">·</span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="ox-secgrid-divider" aria-hidden />
-              <div className="ox-secgrid-group" data-side="down">
-                {[0, 1].map((i) => {
-                  const s = c.topDown[i];
-                  return s ? (
-                    <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
-                      <span className="ox-secgrid-arrow" aria-hidden>▼</span>
-                      <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
-                      <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
-                    </div>
-                  ) : (
-                    <div key={`d-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
-                      <span className="ox-secgrid-row-empty-dot">·</span>
-                    </div>
-                  );
-                })}
-              </div>
+              {c.topUp[0] ? (
+                <div className="ox-secgrid-row" data-side="up">
+                  <span className="ox-secgrid-arrow" aria-hidden>▲</span>
+                  <span className="ox-secgrid-pct">{fmtPctSigned(c.topUp[0].dayPct)}</span>
+                  <span className="ox-secgrid-name">{displayName(c.topUp[0].tikr, c.topUp[0].name)}</span>
+                </div>
+              ) : (
+                <div className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
+                  <span className="ox-secgrid-row-empty-dot">·</span>
+                </div>
+              )}
+              {c.topDown[0] ? (
+                <div className="ox-secgrid-row" data-side="down">
+                  <span className="ox-secgrid-arrow" aria-hidden>▼</span>
+                  <span className="ox-secgrid-pct">{fmtPctSigned(c.topDown[0].dayPct)}</span>
+                  <span className="ox-secgrid-name">{displayName(c.topDown[0].tikr, c.topDown[0].name)}</span>
+                </div>
+              ) : (
+                <div className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
+                  <span className="ox-secgrid-row-empty-dot">·</span>
+                </div>
+              )}
             </div>
 
-            {/* ZONE 4 — Distribution strip with quartile context */}
-            <div className="ox-secgrid-card-strip">
-              <div className="ox-secgrid-strip-track" aria-hidden>
-                <span className="ox-secgrid-strip-tick" style={{ left: "25%" }} />
-                <span className="ox-secgrid-strip-zero" />
-                <span className="ox-secgrid-strip-tick" style={{ left: "75%" }} />
-                {liveStocks.map((s, i) => (
-                  <span
-                    key={`d-${s.tikr}-${i}`}
-                    className="ox-secgrid-strip-dot"
-                    data-sign={s.dayPct > 0 ? "up" : s.dayPct < 0 ? "down" : "flat"}
-                    style={{ left: `${dotXPosition(s.dayPct)}%` }}
-                  />
-                ))}
-              </div>
-              <div className="ox-secgrid-strip-axis" aria-hidden>
-                <span>−{STRIP_RANGE}%</span>
-                <span>0</span>
-                <span>+{STRIP_RANGE}%</span>
-              </div>
+            {/* ZONE 4 — Distribution strip (no axis labels; ticks carry context) */}
+            <div className="ox-secgrid-card-strip" aria-hidden>
+              <span className="ox-secgrid-strip-tick" style={{ left: "25%" }} />
+              <span className="ox-secgrid-strip-zero" />
+              <span className="ox-secgrid-strip-tick" style={{ left: "75%" }} />
+              {liveStocks.map((s, i) => (
+                <span
+                  key={`d-${s.tikr}-${i}`}
+                  className="ox-secgrid-strip-dot"
+                  data-sign={s.dayPct > 0 ? "up" : s.dayPct < 0 ? "down" : "flat"}
+                  style={{ left: `${dotXPosition(s.dayPct)}%` }}
+                />
+              ))}
             </div>
           </button>
         );
