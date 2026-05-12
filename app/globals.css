@@ -2369,104 +2369,143 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   background: #2B3343;
   color: #FFFFFF;
   border: none;
-  border-radius: 4px;
-  padding: clamp(10px, 0.7vh, 14px) clamp(11px, 0.75vw, 14px);
+  border-radius: 6px;
+  padding: clamp(11px, 0.78vh, 15px) clamp(12px, 0.8vw, 16px);
   text-align: left;
   cursor: pointer;
-  /* Explicit grid: header (auto) / body (1fr — always 4 rows tall via placeholders) / strip (auto) */
+  /* Four explicit zones: title (auto) / hero stat (auto) / body (1fr) / strip (auto) */
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: clamp(8px, 0.6vh, 12px);
-  /* Min-height (was fixed height) so cards have a comfortable floor for the 4-row body
-     but can absorb a slightly taller content footprint without overlapping the strip. */
-  min-height: clamp(188px, 16vh, 220px);
+  grid-template-rows: auto auto 1fr auto;
+  gap: clamp(7px, 0.55vh, 11px);
+  min-height: clamp(200px, 17vh, 232px);
   font-family: var(--ox-font-sans);
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 3px 10px rgba(27, 36, 52, 0.10);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 4px 12px rgba(27, 36, 52, 0.12);
   transition: transform 200ms cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 200ms ease-out, background-color 200ms ease-out;
 }
-.ox-secgrid-card[data-direction="up"]   { background: #15663E; }
-.ox-secgrid-card[data-direction="down"] { background: #7A2424; }
-.ox-secgrid-card[data-direction="flat"] { background: #2B3343; }
+/* Subtle vertical lift: top edge slightly lighter, bottom slightly darker — gives the card dimension without sheen */
+.ox-secgrid-card[data-direction="up"] {
+  background: linear-gradient(180deg, #1A7345 0%, #15663E 55%, #114F30 100%);
+}
+.ox-secgrid-card[data-direction="down"] {
+  background: linear-gradient(180deg, #862828 0%, #7A2424 55%, #631C1C 100%);
+}
+.ox-secgrid-card[data-direction="flat"] {
+  background: linear-gradient(180deg, #313A4D 0%, #2B3343 55%, #232938 100%);
+}
 .ox-secgrid-card:hover {
   transform: translateY(-2px);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 14px 32px rgba(27, 36, 52, 0.24);
 }
-.ox-secgrid-card[data-direction="up"]:hover   { background: #1B7A4A; }
-.ox-secgrid-card[data-direction="down"]:hover { background: #8E2C2C; }
-.ox-secgrid-card[data-direction="flat"]:hover { background: #353D4F; }
-
-/* Row 1: sector name + composition (left) + mean % (right) */
-.ox-secgrid-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: clamp(10px, 0.7vw, 16px);
+.ox-secgrid-card[data-direction="up"]:hover {
+  background: linear-gradient(180deg, #1F8551 0%, #1B7A4A 55%, #16653B 100%);
 }
-.ox-secgrid-card-titleblock {
+.ox-secgrid-card[data-direction="down"]:hover {
+  background: linear-gradient(180deg, #9A3232 0%, #8E2C2C 55%, #732424 100%);
+}
+.ox-secgrid-card[data-direction="flat"]:hover {
+  background: linear-gradient(180deg, #3D4459 0%, #353D4F 55%, #2D3343 100%);
+}
+
+/* ZONE 1 — Title bar: sector name + chevron affordance + hairline */
+.ox-secgrid-card-title {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 0.5vw, 12px);
+  padding-bottom: clamp(5px, 0.35vh, 8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
 }
 .ox-secgrid-card-label {
   font-family: var(--ox-font-sans);
-  font-size: clamp(11px, 0.85vw, 13px);
-  letter-spacing: 0.08em;
+  font-size: clamp(11px, 0.88vw, 13px);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #FFFFFF;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
 }
-.ox-secgrid-card-sub {
+.ox-secgrid-card-chevron {
   font-family: var(--ox-font-mono);
-  font-size: clamp(9px, 0.7vw, 11px);
-  color: rgba(255, 255, 255, 0.82);
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  font-weight: 500;
+  font-size: clamp(14px, 1vw, 18px);
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 200ms ease-out, transform 200ms ease-out;
 }
-.ox-secgrid-meta-dot { color: rgba(255, 255, 255, 0.45); }
-.ox-secgrid-meta-up   { color: #86EFAC; font-weight: 700; }
-.ox-secgrid-meta-down { color: #FCA5A5; font-weight: 700; }
-.ox-secgrid-card-mean {
+.ox-secgrid-card:hover .ox-secgrid-card-chevron {
+  color: #FFFFFF;
+  transform: translateX(3px);
+}
+
+/* ZONE 2 — Hero stat row: big mean % on left, composition inline on right */
+.ox-secgrid-card-hero {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: clamp(8px, 0.6vw, 14px);
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 .ox-secgrid-card-mean-value {
   font-family: var(--ox-font-mono);
-  font-size: clamp(17px, 1.35vw, 22px);
+  font-size: clamp(22px, 1.75vw, 30px);
   font-weight: 800;
   color: #FFFFFF;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
-.ox-secgrid-card-mean-label {
-  font-family: var(--ox-font-sans);
-  font-size: clamp(7px, 0.55vw, 9px);
-  color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-top: 2px;
+.ox-secgrid-card-stats {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(9px, 0.7vw, 11px);
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: baseline;
+  gap: clamp(5px, 0.35vw, 8px);
+  white-space: nowrap;
 }
+.ox-secgrid-stat-count {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+.ox-secgrid-stat-dot { color: rgba(255, 255, 255, 0.35); }
+.ox-secgrid-stat-up   { color: #86EFAC; font-weight: 700; }
+.ox-secgrid-stat-down { color: #FCA5A5; font-weight: 700; }
 
-/* Row 2: top movers list — flex column with min-height per row prevents
-   text from being crushed (and overlapping the strip) when all 4 slots fill. */
+/* ZONE 3 — Body: winners group / dashed divider / losers group */
 .ox-secgrid-card-body {
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  gap: clamp(2px, 0.18vh, 4px);
+  min-height: 0;
+}
+.ox-secgrid-group {
   display: flex;
   flex-direction: column;
-  gap: clamp(3px, 0.22vh, 5px);
-  min-height: 0;
-  justify-content: space-around;
+  gap: clamp(2px, 0.18vh, 4px);
+  justify-content: center;
+}
+.ox-secgrid-divider {
+  height: 1px;
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(255, 255, 255, 0.22) 12%,
+    rgba(255, 255, 255, 0.22) 88%,
+    transparent 100%
+  );
+  margin: clamp(1px, 0.1vh, 3px) 0;
 }
 .ox-secgrid-row {
   display: grid;
@@ -2514,6 +2553,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 /* Row 3: distribution strip — each live stock as a dot on a -5%..+5% axis */
+/* ZONE 4 — Distribution strip: clean hairline track with quartile ticks */
 .ox-secgrid-card-strip {
   display: flex;
   flex-direction: column;
@@ -2522,21 +2562,34 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ox-secgrid-strip-track {
   position: relative;
   height: clamp(12px, 0.85vh, 16px);
-  background:
-    linear-gradient(to right,
-      rgba(255, 255, 255, 0.0) 0%,
-      rgba(255, 255, 255, 0.15) 50%,
-      rgba(255, 255, 255, 0.0) 100%);
-  border-top: 1px solid rgba(255, 255, 255, 0.25);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+}
+.ox-secgrid-strip-track::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-50%);
+}
+.ox-secgrid-strip-tick {
+  position: absolute;
+  top: 35%;
+  bottom: 35%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateX(-50%);
 }
 .ox-secgrid-strip-zero {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: 18%;
+  bottom: 18%;
   left: 50%;
   width: 1px;
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.55);
   transform: translateX(-50%);
 }
 .ox-secgrid-strip-dot {

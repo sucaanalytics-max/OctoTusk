@@ -47,7 +47,7 @@ interface ClusterAggregate {
   topDown: SectorGridStock[];
 }
 
-const STRIP_RANGE = 5; // distribution strip: -5%..+5%
+const STRIP_RANGE = 5;
 
 function dotXPosition(dayPct: number): number {
   const clamped = Math.max(-STRIP_RANGE, Math.min(STRIP_RANGE, dayPct));
@@ -107,61 +107,72 @@ export function SectorGrid({ stocks, onClusterSelect }: Props) {
             data-direction={direction}
             onClick={() => onClusterSelect(c.cluster)}
           >
-            <header className="ox-secgrid-card-head">
-              <div className="ox-secgrid-card-titleblock">
-                <span className="ox-secgrid-card-label">{displayClusterName(c.cluster)}</span>
-                <span className="ox-secgrid-card-sub">
-                  {c.stocks.length} {c.stocks.length === 1 ? "stock" : "stocks"}
-                  {c.liveCount > 0 && (
-                    <>
-                      <span className="ox-secgrid-meta-dot" aria-hidden> · </span>
-                      <span className="ox-secgrid-meta-up">{c.upCount} ↑</span>
-                      <span className="ox-secgrid-meta-dot" aria-hidden> </span>
-                      <span className="ox-secgrid-meta-down">{c.downCount} ↓</span>
-                    </>
-                  )}
-                </span>
-              </div>
-              <div className="ox-secgrid-card-mean">
-                <span className="ox-secgrid-card-mean-value">{fmtPctSigned(c.mean)}</span>
-                <span className="ox-secgrid-card-mean-label">MEAN</span>
-              </div>
+            {/* ZONE 1 — Title bar with click affordance */}
+            <header className="ox-secgrid-card-title">
+              <span className="ox-secgrid-card-label">{displayClusterName(c.cluster)}</span>
+              <span className="ox-secgrid-card-chevron" aria-hidden>→</span>
             </header>
 
-            <div className="ox-secgrid-card-body">
-              {[0, 1].map((i) => {
-                const s = c.topUp[i];
-                return s ? (
-                  <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
-                    <span className="ox-secgrid-arrow" aria-hidden>▲</span>
-                    <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
-                    <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
-                  </div>
-                ) : (
-                  <div key={`u-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
-                    <span className="ox-secgrid-row-empty-dot">·</span>
-                  </div>
-                );
-              })}
-              {[0, 1].map((i) => {
-                const s = c.topDown[i];
-                return s ? (
-                  <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
-                    <span className="ox-secgrid-arrow" aria-hidden>▼</span>
-                    <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
-                    <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
-                  </div>
-                ) : (
-                  <div key={`d-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
-                    <span className="ox-secgrid-row-empty-dot">·</span>
-                  </div>
-                );
-              })}
+            {/* ZONE 2 — Hero stat row: big mean % + inline composition */}
+            <div className="ox-secgrid-card-hero">
+              <span className="ox-secgrid-card-mean-value">{fmtPctSigned(c.mean)}</span>
+              <span className="ox-secgrid-card-stats">
+                <span className="ox-secgrid-stat-count">
+                  {c.stocks.length} {c.stocks.length === 1 ? "stock" : "stocks"}
+                </span>
+                {c.liveCount > 0 && (
+                  <>
+                    <span className="ox-secgrid-stat-dot" aria-hidden>·</span>
+                    <span className="ox-secgrid-stat-up">{c.upCount} ↑</span>
+                    <span className="ox-secgrid-stat-down">{c.downCount} ↓</span>
+                  </>
+                )}
+              </span>
             </div>
 
+            {/* ZONE 3 — Movers (winners group / dashed divider / losers group) */}
+            <div className="ox-secgrid-card-body">
+              <div className="ox-secgrid-group" data-side="up">
+                {[0, 1].map((i) => {
+                  const s = c.topUp[i];
+                  return s ? (
+                    <div key={`u-${s.tikr}`} className="ox-secgrid-row" data-side="up">
+                      <span className="ox-secgrid-arrow" aria-hidden>▲</span>
+                      <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
+                      <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
+                    </div>
+                  ) : (
+                    <div key={`u-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
+                      <span className="ox-secgrid-row-empty-dot">·</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="ox-secgrid-divider" aria-hidden />
+              <div className="ox-secgrid-group" data-side="down">
+                {[0, 1].map((i) => {
+                  const s = c.topDown[i];
+                  return s ? (
+                    <div key={`d-${s.tikr}`} className="ox-secgrid-row" data-side="down">
+                      <span className="ox-secgrid-arrow" aria-hidden>▼</span>
+                      <span className="ox-secgrid-pct">{fmtPctSigned(s.dayPct)}</span>
+                      <span className="ox-secgrid-name">{displayName(s.tikr, s.name)}</span>
+                    </div>
+                  ) : (
+                    <div key={`d-empty-${i}`} className="ox-secgrid-row ox-secgrid-row-empty" aria-hidden>
+                      <span className="ox-secgrid-row-empty-dot">·</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ZONE 4 — Distribution strip with quartile context */}
             <div className="ox-secgrid-card-strip">
               <div className="ox-secgrid-strip-track" aria-hidden>
-                <div className="ox-secgrid-strip-zero" />
+                <span className="ox-secgrid-strip-tick" style={{ left: "25%" }} />
+                <span className="ox-secgrid-strip-zero" />
+                <span className="ox-secgrid-strip-tick" style={{ left: "75%" }} />
                 {liveStocks.map((s, i) => (
                   <span
                     key={`d-${s.tikr}-${i}`}
