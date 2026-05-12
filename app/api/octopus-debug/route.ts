@@ -4,6 +4,7 @@ import YahooFinance from "yahoo-finance2";
 import database from "@/data/database.json";
 import dhanByTikr from "@/data/dhan-eq-instruments-by-tikr.json";
 import { auth } from "@/auth";
+import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -210,6 +211,57 @@ export async function GET(request: Request) {
     };
   });
 
+  // ── Cross-check: which Supabase stocks (the actual feed input) end up
+  //    with no resolved price after the ticker_map lookup? This catches
+  //    bugs where Dhan + Yahoo are perfectly healthy but the Supabase
+  //    TIKR string doesn't match any ticker_map key (silent miss). ─────
+  const resolvedByTikr = new Map(results.map((r) => [r.tikr, r.resolvedPrice]));
+  type SupabaseStock = { tikr?: string; official_name?: string; cmp?: number };
+  let supabaseStocks: SupabaseStock[] = [];
+  let supabaseError: string | null = null;
+  if (isSupabaseConfigured()) {
+    try {
+      const result = await getSupabase()
+        .from("sync_snapshot")
+        .select("stocks")
+        .eq("id", 1)
+        .single();
+      if (!result.error && result.data) {
+        const data = result.data as { stocks?: unknown };
+        if (Array.isArray(data.stocks)) supabaseStocks = data.stocks as SupabaseStock[];
+      } else if (result.error) {
+        supabaseError = result.error.message ?? "unknown";
+      }
+    } catch (e: any) {
+      supabaseError = e?.message ?? String(e);
+    }
+  } else {
+    supabaseError = "supabase-not-configured";
+  }
+
+  const supabaseTikrs = supabaseStocks
+    .map((s) => (typeof s.tikr === "string" ? s.tikr : ""))
+    .filter(Boolean);
+  const supabaseMisses = supabaseTikrs
+    .filter((t) => resolvedByTikr.get(t) == null)
+    .map((t) => ({
+      tikr: t,
+      inTickerMap: tickerMap[t] != null,
+      yahooSymbolIfMapped: tickerMap[t] ?? null,
+      snapshotCmp:
+        typeof supabaseStocks.find((s) => s.tikr === t)?.cmp === "number"
+          ? (supabaseStocks.find((s) => s.tikr === t)!.cmp as number)
+          : null,
+      // Did the feed succeed for a DIFFERENT key that looks similar?
+      // (Helps spot casing / suffix mismatches.)
+      similarMappedKeys: Object.keys(tickerMap).filter(
+        (k) =>
+          k !== t &&
+          (k.toLowerCase().includes(t.toLowerCase()) ||
+            t.toLowerCase().includes(k.toLowerCase()))
+      ),
+    }));
+
   const filtered = onlyFailing
     ? results.filter((r) => r.resolvedPrice == null)
     : results;
@@ -223,11 +275,9 @@ export async function GET(request: Request) {
     .map((r) => r.tikr);
   console.log(
     `[octopus-debug] total=${results.length} dhan=${dhanServedCount} yahoo=${yahooServedCount} ` +
-      `unresolved=${unresolvedTikrs.length} dhanStatus=${dhanHttpStatus ?? "skipped"} ` +
-      `dhanErr=${dhanError ?? "none"} yahooErr=${yahooError ?? "none"} ` +
-      `unresolvedTikrs=[${unresolvedTikrs.slice(0, 20).join(",")}${
-        unresolvedTikrs.length > 20 ? ",..." : ""
-      }]`
+      `unresolved=${unresolvedTikrs.length} supabase=${supabaseTikrs.length} ` +
+      `supabaseMisses=${supabaseMisses.length} dhanStatus=${dhanHttpStatus ?? "skipped"} ` +
+      `dhanErr=${dhanError ?? "none"} yahooErr=${yahooError ?? "none"}`
   );
 
   return NextResponse.json({
@@ -237,6 +287,7 @@ export async function GET(request: Request) {
       dhanHttpStatus,
       dhanError,
       yahooError,
+      supabaseError,
     },
     summary: {
       total: results.length,
@@ -250,7 +301,12 @@ export async function GET(request: Request) {
       unresolvedTikrs: results
         .filter((r) => r.resolvedPrice == null)
         .map((r) => r.tikr),
+      supabaseStockCount: supabaseTikrs.length,
+      supabaseMissCount: supabaseMisses.length,
     },
+    /* The real bug surface: Supabase TIKRs that the feed will fail to
+       resolve because no ticker_map key matches the string exactly. */
+    supabaseMisses,
     results: filtered,
     fetchedAt: new Date().toISOString(),
   });
