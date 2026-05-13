@@ -8,6 +8,7 @@ import { SectorGrid } from "./SectorGrid";
 import { SectorOrbital } from "./SectorOrbital";
 import { StockPills, type PillVariant } from "./StockPills";
 import { StockTable } from "./StockTable";
+import { StockUpsideTable } from "./StockUpsideTable";
 import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
 import { HoverCard, type HoverStock } from "./HoverCard";
@@ -123,6 +124,7 @@ export default function OctopusClient({
   const [indices, setIndices] = useState<IndicesPayload | null>(null);
   const [ageSec, setAgeSec] = useState<number | null>(null);
   const [marketOpen, setMarketOpen] = useState<boolean>(false);
+  const [view, setView] = useState<"day" | "upside">("day");
 
   // Interaction state
   const [hoveredTikr, setHoveredTikr] = useState<string | null>(null);
@@ -395,7 +397,13 @@ export default function OctopusClient({
 
   return (
     <div className="octopus-root" data-state={state.toLowerCase()}>
-      <Header state={state} ageSeconds={ageSec} onOpenPalette={() => setPaletteOpen(true)} />
+      <Header
+        state={state}
+        ageSeconds={ageSec}
+        onOpenPalette={() => setPaletteOpen(true)}
+        view={view}
+        onViewChange={setView}
+      />
       <IndexStrip ticks={indices?.indices ?? null} />
       <div className={`octopus-body${showRail ? "" : " octopus-body-full"}`}>
         <div className="octopus-sectorgrid-wrap">
@@ -403,13 +411,23 @@ export default function OctopusClient({
             <div className="octopus-loading">no coverage data</div>
           ) : (
             centerpiece === "table" ? (
-              <StockTable
-                stocks={stocks}
-                focusedTikr={hoveredTikr}
-                pinnedTikr={pinnedTikr}
-                onRowHover={handleRowHover}
-                onRowClick={handleRowClick}
-              />
+              view === "upside" ? (
+                <StockUpsideTable
+                  stocks={stocks}
+                  focusedTikr={hoveredTikr}
+                  pinnedTikr={pinnedTikr}
+                  onRowHover={handleRowHover}
+                  onRowClick={handleRowClick}
+                />
+              ) : (
+                <StockTable
+                  stocks={stocks}
+                  focusedTikr={hoveredTikr}
+                  pinnedTikr={pinnedTikr}
+                  onRowHover={handleRowHover}
+                  onRowClick={handleRowClick}
+                />
+              )
             ) : centerpiece === "pills" ? (
               <StockPills
                 stocks={stocks}

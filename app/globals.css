@@ -1792,6 +1792,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .octopus-sectorgrid-wrap > .ox-secgrid,
 .octopus-sectorgrid-wrap > .ox-pills,
 .octopus-sectorgrid-wrap > .ox-table,
+.octopus-sectorgrid-wrap > .ox-upside,
 .octopus-sectorgrid-wrap > .ox-orbital-wrap { width: 100%; height: 100%; }
 .octopus-treemap-wrap svg {
   width: 100%;
@@ -2656,6 +2657,179 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 .ox-table-arrow[data-dir="up"]   { color: var(--ox-pos, #0F7A3C); }
 .ox-table-arrow[data-dir="down"] { color: var(--ox-neg, #A82828); }
+
+/* ── 1Y Upside view: buckets of stocks grouped by upside %  ─────────────── */
+.ox-upside {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 0.9vh, 16px);
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  overflow-y: auto;
+}
+.ox-upside-bucket {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ox-upside-bucket-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 6px clamp(4px, 0.35vh, 8px) 14px;
+  border-bottom: 1px solid var(--ox-rule-strong, #D1CCC2);
+  margin-bottom: clamp(3px, 0.25vh, 6px);
+}
+.ox-upside-bucket-label {
+  font-family: var(--ox-font-sans);
+  font-size: clamp(11px, 0.92vw, 13px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ox-ink, #1B2434);
+}
+.ox-upside-bucket-range {
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ox-ink-soft, #475467);
+  margin-left: 6px;
+}
+.ox-upside-bucket-meta {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(10px, 0.78vw, 12px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ox-ink-mute, #8A95A4);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ox-upside-bucket-median { color: var(--ox-pos, #0F7A3C); font-weight: 600; }
+.ox-upside-bucket[data-bucket="down"] .ox-upside-bucket-median { color: var(--ox-neg, #A82828); }
+.ox-upside-bucket-body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: clamp(20px, 1.6vw, 36px);
+}
+.ox-upside-bucket-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Row in upside view — same skeleton as .ox-table-row but with an extra
+   target-price cell between CMP and upside %. */
+.ox-upside-row {
+  position: relative;
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: clamp(8px, 0.7vw, 14px);
+  padding: 6px 6px 6px 14px;
+  border-bottom: 1px solid var(--ox-rule, #E7E3DC);
+  min-height: 36px;
+  transition: background 140ms ease-out;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  font-family: var(--ox-font-sans);
+}
+.ox-upside-row:last-child { border-bottom: none; }
+.ox-upside-row::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  border-radius: 1px;
+}
+.ox-upside-row[data-dir="up"]::before   { background: #15803D; }
+.ox-upside-row[data-dir="down"]::before { background: #A82828; }
+.ox-upside-row[data-dir="flat"]::before { background: #94A3B8; }
+.ox-upside-row[data-dir="null"]::before {
+  background: repeating-linear-gradient(0deg, #94A3B8 0 3px, transparent 3px 7px);
+}
+.ox-upside-row:hover,
+.ox-upside-row[data-focused="true"] {
+  background: rgba(231, 227, 220, 0.55);
+}
+.ox-upside-row[data-pinned="true"] {
+  outline-color: var(--color-accent-tusk, #FF6B9D);
+  background: rgba(231, 227, 220, 0.55);
+}
+
+/* Target price cell — "→ ₹XXX" with a faint arrow lead-in */
+.ox-table-target {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(11px, 0.85vw, 13px);
+  font-variant-numeric: tabular-nums;
+  color: var(--ox-ink-soft, #475467);
+  text-align: right;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.ox-table-target::before {
+  content: "→ ";
+  color: var(--ox-ink-mute, #8A95A4);
+  opacity: 0.7;
+  margin-right: 1px;
+}
+.ox-table-target .ox-table-rupee { color: var(--ox-ink-mute, #8A95A4); margin-right: 2px; }
+
+.ox-upside-pct {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(12px, 0.92vw, 14px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  min-width: 64px;
+}
+.ox-upside-pct[data-dir="up"]   { color: var(--ox-pos, #0F7A3C); }
+.ox-upside-pct[data-dir="down"] { color: var(--ox-neg, #A82828); }
+.ox-upside-pct[data-dir="flat"] { color: var(--ox-ink-mute, #8A95A4); }
+.ox-upside-pct[data-dir="null"] { color: var(--ox-ink-mute, #8A95A4); }
+
+/* ── Masthead view-toggle: segmented control [Day %] [1Y Upside] ────────── */
+.ox-view-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--ox-paper, #FFFFFF);
+  border: 1px solid var(--ox-rule-strong, #D1CCC2);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+}
+.ox-view-toggle-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-family: var(--ox-font-sans);
+  font-size: clamp(10px, 0.78vw, 12px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ox-ink-soft, #475467);
+  padding: clamp(5px, 0.45vh, 8px) clamp(10px, 0.8vw, 14px);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+.ox-view-toggle-btn + .ox-view-toggle-btn {
+  border-left: 1px solid var(--ox-rule-strong, #D1CCC2);
+}
+.ox-view-toggle-btn:hover { color: var(--ox-ink, #1B2434); }
+.ox-view-toggle-btn[data-active] {
+  background: var(--ox-ink, #1B2434);
+  color: #FFFFFF;
+}
 
 /* ── Sector Orbital (polar wedges, alphabetical) ────────────────────────── */
 .ox-orbital-wrap {

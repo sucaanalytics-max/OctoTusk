@@ -31,14 +31,20 @@ function formatAge(seconds: number | null): string {
   return `${h}h ${m % 60}m ago`;
 }
 
+export type OctopusView = "day" | "upside";
+
 export function Header({
   state,
   ageSeconds,
   onOpenPalette,
+  view,
+  onViewChange,
 }: {
   state: DisplayState;
   ageSeconds: number | null;
   onOpenPalette?: () => void;
+  view?: OctopusView;
+  onViewChange?: (v: OctopusView) => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
   const [isMac, setIsMac] = useState(false);
@@ -65,6 +71,30 @@ export function Header({
         </p>
       </div>
       <div className="ox-masthead-state">
+        {view !== undefined && onViewChange && (
+          <div className="ox-view-toggle" role="tablist" aria-label="Centerpiece view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "day"}
+              className="ox-view-toggle-btn"
+              data-active={view === "day" || undefined}
+              onClick={() => onViewChange("day")}
+            >
+              Day %
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "upside"}
+              className="ox-view-toggle-btn"
+              data-active={view === "upside" || undefined}
+              onClick={() => onViewChange("upside")}
+            >
+              1Y Upside
+            </button>
+          </div>
+        )}
         <button
           type="button"
           className="ox-search-hint"
