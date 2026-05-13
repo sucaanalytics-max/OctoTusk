@@ -204,9 +204,11 @@ export default function OctopusClient({
     };
 
     (async () => {
-      if (isMarketOpen()) {
-        await Promise.all([fetchFeed(), fetchIndices()]);
-      }
+      // Always fetch once on mount, regardless of market state. Catches
+      // post-close deploys and the 04:00 IST daily reload — without this,
+      // the display can sit on stale data for hours/days when markets
+      // are closed. Subsequent polling stays gated on market hours below.
+      await Promise.all([fetchFeed(), fetchIndices()]);
       if (!cancelled) {
         scheduleFeed(FEED_REFRESH_MS);
         scheduleIdx(INDICES_REFRESH_MS);
