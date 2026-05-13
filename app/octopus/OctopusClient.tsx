@@ -23,6 +23,10 @@ export interface OctopusSeedStock {
   baseUpside: number | null;
   bullUpside: number | null;
   oneYearUpside: number | null;
+  bearPrice: number | null;
+  basePrice: number | null;
+  bullPrice: number | null;
+  oneYearPrice: number | null;
 }
 
 interface FeedStock {
@@ -36,6 +40,10 @@ interface FeedStock {
   baseUpside: number | null;
   bullUpside: number | null;
   oneYearUpside: number | null;
+  bearPrice: number | null;
+  basePrice: number | null;
+  bullPrice: number | null;
+  oneYearPrice: number | null;
 }
 
 interface FeedPayload {
@@ -59,6 +67,10 @@ interface MergedStock {
   baseUpside: number | null;
   bullUpside: number | null;
   oneYearUpside: number | null;
+  bearPrice: number | null;
+  basePrice: number | null;
+  bullPrice: number | null;
+  oneYearPrice: number | null;
 }
 
 const FEED_REFRESH_MS = 60 * 1000;
@@ -312,6 +324,10 @@ export default function OctopusClient({
         baseUpside: live?.baseUpside ?? s.baseUpside ?? null,
         bullUpside: live?.bullUpside ?? s.bullUpside ?? null,
         oneYearUpside: live?.oneYearUpside ?? s.oneYearUpside ?? null,
+        bearPrice: live?.bearPrice ?? s.bearPrice ?? null,
+        basePrice: live?.basePrice ?? s.basePrice ?? null,
+        bullPrice: live?.bullPrice ?? s.bullPrice ?? null,
+        oneYearPrice: live?.oneYearPrice ?? s.oneYearPrice ?? null,
       };
     });
   }, [seed, feed]);
@@ -352,6 +368,10 @@ export default function OctopusClient({
         baseUpside: activeStock.baseUpside,
         bullUpside: activeStock.bullUpside,
         oneYearUpside: activeStock.oneYearUpside,
+        bearPrice: activeStock.bearPrice,
+        basePrice: activeStock.basePrice,
+        bullPrice: activeStock.bullPrice,
+        oneYearPrice: activeStock.oneYearPrice,
       }
     : null;
 

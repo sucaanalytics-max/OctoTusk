@@ -32,6 +32,10 @@ interface OctopusFeedStock {
   baseUpside: number | null;
   bullUpside: number | null;
   oneYearUpside: number | null;
+  bearPrice: number | null;
+  basePrice: number | null;
+  bullPrice: number | null;
+  oneYearPrice: number | null;
 }
 
 interface OctopusFeedPayload {
@@ -59,6 +63,10 @@ interface DbStock {
   upside_base?: number;
   upside_bull?: number;
   upside_1y?: number;
+  bear_current?: number;
+  base_current?: number;
+  bull_current?: number;
+  target_1y?: number;
 }
 
 function pickUpside(n: unknown): number | null {
@@ -177,6 +185,10 @@ async function buildPayload(): Promise<OctopusFeedPayload> {
       baseUpside: pickUpside(s.upside_base),
       bullUpside: pickUpside(s.upside_bull),
       oneYearUpside: pickUpside(s.upside_1y),
+      bearPrice: pickUpside(s.bear_current),
+      basePrice: pickUpside(s.base_current),
+      bullPrice: pickUpside(s.bull_current),
+      oneYearPrice: pickUpside(s.target_1y),
     };
   });
 

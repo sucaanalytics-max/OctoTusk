@@ -2191,6 +2191,26 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   font-size: var(--ox-text-body);
   font-weight: 600;
   text-align: right;
+  min-width: 60px;
+}
+.ox-hover-value-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: clamp(8px, 0.7vw, 14px);
+}
+.ox-hover-price {
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.85vw, 13px);
+  font-variant-numeric: tabular-nums;
+  color: var(--ox-ink-soft, #475467);
+  font-weight: 500;
+  min-width: 72px;
+  text-align: right;
+  letter-spacing: -0.01em;
+}
+.ox-hover-price .ox-rupee {
+  color: var(--ox-ink-mute, #8A95A4);
+  margin-right: 2px;
 }
 
 /* ── Previews route (treemap alternatives comparison) ──────────────────── */

@@ -14,6 +14,10 @@ export interface HoverStock {
   baseUpside: number | null;
   bullUpside: number | null;
   oneYearUpside: number | null;
+  bearPrice: number | null;
+  basePrice: number | null;
+  bullPrice: number | null;
+  oneYearPrice: number | null;
 }
 
 const OFFSET = 18;
@@ -111,29 +115,77 @@ export function HoverCard({
       <div className="ox-hover-divider" />
 
       <div className="ox-hover-section">
-        <div className="ox-hover-section-label">Upside vs CMP</div>
+        <div className="ox-hover-section-label">Targets vs CMP</div>
         <div className="ox-hover-row">
           <span className="ox-hover-label">Bear</span>
-          <span className={`ox-hover-value ${pctClass(stock.bearUpside)}`}>
-            {fmtPct(stock.bearUpside, true)}
+          <span className="ox-hover-value-group">
+            <span className="ox-hover-price">
+              {stock.bearPrice != null ? (
+                <>
+                  <span className="ox-rupee">₹</span>
+                  {fmtCmp(stock.bearPrice)}
+                </>
+              ) : (
+                "—"
+              )}
+            </span>
+            <span className={`ox-hover-value ${pctClass(stock.bearUpside)}`}>
+              {fmtPct(stock.bearUpside, true)}
+            </span>
           </span>
         </div>
         <div className="ox-hover-row">
           <span className="ox-hover-label">Base</span>
-          <span className={`ox-hover-value ${pctClass(stock.baseUpside)}`}>
-            {fmtPct(stock.baseUpside, true)}
+          <span className="ox-hover-value-group">
+            <span className="ox-hover-price">
+              {stock.basePrice != null ? (
+                <>
+                  <span className="ox-rupee">₹</span>
+                  {fmtCmp(stock.basePrice)}
+                </>
+              ) : (
+                "—"
+              )}
+            </span>
+            <span className={`ox-hover-value ${pctClass(stock.baseUpside)}`}>
+              {fmtPct(stock.baseUpside, true)}
+            </span>
           </span>
         </div>
         <div className="ox-hover-row">
           <span className="ox-hover-label">Bull</span>
-          <span className={`ox-hover-value ${pctClass(stock.bullUpside)}`}>
-            {fmtPct(stock.bullUpside, true)}
+          <span className="ox-hover-value-group">
+            <span className="ox-hover-price">
+              {stock.bullPrice != null ? (
+                <>
+                  <span className="ox-rupee">₹</span>
+                  {fmtCmp(stock.bullPrice)}
+                </>
+              ) : (
+                "—"
+              )}
+            </span>
+            <span className={`ox-hover-value ${pctClass(stock.bullUpside)}`}>
+              {fmtPct(stock.bullUpside, true)}
+            </span>
           </span>
         </div>
         <div className="ox-hover-row ox-hover-row-emph">
           <span className="ox-hover-label">1Y target</span>
-          <span className={`ox-hover-value ${pctClass(stock.oneYearUpside)}`}>
-            {fmtPct(stock.oneYearUpside, true)}
+          <span className="ox-hover-value-group">
+            <span className="ox-hover-price">
+              {stock.oneYearPrice != null ? (
+                <>
+                  <span className="ox-rupee">₹</span>
+                  {fmtCmp(stock.oneYearPrice)}
+                </>
+              ) : (
+                "—"
+              )}
+            </span>
+            <span className={`ox-hover-value ${pctClass(stock.oneYearUpside)}`}>
+              {fmtPct(stock.oneYearUpside, true)}
+            </span>
           </span>
         </div>
       </div>

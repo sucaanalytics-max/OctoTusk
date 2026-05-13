@@ -18,6 +18,10 @@ interface StockSnapshot {
   upside_base?: number;
   upside_bull?: number;
   upside_1y?: number;
+  bear_current?: number;
+  base_current?: number;
+  bull_current?: number;
+  target_1y?: number;
 }
 
 export default async function OctopusPage() {
@@ -67,6 +71,10 @@ export default async function OctopusPage() {
       baseUpside: typeof s.upside_base === "number" ? s.upside_base : null,
       bullUpside: typeof s.upside_bull === "number" ? s.upside_bull : null,
       oneYearUpside: typeof s.upside_1y === "number" ? s.upside_1y : null,
+      bearPrice: typeof s.bear_current === "number" ? s.bear_current : null,
+      basePrice: typeof s.base_current === "number" ? s.base_current : null,
+      bullPrice: typeof s.bull_current === "number" ? s.bull_current : null,
+      oneYearPrice: typeof s.target_1y === "number" ? s.target_1y : null,
     };
   });
 
