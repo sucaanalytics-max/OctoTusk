@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import db from "@/data/database.json";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import { getSectorInfo } from "@/lib/sectors";
+import { isRemovedStock } from "@/lib/removedStocks";
 import OctopusClient, { type OctopusSeedStock } from "./OctopusClient";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,7 @@ export default async function OctopusPage() {
     console.warn("[octopus] Snapshot load failed, using static db:", err instanceof Error ? err.message : err);
   }
 
-  const seed: OctopusSeedStock[] = stocks.map((s) => {
+  const seed: OctopusSeedStock[] = stocks.filter((s) => !isRemovedStock(s)).map((s) => {
     const info = getSectorInfo(s.tikr, { sector: s.sector, subsector: s.subsector });
     return {
       tikr: s.tikr,

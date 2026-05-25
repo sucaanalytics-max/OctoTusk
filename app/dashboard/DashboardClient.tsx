@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { getSebiSegment, SEBI_LABELS, SEGMENT_ORDER, type SebiSegment } from "@/lib/sebi";
 import { isMarketOpen } from "@/lib/marketHours";
 import { squarify, heatmapColor, type TreeItem, type TreeRect } from "@/lib/treemap";
+import { isRemovedStock } from "@/lib/removedStocks";
 import { SegmentsTab } from "./SegmentsTab";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
@@ -644,21 +645,6 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
     </div>
   );
 };
-
-// ── Permanently removed stocks (excluded from all tabs) ──
-const REMOVED_STOCKS = [
-  "monarch networth", "recltd", "rec ltd", "repco",
-  "dam capital", "deepak fert", "disa india", "elecon",
-  "emkay", "kpit", "mallcom", "patels airtemp", "rpsg",
-  "somany", "sunteck", "arihant", "coal india", "533278",
-];
-
-
-function isRemovedStock(s: { tikr: string; official_name?: string }): boolean {
-  const t = s.tikr.toLowerCase();
-  const o = (s.official_name || "").toLowerCase();
-  return REMOVED_STOCKS.some(term => t.includes(term) || o.includes(term));
-}
 
 // ═══════════════════════════════ MAIN ═══════════════════════════════
 export default function DashboardClient({ stocks, tickerMap, metadata, initialHoldings = [] }: Props) {
