@@ -117,6 +117,7 @@
     "XBOM:516003": { "sector": "Construction Materials", "subsector": "Plywood & Allied" },
 
     "PHOENIXLTD":  { "sector": "Realty", "subsector": "Commercial (Retail Malls)" },
+    "PRESTIGE":    { "sector": "Realty", "subsector": "Developers" },
     "Smartworks":  { "sector": "Services", "subsector": "Managed Workspaces" },
     "Wework":      { "sector": "Services", "subsector": "Managed Workspaces" },
     "NXST":        { "sector": "Realty", "subsector": "REIT (Retail)" },
