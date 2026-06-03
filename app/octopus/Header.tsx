@@ -31,7 +31,11 @@ function formatAge(seconds: number | null): string {
   return `${h}h ${m % 60}m ago`;
 }
 
-export type OctopusView = "day" | "upside";
+export type OctopusView = "day" | "upside" | "movers";
+
+/** Movement-band presets (± percent) shown in the Movers view control. */
+export const BAND_PRESETS = [2, 3, 5] as const;
+export const DEFAULT_BAND = 3;
 
 export function Header({
   state,
@@ -39,12 +43,16 @@ export function Header({
   onOpenPalette,
   view,
   onViewChange,
+  band,
+  onBandChange,
 }: {
   state: DisplayState;
   ageSeconds: number | null;
   onOpenPalette?: () => void;
   view?: OctopusView;
   onViewChange?: (v: OctopusView) => void;
+  band?: number;
+  onBandChange?: (b: number) => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
   const [isMac, setIsMac] = useState(false);
@@ -86,6 +94,16 @@ export function Header({
             <button
               type="button"
               role="tab"
+              aria-selected={view === "movers"}
+              className="ox-view-toggle-btn"
+              data-active={view === "movers" || undefined}
+              onClick={() => onViewChange("movers")}
+            >
+              Movers
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={view === "upside"}
               className="ox-view-toggle-btn"
               data-active={view === "upside" || undefined}
@@ -93,6 +111,25 @@ export function Header({
             >
               1Y Upside
             </button>
+          </div>
+        )}
+        {view === "movers" && band !== undefined && onBandChange && (
+          <div className="ox-band-control">
+            <span className="ox-band-control-label">Band</span>
+            <div className="ox-view-toggle" role="group" aria-label="Movement band (± percent)">
+              {BAND_PRESETS.map((b) => (
+                <button
+                  key={b}
+                  type="button"
+                  className="ox-view-toggle-btn"
+                  data-active={band === b || undefined}
+                  aria-pressed={band === b}
+                  onClick={() => onBandChange(b)}
+                >
+                  ±{b}%
+                </button>
+              ))}
+            </div>
           </div>
         )}
         <button

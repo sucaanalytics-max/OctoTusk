@@ -3,6 +3,7 @@ import YahooFinance from "yahoo-finance2";
 import { unstable_noStore as noStore } from "next/cache";
 import { auth } from "@/auth";
 import { reportError, reportSuccess } from "@/lib/health";
+import { isMarketOpen } from "@/lib/marketHours";
 import dhanByTikr from "@/data/dhan-eq-instruments-by-tikr.json";
 
 export const dynamic = "force-dynamic";
@@ -243,8 +244,11 @@ export async function buildQuotesMap(): Promise<{
     }
   }
 
-  // ── 3) Enrich Dhan-served TIKRs with Yahoo-only fields (52w/PE/marketCap).
+  // ── 3) Enrich Dhan-served TIKRs with Yahoo-only fields (52w/PE/marketCap), and
+  // — when the market is closed — adopt Yahoo's last-session change so the day % isn't
+  // a stale 0.00% off-hours (pre-open Dhan collapses last_price → ohlc.close → 0 change).
   // Best-effort: a single Yahoo batch call. If it fails, Dhan price/change still flow.
+  const marketOpen = isMarketOpen();
   const dhanServedTikrs = Object.keys(quotes).filter(t => quotes[t].fiftyTwoWeekHigh == null);
   if (dhanServedTikrs.length > 0) {
     const enrichSymbols = dhanServedTikrs.map(t => tickerMap[t]).filter(Boolean);
@@ -270,6 +274,14 @@ export async function buildQuotesMap(): Promise<{
         cur.avgVolume10Day = eq.averageDailyVolume10Day ?? null;
         cur.dividendRate = eq.trailingAnnualDividendRate ?? null;
         cur.dividendYield = eq.trailingAnnualDividendYield ?? null;
+        // Yahoo's previous close = the last completed session's close (persists off-hours).
+        if (eq.regularMarketPreviousClose != null) cur.prevClose = eq.regularMarketPreviousClose;
+        // Off-hours only: replace Dhan's zeroed intraday change with Yahoo's last-session
+        // move. During market hours, keep Dhan's live value (incl. a real 0.00%).
+        if (!marketOpen) {
+          if (typeof eq.regularMarketChangePercent === "number") cur.changePct = eq.regularMarketChangePercent;
+          if (typeof eq.regularMarketChange === "number") cur.change = eq.regularMarketChange;
+        }
       }
     } catch (err) {
       console.warn("[quotes] Yahoo enrichment failed (non-fatal):", err instanceof Error ? err.message : err);

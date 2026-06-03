@@ -1793,6 +1793,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .octopus-sectorgrid-wrap > .ox-pills,
 .octopus-sectorgrid-wrap > .ox-table,
 .octopus-sectorgrid-wrap > .ox-upside,
+.octopus-sectorgrid-wrap > .ox-movers,
 .octopus-sectorgrid-wrap > .ox-orbital-wrap { width: 100%; height: 100%; }
 .octopus-treemap-wrap svg {
   width: 100%;
@@ -2797,6 +2798,90 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ox-upside-pct[data-dir="down"] { color: var(--ox-neg, #A82828); }
 .ox-upside-pct[data-dir="flat"] { color: var(--ox-ink-mute, #8A95A4); }
 .ox-upside-pct[data-dir="null"] { color: var(--ox-ink-mute, #8A95A4); }
+
+/* ── Movers view: 3 side-by-side day-change buckets, each scrolls on its own ─ */
+.ox-movers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  column-gap: clamp(20px, 1.6vw, 36px);
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  overflow: hidden;
+}
+.ox-movers-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.ox-movers-col-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 6px clamp(4px, 0.35vh, 8px) 14px;
+  border-bottom: 1px solid var(--ox-rule-strong, #D1CCC2);
+  margin-bottom: clamp(3px, 0.25vh, 6px);
+}
+.ox-movers-col[data-bucket="gainers"] .ox-movers-col-head { border-bottom-color: rgba(21, 128, 61, 0.5); }
+.ox-movers-col[data-bucket="losers"] .ox-movers-col-head { border-bottom-color: rgba(168, 40, 40, 0.5); }
+.ox-movers-col-label {
+  font-family: var(--ox-font-sans);
+  font-size: clamp(11px, 0.92vw, 13px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ox-ink, #1B2434);
+  white-space: nowrap;
+}
+.ox-movers-col-range {
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ox-ink-soft, #475467);
+  margin-left: 6px;
+}
+.ox-movers-col-meta {
+  font-family: var(--ox-font-mono);
+  font-size: clamp(10px, 0.78vw, 12px);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ox-ink-mute, #8A95A4);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ox-movers-col-median { font-weight: 600; color: var(--ox-ink-soft, #475467); }
+.ox-movers-col[data-bucket="gainers"] .ox-movers-col-median { color: var(--ox-pos, #0F7A3C); }
+.ox-movers-col[data-bucket="losers"] .ox-movers-col-median { color: var(--ox-neg, #A82828); }
+.ox-movers-col-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.ox-movers-empty {
+  font-family: var(--ox-font-sans);
+  font-size: clamp(11px, 0.85vw, 13px);
+  color: var(--ox-ink-mute, #8A95A4);
+  font-style: italic;
+  padding: 12px 14px;
+}
+
+/* ── Masthead band control (Movers view): "Band" + [±2%][±3%][±5%] ───────── */
+.ox-band-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ox-band-control-label {
+  font-family: var(--ox-font-sans);
+  font-size: clamp(9px, 0.7vw, 11px);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ox-ink-mute, #8A95A4);
+}
 
 /* ── Masthead view-toggle: segmented control [Day %] [1Y Upside] ────────── */
 .ox-view-toggle {

@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isMarketOpen, nextDailyResetMs } from "@/lib/marketHours";
-import { Header, type DisplayState } from "./Header";
+import { Header, type DisplayState, type OctopusView, BAND_PRESETS, DEFAULT_BAND } from "./Header";
 import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { SectorGrid } from "./SectorGrid";
 import { SectorOrbital } from "./SectorOrbital";
 import { StockPills, type PillVariant } from "./StockPills";
 import { StockTable } from "./StockTable";
 import { StockUpsideTable } from "./StockUpsideTable";
+import { StockMoversTable } from "./StockMoversTable";
 import { SectorDrawer } from "./SectorDrawer";
 import { TopMovers } from "./TopMovers";
 import { HoverCard, type HoverStock } from "./HoverCard";
@@ -83,6 +84,7 @@ const FAILURE_DISCONNECT = 3;
 const BACKOFF_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000];
 const LOCALSTORAGE_KEY = "octopus:lastFeed";
 const LOCALSTORAGE_IDX = "octopus:lastIndices";
+const LOCALSTORAGE_BAND = "octopus:band";
 
 function loadCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -124,7 +126,22 @@ export default function OctopusClient({
   const [indices, setIndices] = useState<IndicesPayload | null>(null);
   const [ageSec, setAgeSec] = useState<number | null>(null);
   const [marketOpen, setMarketOpen] = useState<boolean>(false);
-  const [view, setView] = useState<"day" | "upside">("day");
+  const [view, setView] = useState<OctopusView>("day");
+  const [band, setBandState] = useState<number>(DEFAULT_BAND);
+
+  // Restore the persisted Movers band after mount (client-only — keeps the
+  // first render identical to SSR so there's no hydration mismatch).
+  useEffect(() => {
+    const saved = loadCache<number>(LOCALSTORAGE_BAND);
+    if (typeof saved === "number" && (BAND_PRESETS as readonly number[]).includes(saved)) {
+      setBandState(saved);
+    }
+  }, []);
+
+  const setBand = useCallback((b: number) => {
+    setBandState(b);
+    saveCache(LOCALSTORAGE_BAND, b);
+  }, []);
 
   // Interaction state
   const [hoveredTikr, setHoveredTikr] = useState<string | null>(null);
@@ -403,6 +420,8 @@ export default function OctopusClient({
         onOpenPalette={() => setPaletteOpen(true)}
         view={view}
         onViewChange={setView}
+        band={band}
+        onBandChange={setBand}
       />
       <IndexStrip ticks={indices?.indices ?? null} />
       <div className={`octopus-body${showRail ? "" : " octopus-body-full"}`}>
@@ -414,6 +433,15 @@ export default function OctopusClient({
               view === "upside" ? (
                 <StockUpsideTable
                   stocks={stocks}
+                  focusedTikr={hoveredTikr}
+                  pinnedTikr={pinnedTikr}
+                  onRowHover={handleRowHover}
+                  onRowClick={handleRowClick}
+                />
+              ) : view === "movers" ? (
+                <StockMoversTable
+                  stocks={stocks}
+                  band={band}
                   focusedTikr={hoveredTikr}
                   pinnedTikr={pinnedTikr}
                   onRowHover={handleRowHover}
