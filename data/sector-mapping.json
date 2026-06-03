@@ -118,7 +118,7 @@
 
     "PHOENIXLTD":  { "sector": "Realty", "subsector": "Commercial (Retail Malls)" },
     "PRESTIGE":    { "sector": "Realty", "subsector": "Developers" },
-    "BRIGADE":     { "sector": "Realty", "subsector": "Developers" },
+    "Brigade":     { "sector": "Realty", "subsector": "Developers" },
     "Smartworks":  { "sector": "Services", "subsector": "Managed Workspaces" },
     "Wework":      { "sector": "Services", "subsector": "Managed Workspaces" },
     "NXST":        { "sector": "Realty", "subsector": "REIT (Retail)" },
