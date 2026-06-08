@@ -402,5 +402,9 @@
   "SKIPPER": {
     "securityId": 9428,
     "exchange": "NSE_EQ"
+  },
+  "SAREGAMA": {
+    "securityId": 4892,
+    "exchange": "NSE_EQ"
   }
 }

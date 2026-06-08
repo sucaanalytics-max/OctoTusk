@@ -149,6 +149,8 @@
 
     "TIPSMUSIC":   { "sector": "Media Entertainment & Publication", "subsector": "Music Production & Publishing" },
 
+    "SAREGAMA":    { "sector": "Media Entertainment & Publication", "subsector": "Music Production & Publishing" },
+
     "ADANIPORTS":  { "sector": "Services", "subsector": "Marine Port & Services" },
 
     "GRASIM":      { "sector": "Diversified", "subsector": "Holding Company (VSF / Chemicals / Cement / Paints)" }
