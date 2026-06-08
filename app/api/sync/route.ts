@@ -13,7 +13,9 @@ import { reportError, reportSuccess } from "@/lib/health";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const maxDuration = 60;
+// Heavy workbooks are parsed via Graph sessions (light HTTP reads); 300s gives
+// the manual sync headroom to finish without dropping files like the cron does.
+export const maxDuration = 300;
 
 // ── OneDrive coordinates (configurable via env vars) ──
 const DRIVE_ID =
@@ -297,7 +299,103 @@ function strVal(ws: XLSXTypes.WorkSheet, addr: string): string {
   return String(v).trim();
 }
 
-async function parseVFFile(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
+// ── vF cell readers (shared by the Graph-range and XLSX paths) ──
+type VfReader = { raw(addr: string): unknown; num(addr: string): number | null; str(addr: string): string };
+
+function readerFromXlsxSheet(ws: XLSXTypes.WorkSheet): VfReader {
+  return { raw: (a) => cellVal(ws, a), num: (a) => numVal(ws, a), str: (a) => strVal(ws, a) };
+}
+
+// Graph workbook range returns a 2-D values array for A1:G22 (col A=0 … G=6).
+function readerFromRangeValues(values: unknown[][]): VfReader {
+  const cell = (addr: string): unknown => {
+    const m = addr.match(/^([A-Z])(\d+)$/);
+    if (!m) return null;
+    const col = m[1].charCodeAt(0) - 65;
+    const row = Number(m[2]) - 1;
+    const v = values[row]?.[col];
+    return (v === "" || v === null || v === undefined) ? null : v;
+  };
+  return {
+    raw: cell,
+    num: (a) => { const v = cell(a); if (v === null || v === 0) return null; const n = Number(v); return isNaN(n) ? null : n; },
+    str: (a) => { const v = cell(a); if (v === null || v === 0 || v === "0") return ""; return String(v).trim(); },
+  };
+}
+
+function buildVfRecord(file: VFFile, r: VfReader, method: "graph" | "xlsx"): Record<string, unknown> | null {
+  const tikr = r.str("B2")?.trim();
+  if (!tikr) { console.warn(`[vF] No TIKR in ${file.name}`); return null; }
+  const _bear = r.num("B9"), _base = r.num("C9"), _bull = r.num("D9");
+  console.log(`[vF] Parsed (${method}) ${file.name} → TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
+  return {
+    tikr,
+    last_updated: (() => {
+      const v = r.raw("A5");
+      if (v === null || v === undefined) return "";
+      if (typeof v === "number") return excelDateToISO(v);
+      if (v instanceof Date) return v.toISOString().split("T")[0];
+      return String(v);
+    })(),
+    vp: r.str("B5"), sa: r.str("C5"),
+    conviction: r.num("D5"), understanding: r.num("E5"),
+    sector: r.str("F5"), subsector: r.str("G5"),
+    bear_current: _bear, base_current: _base, bull_current: _bull,
+    upside_bear: r.num("B10"), upside_base: r.num("C10"), upside_bull: r.num("D10"),
+    target_1y: r.num("C11"), upside_1y: r.num("E11"),
+    target_2y: r.num("C12"), upside_2y: r.num("E12"),
+    bear_pe: r.num("B16"), base_pe: r.num("C16"), bull_pe: r.num("D16"), base_pe_2sd: r.num("F16"),
+    bear_pb: r.num("B17"), base_pb: r.num("C17"), bull_pb: r.num("D17"), base_pb_2sd: r.num("F17"),
+    bear_evebitda: r.num("B18"), base_evebitda: r.num("C18"), bull_evebitda: r.num("D18"), base_evebitda_2sd: r.num("F18"),
+    comments: r.str("B21"),
+    _vf_source: file.name,
+    _vf_method: method,
+    vf_web_url: file.webUrl || "",
+  };
+}
+
+// Primary parse path: Graph workbook SESSION → live evaluated values. A warm
+// session reads heavy workbooks (e.g. the 5.6 MB Vedanta RemainCo model) that
+// the download-and-XLSX path silently drops under the function time budget —
+// the bug that let a manual sync overwrite VEDL with stale pre-demerger values.
+// Throws on any transient Graph failure so parseVFFile can fall back to cached values.
+async function parseVFFileGraph(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
+  const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
+  let sessionId: string | undefined;
+  try {
+    const sessionRes = await fetch(`${baseUrl}/createSession`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ persistChanges: false }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!sessionRes.ok) throw new Error(`createSession HTTP ${sessionRes.status}`);
+    sessionId = (await sessionRes.json()).id as string;
+    const sh: Record<string, string> = { Authorization: `Bearer ${token}`, "workbook-session-id": sessionId };
+
+    const sheetsRes = await fetch(`${baseUrl}/worksheets?$select=name`, { headers: sh, signal: AbortSignal.timeout(30000) });
+    if (!sheetsRes.ok) throw new Error(`worksheets HTTP ${sheetsRes.status}`);
+    const sheetsData = await sheetsRes.json();
+    if (sheetsData.error) throw new Error(sheetsData.error.message || "worksheets error");
+    const summary = ((sheetsData.value || []) as { name: string }[])
+      .map((s) => s.name)
+      .find((n) => n.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
+    if (!summary) { console.warn(`[vF] SKIP ${file.name}: no "Tusk - Summary" sheet`); return null; }
+
+    const rangeRes = await fetch(`${baseUrl}/worksheets('${encodeURIComponent(summary)}')/range(address='A1:G22')?$select=values`, { headers: sh, signal: AbortSignal.timeout(30000) });
+    if (!rangeRes.ok) throw new Error(`range HTTP ${rangeRes.status}`);
+    const rangeData = await rangeRes.json();
+    if (rangeData.error) throw new Error(rangeData.error.message || "range error");
+    return buildVfRecord(file, readerFromRangeValues((rangeData.values || []) as unknown[][]), "graph");
+  } finally {
+    if (sessionId) {
+      fetch(`${baseUrl}/closeSession`, { method: "POST", headers: { Authorization: `Bearer ${token}`, "workbook-session-id": sessionId } }).catch(() => {});
+    }
+  }
+}
+
+// Fallback parse path: download the .xlsx binary and read CACHED values.
+async function parseVFFileXlsx(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
   try {
     const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
@@ -309,37 +407,21 @@ async function parseVFFile(token: string, file: VFFile): Promise<Record<string, 
       (s) => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary"
     );
     if (!summarySheet) { console.warn(`[vF] SKIP ${file.name}: no "Tusk - Summary" sheet`); return null; }
-    const ws = wb.Sheets[summarySheet];
-    const tikr = strVal(ws, "B2")?.trim();
-    if (!tikr) { console.warn(`[vF] No TIKR in ${file.name}`); return null; }
-    const _bear = numVal(ws, "B9"), _base = numVal(ws, "C9"), _bull = numVal(ws, "D9");
-    console.log(`[vF] Parsed ${file.name} → TIKR="${tikr}" bear=${_bear} base=${_base} bull=${_bull}`);
-    return {
-      tikr,
-      last_updated: (() => {
-        const v = cellVal(ws, "A5");
-        if (v === null || v === undefined) return "";
-        if (typeof v === "number") return excelDateToISO(v);
-        if (v instanceof Date) return v.toISOString().split("T")[0];
-        return String(v);
-      })(),
-      vp: strVal(ws, "B5"), sa: strVal(ws, "C5"),
-      conviction: numVal(ws, "D5"), understanding: numVal(ws, "E5"),
-      sector: strVal(ws, "F5"), subsector: strVal(ws, "G5"),
-      bear_current: numVal(ws, "B9"), base_current: numVal(ws, "C9"), bull_current: numVal(ws, "D9"),
-      upside_bear: numVal(ws, "B10"), upside_base: numVal(ws, "C10"), upside_bull: numVal(ws, "D10"),
-      target_1y: numVal(ws, "C11"), upside_1y: numVal(ws, "E11"),
-      target_2y: numVal(ws, "C12"), upside_2y: numVal(ws, "E12"),
-      bear_pe: numVal(ws, "B16"), base_pe: numVal(ws, "C16"), bull_pe: numVal(ws, "D16"), base_pe_2sd: numVal(ws, "F16"),
-      bear_pb: numVal(ws, "B17"), base_pb: numVal(ws, "C17"), bull_pb: numVal(ws, "D17"), base_pb_2sd: numVal(ws, "F17"),
-      bear_evebitda: numVal(ws, "B18"), base_evebitda: numVal(ws, "C18"), bull_evebitda: numVal(ws, "D18"), base_evebitda_2sd: numVal(ws, "F18"),
-      comments: strVal(ws, "B21"),
-      _vf_source: file.name,
-      vf_web_url: file.webUrl || "",
-    };
+    return buildVfRecord(file, readerFromXlsxSheet(wb.Sheets[summarySheet]), "xlsx");
   } catch (err) {
     console.warn(`[vF] Error parsing ${file.name}:`, err instanceof Error ? err.message : err);
     return null;
+  }
+}
+
+// Graph session first (live values, handles heavy workbooks); on any transient
+// Graph failure, fall back to the cached-values XLSX download.
+async function parseVFFile(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
+  try {
+    return await parseVFFileGraph(token, file);
+  } catch (err) {
+    console.warn(`[vF] Graph parse failed for ${file.name} (${err instanceof Error ? err.message : err}); falling back to XLSX cached values`);
+    return parseVFFileXlsx(token, file);
   }
 }
 
