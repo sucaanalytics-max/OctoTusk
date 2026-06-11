@@ -61,9 +61,10 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function fmtPrice(n: number): string {
+// No ₹ symbol inside the table — keeps lines narrow enough for phone <pre> width.
+function fmtNum(n: number): string {
   const decimals = n < 100 ? 1 : 0;
-  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return n.toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 function istTimeNow(): string {
@@ -75,7 +76,8 @@ function istTimeNow(): string {
   });
 }
 
-const NAME_WIDTH = 12;
+const NAME_WIDTH = 10;
+const PAIR_WIDTH = 12; // "4,497→4,394"
 
 function buildMessage(hits: BandHit[]): string {
   const sections: { target: TargetType; emoji: string; label: string }[] = [
@@ -84,7 +86,10 @@ function buildMessage(hits: BandHit[]): string {
     { target: "bull", emoji: "🐂", label: "BULL" },
   ];
 
-  const parts: string[] = [`🔔 <b>Near targets</b> · ${istTimeNow()} IST`];
+  const parts: string[] = [
+    `🔔 <b>Near targets</b> · ${istTimeNow()} IST`,
+    `<i>name · CMP→target ₹ · % away · day %</i>`,
+  ];
 
   for (const { target, emoji, label } of sections) {
     const group = hits
@@ -95,9 +100,10 @@ function buildMessage(hits: BandHit[]): string {
     const rows = group.map(h => {
       const star = h.isNew ? "*" : " ";
       const name = escapeHtml(h.name.slice(0, NAME_WIDTH).padEnd(NAME_WIDTH));
+      const pair = `${fmtNum(h.cmp)}→${fmtNum(h.targetPrice)}`.padEnd(PAIR_WIDTH);
       const dist = `${(h.dist * 100).toFixed(1)}%`.padStart(5);
-      const day = `${h.dayChangePct >= 0 ? "▲" : "▼"}${Math.abs(h.dayChangePct).toFixed(1)}%`;
-      return `${star}${name} ${dist} ${fmtPrice(h.cmp)} (${day})`;
+      const day = `${h.dayChangePct >= 0 ? "▲" : "▼"}${Math.abs(h.dayChangePct).toFixed(1)}`;
+      return `${star}${name} ${pair} ${dist} ${day}`;
     });
     parts.push("", `${emoji} <b>${label} (${group.length})</b>`, `<pre>${rows.join("\n")}</pre>`);
   }
