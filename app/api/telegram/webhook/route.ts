@@ -3,6 +3,7 @@ import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { getCompanyShort } from "@/lib/companyName";
 import { matchStocks, type LookupStock } from "@/lib/stockLookup";
+import { fetchNews, type NewsItem } from "@/lib/stockNews";
 import { buildQuotesMap } from "../../quotes/route";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,10 @@ export const maxDuration = 60;
  * (TELEGRAM_CHAT_ID) and allowlisted DM users (TELEGRAM_ALLOWED_USER_IDS,
  * comma-separated) — every other chat gets a silent 200.
  *
- * One command: /s <stock name> → research card with live CMP.
+ * Commands:
+ *   /s <stock> → research card (live CMP, targets, valuation, top-3 news)
+ *   /n <stock> → recent headlines (up to 8, last 30 days)
+ *
  * Group privacy mode stays ON, so ordinary group chat never reaches us.
  */
 
@@ -42,8 +46,17 @@ function num(v: unknown): number | null {
 type Quote = {
   price: number;
   changePct: number;
+  volume: number;
   fiftyTwoWeekHigh: number | null;
   fiftyTwoWeekLow: number | null;
+  marketCap: number | null;
+  trailingPE: number | null;
+  forwardPE: number | null;
+  priceToBook: number | null;
+  fiftyDayAverage: number | null;
+  twoHundredDayAverage: number | null;
+  avgVolume3Month: number | null;
+  dividendYield: number | null;
 } | undefined;
 
 function buildSummary(stock: LookupStock, cmp: number | null, quote: Quote): string {
@@ -81,52 +94,103 @@ function buildSummary(stock: LookupStock, cmp: number | null, quote: Quote): str
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function buildCard(stock: LookupStock, quote: Quote): string {
+function newsBullets(news: NewsItem[]): string[] {
+  return news.map(n => {
+    const src = n.publisher ? ` — ${escapeHtml(n.publisher)}` : "";
+    return `• <a href="${escapeHtml(n.link)}">${escapeHtml(n.title)}</a>${src} (${n.ageLabel})`;
+  });
+}
+
+// Aligned "Label  value" row inside a <pre> block.
+const row = (label: string, value: string) => `${label.padEnd(6)} ${value}`;
+
+function buildCard(stock: LookupStock, quote: Quote, news: NewsItem[]): string {
   const name = escapeHtml(getCompanyShort(stock));
   const sector = stock.sector ? ` · ${escapeHtml(String(stock.sector))}` : "";
   const cmp = quote?.price ?? num(stock.cmp);
-  const lines: string[] = [`📊 <b>${name}</b>${sector}`];
+  const parts: string[] = [`📊 <b>${name}</b>${sector}`];
 
+  // ── Market data
+  const mkt: string[] = [];
   if (cmp) {
     const day = quote
-      ? ` (${quote.changePct >= 0 ? "🟢▲" : "🔴▼"}${Math.abs(quote.changePct).toFixed(1)}%)`
-      : " (last sync)";
-    const w52 = quote?.fiftyTwoWeekLow != null && quote?.fiftyTwoWeekHigh != null
-      ? ` · 52W ${fmtNum(quote.fiftyTwoWeekLow)}–${fmtNum(quote.fiftyTwoWeekHigh)}`
-      : "";
-    lines.push(`CMP ${fmtNum(cmp)}${day}${w52}`);
+      ? `  ${quote.changePct >= 0 ? "🟢▲" : "🔴▼"}${Math.abs(quote.changePct).toFixed(1)}%`
+      : "  (last sync)";
+    mkt.push(row("CMP", `${fmtNum(cmp)}${day}`));
   }
+  if (quote?.marketCap) mkt.push(row("MCap", `${fmtNum(quote.marketCap / 1e7)} Cr`));
+  const lo = quote?.fiftyTwoWeekLow, hi = quote?.fiftyTwoWeekHigh;
+  if (lo != null && hi != null && hi > lo && cmp) {
+    const pos = Math.round(((cmp - lo) / (hi - lo)) * 100);
+    mkt.push(row("52W", `${fmtNum(lo)} – ${fmtNum(hi)} (${pos}%)`));
+  }
+  if (quote?.volume && quote?.avgVolume3Month) {
+    mkt.push(row("Vol", `${(quote.volume / quote.avgVolume3Month).toFixed(1)}× 3m avg`));
+  }
+  if (quote?.dividendYield) {
+    const pct = quote.dividendYield > 1 ? quote.dividendYield : quote.dividendYield * 100;
+    mkt.push(row("Yld", `${pct.toFixed(1)}%`));
+  }
+  if (mkt.length) parts.push(`<pre>${mkt.join("\n")}</pre>`);
 
-  const target = (label: string, v: number | null) =>
-    v && cmp ? `${label} ${fmtNum(v)} (${fmtSignedPct((v - cmp) / cmp)})` : v ? `${label} ${fmtNum(v)}` : null;
+  // ── Targets
+  const tgt: string[] = [];
+  const target = (label: string, v: number | null) => {
+    if (!v) return;
+    tgt.push(row(label, cmp ? `${fmtNum(v).padEnd(7)} ${fmtSignedPct((v - cmp) / cmp)}` : fmtNum(v)));
+  };
+  target("Bear", num(stock.bear_current));
+  target("Base", num(stock.base_current));
+  target("Bull", num(stock.bull_current));
+  target("1Y", num(stock.target_1y));
+  target("2Y", num(stock.target_2y));
+  if (tgt.length) parts.push("🎯 <b>Targets</b>", `<pre>${tgt.join("\n")}</pre>`);
 
-  const scenario = [target("Bear", num(stock.bear_current)), target("Base", num(stock.base_current)), target("Bull", num(stock.bull_current))].filter(Boolean);
-  if (scenario.length) lines.push("", `🎯 ${scenario.join(" · ")}`);
-  const fwd = [target("1Y", num(stock.target_1y)), target("2Y", num(stock.target_2y))].filter(Boolean);
-  if (fwd.length) lines.push(`     ${fwd.join(" · ")}`);
-
-  const multiples = [
-    num(stock.base_pe) ? `PE ${(stock.base_pe as number).toFixed(1)}x` : null,
-    num(stock.base_pb) ? `PB ${(stock.base_pb as number).toFixed(1)}x` : null,
-    num(stock.base_evebitda) ? `EV/EBITDA ${(stock.base_evebitda as number).toFixed(1)}x` : null,
+  // ── Valuation
+  const val: string[] = [];
+  const basePe = num(stock.base_pe), ttmPe = num(quote?.trailingPE);
+  if (basePe || ttmPe) {
+    val.push(row("PE", [basePe ? `${basePe.toFixed(1)}x base` : null, ttmPe ? `${ttmPe.toFixed(1)}x ttm` : null].filter(Boolean).join(" · ")));
+  }
+  if (num(quote?.forwardPE)) val.push(row("FwdPE", `${(quote!.forwardPE as number).toFixed(1)}x`));
+  const basePb = num(stock.base_pb), livePb = num(quote?.priceToBook);
+  if (basePb || livePb) {
+    val.push(row("PB", [basePb ? `${basePb.toFixed(1)}x base` : null, livePb ? `${livePb.toFixed(1)}x live` : null].filter(Boolean).join(" · ")));
+  }
+  if (num(stock.base_evebitda)) val.push(row("EV/EB", `${(stock.base_evebitda as number).toFixed(1)}x`));
+  const sd = [
+    num(stock.base_pe_2sd) ? `PE ${(stock.base_pe_2sd as number).toFixed(0)}x` : null,
+    num(stock.base_pb_2sd) ? `PB ${(stock.base_pb_2sd as number).toFixed(1)}x` : null,
+    num(stock.base_evebitda_2sd) ? `EV ${(stock.base_evebitda_2sd as number).toFixed(0)}x` : null,
   ].filter(Boolean);
-  if (multiples.length) lines.push(`📐 ${multiples.join(" · ")}`);
+  if (sd.length) val.push(row("+2SD", sd.join(" · ")));
+  const d50 = num(quote?.fiftyDayAverage), d200 = num(quote?.twoHundredDayAverage);
+  if (d50 || d200) {
+    val.push(row("DMA", [d50 ? `50: ${fmtNum(d50)}` : null, d200 ? `200: ${fmtNum(d200)}` : null].filter(Boolean).join(" · ")));
+  }
+  if (val.length) parts.push("📐 <b>Valuation</b>", `<pre>${val.join("\n")}</pre>`);
 
+  // ── Meta / summary / news / vF
   const meta = [
     num(stock.conviction) ? `Conviction ${stock.conviction}/5` : null,
     stock.vp ? `VA ${escapeHtml(String(stock.vp))}` : null,
     stock.sa ? `SA ${escapeHtml(String(stock.sa))}` : null,
-    stock.last_updated ? `vF ${String(stock.last_updated).slice(0, 10)}` : null,
+    num(stock.score) ? `Score ${stock.score}` : null,
   ].filter(Boolean);
-  if (meta.length) lines.push(`⭐ ${meta.join(" · ")}`);
+  if (meta.length) parts.push(`⭐ ${meta.join(" · ")}`);
 
-  lines.push("", `🧠 <i>${escapeHtml(buildSummary(stock, cmp, quote))}</i>`);
+  parts.push(`🧠 <i>${escapeHtml(buildSummary(stock, cmp, quote))}</i>`);
 
+  if (news.length) parts.push("📰 <b>News</b>", ...newsBullets(news));
+
+  const vfDate = stock.last_updated ? `vF ${String(stock.last_updated).slice(0, 10)}` : null;
   if (stock.vf_web_url && typeof stock.vf_web_url === "string") {
-    lines.push("", `📎 <a href="${escapeHtml(stock.vf_web_url)}">Open vF</a>`);
+    parts.push(`📎 <a href="${escapeHtml(stock.vf_web_url)}">Open vF</a>${vfDate ? ` · ${vfDate}` : ""}`);
+  } else if (vfDate) {
+    parts.push(`🗒 ${vfDate}`);
   }
 
-  return lines.join("\n");
+  return parts.join("\n");
 }
 
 export async function POST(request: NextRequest) {
@@ -150,17 +214,22 @@ export async function POST(request: NextRequest) {
   const isAllowedDm = msg.chat.type === "private" && allowedDms.includes(String(chatId));
   if (!isGroup && !isAllowedDm) return NextResponse.json({ ok: true });
 
-  const cmd = text.trim().match(/^\/s(?:@\w+)?(?:\s+([^\n]+))?$/i);
+  const cmd = text.trim().match(/^\/(s|n)(?:@\w+)?(?:\s+([^\n]+))?$/i);
   if (!cmd) return NextResponse.json({ ok: true });
+  const command = cmd[1].toLowerCase() as "s" | "n";
 
   const reply = (replyText: string) =>
     sendTelegramMessage(replyText, { chatId, replyTo: msg.message_id }).catch(err =>
       console.error("[telegram/webhook] reply failed:", err instanceof Error ? err.message : err)
     );
 
-  const query = (cmd[1] || "").trim();
+  const query = (cmd[2] || "").trim();
   if (!query) {
-    await reply("Usage: <code>/s stock name</code> — e.g. <code>/s saregama</code>");
+    await reply(
+      command === "s"
+        ? "Usage: <code>/s stock name</code> — e.g. <code>/s saregama</code>"
+        : "Usage: <code>/n stock name</code> — e.g. <code>/n saregama</code>"
+    );
     return NextResponse.json({ ok: true });
   }
 
@@ -178,18 +247,32 @@ export async function POST(request: NextRequest) {
     if (result.kind === "none") {
       await reply(`No stock matching "<b>${escapeHtml(query)}</b>". Try a tikr or part of the company name.`);
     } else if (result.kind === "ambiguous") {
-      const names = result.candidates.map(c => `• ${escapeHtml(getCompanyShort(c))} (<code>/s ${escapeHtml(String(c.tikr))}</code>)`);
+      const names = result.candidates.map(c => `• ${escapeHtml(getCompanyShort(c))} (<code>/${command} ${escapeHtml(String(c.tikr))}</code>)`);
       await reply(`Did you mean:\n${names.join("\n")}`);
+    } else if (command === "n") {
+      const stock = result.stock;
+      const shortName = getCompanyShort(stock);
+      const news = await fetchNews(shortName, { limit: 8, maxAgeDays: 30 });
+      await reply(
+        news.length
+          ? `📰 <b>${escapeHtml(shortName)}</b> — recent headlines\n${newsBullets(news).join("\n")}`
+          : `📰 No headlines for <b>${escapeHtml(shortName)}</b> in the last 30 days.`
+      );
     } else {
       const stock = result.stock;
       let quote: Quote;
-      try {
-        const { quotes } = await buildQuotesMap();
-        quote = quotes[stock.tikr as string] as Quote;
-      } catch (err) {
-        console.warn("[telegram/webhook] quote fetch failed (card falls back to snapshot cmp):", err instanceof Error ? err.message : err);
+      let news: NewsItem[] = [];
+      const [quotesRes, newsRes] = await Promise.allSettled([
+        buildQuotesMap(),
+        fetchNews(getCompanyShort(stock), { limit: 3, maxAgeDays: 7 }),
+      ]);
+      if (quotesRes.status === "fulfilled") {
+        quote = quotesRes.value.quotes[stock.tikr as string] as Quote;
+      } else {
+        console.warn("[telegram/webhook] quote fetch failed (card falls back to snapshot cmp):", quotesRes.reason?.message);
       }
-      await reply(buildCard(stock, quote));
+      if (newsRes.status === "fulfilled") news = newsRes.value;
+      await reply(buildCard(stock, quote, news));
     }
   } catch (err) {
     console.error("[telegram/webhook] Error:", err instanceof Error ? err.message : err);
