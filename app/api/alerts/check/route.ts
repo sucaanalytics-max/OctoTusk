@@ -77,7 +77,7 @@ function istTimeNow(): string {
 }
 
 const NAME_WIDTH = 10;
-const PAIR_WIDTH = 12; // "4,497→4,394"
+const TARGET_WIDTH = 13; // "4,394 (2.3%)"
 
 function buildMessage(hits: BandHit[]): string {
   const sections: { target: TargetType; emoji: string; label: string }[] = [
@@ -88,7 +88,7 @@ function buildMessage(hits: BandHit[]): string {
 
   const parts: string[] = [
     `🔔 <b>Near targets</b> · ${istTimeNow()} IST`,
-    `<i>name · CMP→target ₹ · % away · day %</i>`,
+    `<i>name · target (% away) - CMP (day %)</i>`,
   ];
 
   for (const { target, emoji, label } of sections) {
@@ -100,10 +100,9 @@ function buildMessage(hits: BandHit[]): string {
     const rows = group.map(h => {
       const star = h.isNew ? "*" : " ";
       const name = escapeHtml(h.name.slice(0, NAME_WIDTH).padEnd(NAME_WIDTH));
-      const pair = `${fmtNum(h.cmp)}→${fmtNum(h.targetPrice)}`.padEnd(PAIR_WIDTH);
-      const dist = `${(h.dist * 100).toFixed(1)}%`.padStart(5);
-      const day = `${h.dayChangePct >= 0 ? "▲" : "▼"}${Math.abs(h.dayChangePct).toFixed(1)}`;
-      return `${star}${name} ${pair} ${dist} ${day}`;
+      const targetCol = `${fmtNum(h.targetPrice)} (${(h.dist * 100).toFixed(1)}%)`.padEnd(TARGET_WIDTH);
+      const arrow = h.dayChangePct >= 0 ? "🟢▲" : "🔴▼";
+      return `${star}${name} ${targetCol} - ${fmtNum(h.cmp)} (${arrow}${Math.abs(h.dayChangePct).toFixed(1)}%)`;
     });
     parts.push("", `${emoji} <b>${label} (${group.length})</b>`, `<pre>${rows.join("\n")}</pre>`);
   }
