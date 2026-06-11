@@ -934,7 +934,9 @@ export async function POST(request: Request) {
           const name = ((vfData._vf_source as string) || "")
             .replace(/^\d{6,8}[_ ]?/, "")
             .replace(/(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i, "");
-          merged.push({ tikr, official_name: name, ...vfData });
+          // Spread vfData FIRST: its tikr is the raw B2 value, which differs from
+          // the map key after TIKR_ALIAS/fuzzy resolution (e.g. XNSE:MOTHERSON -> MOTHERSON).
+          merged.push({ ...vfData, tikr, official_name: name });
           standaloneCount++;
           console.log(`[sync] Added standalone vF stock: ${tikr}`);
         }
@@ -1018,7 +1020,8 @@ export async function POST(request: Request) {
         const name = ((vfData._vf_source as string) || "")
           .replace(/^\d{6,8}[_ ]?/, "")
           .replace(/(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i, "");
-        mergedStocks.push({ tikr, official_name: name, ...vfData });
+        // Spread vfData FIRST so the alias/fuzzy-resolved map key wins over raw B2.
+        mergedStocks.push({ ...vfData, tikr, official_name: name });
         console.log(`[sync] Full: added standalone vF stock: ${tikr}`);
       }
     }

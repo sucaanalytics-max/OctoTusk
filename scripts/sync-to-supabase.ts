@@ -761,7 +761,9 @@ async function main() {
   for (const [tikr, vfData] of Array.from(vfMap.entries())) {
     if (!matchedTikrs.has(tikr)) {
       const name = (vfData._vf_source as string || "").replace(/^\d{6,8}[_ ]?/, "").replace(/(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i, "");
-      mergedStocks.push({ tikr, official_name: name, ...vfData });
+      // Spread vfData FIRST: its tikr is the raw B2 value, which differs from
+      // the map key after TIKR_ALIAS/fuzzy resolution (e.g. XNSE:MOTHERSON -> MOTHERSON).
+      mergedStocks.push({ ...vfData, tikr, official_name: name });
       standaloneTikrs.add(tikr);
     }
   }
