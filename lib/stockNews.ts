@@ -45,11 +45,23 @@ export async function fetchNews(
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const res = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    const res = await fetch(url, {
+      signal: controller.signal,
+      cache: "no-store",
+      headers: {
+        // Google serves 503/consent pages to UA-less datacenter requests.
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        "Accept": "application/rss+xml, text/xml;q=0.9, */*;q=0.8",
+      },
+    });
     clearTimeout(timer);
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn(`[stockNews] RSS fetch ${res.status} for "${companyName}"`);
+      return [];
+    }
     xml = await res.text();
-  } catch {
+  } catch (err) {
+    console.warn(`[stockNews] RSS fetch failed for "${companyName}":`, err instanceof Error ? err.message : err);
     return [];
   }
 
@@ -79,5 +91,8 @@ export async function fetchNews(
     if (items.length >= opts.limit) break;
   }
 
+  if (items.length === 0) {
+    console.warn(`[stockNews] 0 items parsed for "${companyName}" (xml ${xml.length} bytes)`);
+  }
   return items;
 }
