@@ -229,20 +229,32 @@ export async function GET(request: NextRequest) {
         );
         if (error) console.error("[alerts/check] entry upsert failed:", error.message);
 
-        // Audit trail — best effort, non-fatal.
-        const { error: jErr } = await supabase.from("decision_journal").insert(
-          newEntries.map(h => ({
-            tikr: h.tikr,
-            event_type: "zone_enter",
-            zone_name: `near_${h.target}_5pct`,
-            cmp_at_event: h.cmp,
-            upside_bear: upsideFor(stocks, h.tikr, "bear", h.cmp),
-            upside_base: upsideFor(stocks, h.tikr, "base", h.cmp),
-            upside_bull: upsideFor(stocks, h.tikr, "bull", h.cmp),
-            user_email: "alerts-bot",
-          }))
-        );
-        if (jErr) console.error("[alerts/check] journal insert failed:", jErr.message);
+        // Audit trail — best effort, non-fatal. Batch insert, falling back to
+        // per-row so one bad row (e.g. an oversized vF tikr) can't reject all.
+        const journalRows = newEntries.map(h => ({
+          tikr: h.tikr.slice(0, 100),
+          event_type: "zone_enter",
+          zone_name: `near_${h.target}_5pct`,
+          cmp_at_event: h.cmp,
+          upside_bear: upsideFor(stocks, h.tikr, "bear", h.cmp),
+          upside_base: upsideFor(stocks, h.tikr, "base", h.cmp),
+          upside_bull: upsideFor(stocks, h.tikr, "bull", h.cmp),
+          user_email: "alerts-bot",
+        }));
+        const { error: jErr } = await supabase.from("decision_journal").insert(journalRows);
+        if (jErr) {
+          console.error("[alerts/check] journal batch insert failed, retrying per-row:", jErr.message);
+          for (const row of journalRows) {
+            let { error: rowErr } = await supabase.from("decision_journal").insert(row);
+            if (rowErr) {
+              // decision_journal.tikr is varchar(30) until widened — truncate rather than lose the row.
+              ({ error: rowErr } = await supabase
+                .from("decision_journal")
+                .insert({ ...row, tikr: row.tikr.slice(0, 30) }));
+            }
+            if (rowErr) console.error(`[alerts/check] journal insert failed for ${row.tikr}:`, rowErr.message);
+          }
+        }
       }
     }
 
