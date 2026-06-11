@@ -840,6 +840,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   // Watchlists & hidden stocks
   const [hiddenStocks, setHiddenStocks] = useState<Set<string>>(new Set());
+  // Per-stock price-alert prefs (server-persisted; missing key = alerts ON)
+  const [alertPrefs, setAlertPrefs] = useState<Record<string, boolean>>({});
   const [watchlists, setWatchlists] = useState<Record<string, string[]>>({});
   const [activeWatchlist, setActiveWatchlist] = useState<string>("all");
   const [showWatchlistModal, setShowWatchlistModal] = useState(false);
@@ -863,6 +865,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
+
+  // Load per-stock alert prefs on mount
+  useEffect(() => {
+    fetch("/api/alerts/prefs")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.prefs && typeof data.prefs === "object") setAlertPrefs(data.prefs as Record<string, boolean>);
+      })
+      .catch(() => {/* silent — alerts default ON */});
+  }, []);
 
   // Safe JSON parse — prevents crashes from corrupted storage (M-5)
   const safeParse = (raw: string | null): unknown => {
@@ -912,6 +924,16 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       if (next.has(tikr)) next.delete(tikr); else next.add(tikr);
       return next;
     });
+  };
+
+  const toggleAlertPref = (tikr: string) => {
+    const enabled = alertPrefs[tikr] === false; // currently muted → enable
+    setAlertPrefs(prev => ({ ...prev, [tikr]: enabled }));
+    fetch("/api/alerts/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tikr, enabled }),
+    }).catch(() => {/* silent — server state wins on next prefs fetch */});
   };
 
   const createWatchlist = (name: string) => {
@@ -2338,6 +2360,15 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 01-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                             )}
                           </button>
+                          {(s.bear_current || s.base_current || s.bull_current) ? (
+                            <button onClick={() => toggleAlertPref(s.tikr)} className="stock-action-btn" title={alertPrefs[s.tikr] === false ? "Price alerts muted — click to enable" : "Price alerts on — click to mute"} aria-label={alertPrefs[s.tikr] === false ? "Enable price alerts" : "Mute price alerts"}>
+                              {alertPrefs[s.tikr] === false ? (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.5 }}><path d="M13.73 21a2 2 0 01-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0118 8"/><path d="M6.26 6.26A5.86 5.86 0 006 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 00-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                              ) : (
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                              )}
+                            </button>
+                          ) : null}
                           {s.vf_web_url && (
                             <button onClick={() => window.open(s.vf_web_url as string, "_blank", "noopener")} className="stock-action-btn" title="Open vF in Excel Online" aria-label="Open valuation file in Excel Online">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
