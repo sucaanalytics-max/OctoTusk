@@ -6,8 +6,31 @@
  * can avoid persisting alert state when delivery didn't happen.
  */
 
-// Telegram hard-caps messages at 4096 chars; stay under with headroom.
-const MAX_MESSAGE_CHARS = 4000;
+// Telegram caps messages at 4096 VISIBLE chars (HTML tags/hrefs don't count).
+const MAX_VISIBLE_CHARS = 4000;
+
+function visibleLength(html: string): number {
+  return html.replace(/<[^>]+>/g, "").length;
+}
+
+/**
+ * Trim oversized messages at LINE boundaries — naive slicing can cut inside
+ * an <a href> (Google News links run ~500 chars) and Telegram then rejects
+ * the whole message with "can't parse entities".
+ */
+function truncateHtmlSafe(text: string): string {
+  if (visibleLength(text) <= MAX_VISIBLE_CHARS) return text;
+  const lines = text.split("\n");
+  while (lines.length > 1 && visibleLength(lines.join("\n")) > MAX_VISIBLE_CHARS - 20) {
+    lines.pop();
+  }
+  let out = lines.join("\n");
+  // Re-balance <pre> if truncation landed inside a multi-line block.
+  const opens = (out.match(/<pre>/g) || []).length;
+  const closes = (out.match(/<\/pre>/g) || []).length;
+  if (opens > closes) out += "</pre>";
+  return out + "\n…(truncated)";
+}
 
 export function isTelegramConfigured(): boolean {
   return !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
@@ -23,10 +46,7 @@ export async function sendTelegramMessage(
     throw new Error("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set");
   }
 
-  let body = text;
-  if (body.length > MAX_MESSAGE_CHARS) {
-    body = body.slice(0, MAX_MESSAGE_CHARS) + "\n…(truncated)";
-  }
+  const body = truncateHtmlSafe(text);
 
   const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
