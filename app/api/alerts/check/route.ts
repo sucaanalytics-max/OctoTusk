@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import { isMarketOpen } from "@/lib/marketHours";
 import { isTelegramConfigured, sendTelegramMessage } from "@/lib/telegram";
+import { getCompanyShort } from "@/lib/companyName";
 import { buildQuotesMap } from "../../quotes/route";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +21,11 @@ export const maxDuration = 60;
  * Telegram message is sent with the full current picture: every pair presently
  * in-band, grouped by target, with day change %, new entrants marked 🆕.
  *
- * Debug params (still CRON_SECRET-gated):
+ * Debug/utility params (still CRON_SECRET-gated):
  *   ?threshold=0.5  — widen the band to force alerts end-to-end
  *   ?force=1        — bypass the market-hours guard
+ *   ?snapshot=1     — send the current full in-band picture on demand,
+ *                     WITHOUT writing state or journal rows
  */
 
 const DEFAULT_THRESHOLD = 0.05;
@@ -45,6 +48,7 @@ type SnapshotStock = {
 
 type BandHit = {
   tikr: string;
+  name: string; // short display name (getCompanyShort)
   target: TargetType;
   cmp: number;
   targetPrice: number;
@@ -58,28 +62,29 @@ function escapeHtml(s: string): string {
 }
 
 function fmtPrice(n: number): string {
-  return "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  const decimals = n < 100 ? 1 : 0;
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function fmtSignedPct(n: number): string {
-  return `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(1)}%`;
-}
-
-function buildMessage(hits: BandHit[]): string {
-  const istTime = new Date().toLocaleTimeString("en-IN", {
+function istTimeNow(): string {
+  return new Date().toLocaleTimeString("en-IN", {
     timeZone: "Asia/Kolkata",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
+}
 
+const NAME_WIDTH = 12;
+
+function buildMessage(hits: BandHit[]): string {
   const sections: { target: TargetType; emoji: string; label: string }[] = [
-    { target: "bear", emoji: "🐻", label: "Near BEAR" },
-    { target: "base", emoji: "🎯", label: "Near BASE" },
-    { target: "bull", emoji: "🐂", label: "Near BULL" },
+    { target: "bear", emoji: "🐻", label: "BEAR" },
+    { target: "base", emoji: "🎯", label: "BASE" },
+    { target: "bull", emoji: "🐂", label: "BULL" },
   ];
 
-  const lines: string[] = [`🔔 <b>Near-target snapshot</b> (${istTime} IST)`];
+  const parts: string[] = [`🔔 <b>Near targets</b> · ${istTimeNow()} IST`];
 
   for (const { target, emoji, label } of sections) {
     const group = hits
@@ -87,17 +92,18 @@ function buildMessage(hits: BandHit[]): string {
       .sort((a, b) => a.dist - b.dist);
     if (group.length === 0) continue;
 
-    lines.push("", `${emoji} <b>${label}</b>`);
-    for (const h of group) {
-      const marker = h.isNew ? "🆕 " : "      ";
-      lines.push(
-        `${marker}<b>${escapeHtml(h.tikr)}</b> ${fmtPrice(h.cmp)} → ${fmtPrice(h.targetPrice)} ` +
-        `(${(h.dist * 100).toFixed(1)}% away) | day ${fmtSignedPct(h.dayChangePct)}`
-      );
-    }
+    const rows = group.map(h => {
+      const star = h.isNew ? "*" : " ";
+      const name = escapeHtml(h.name.slice(0, NAME_WIDTH).padEnd(NAME_WIDTH));
+      const dist = `${(h.dist * 100).toFixed(1)}%`.padStart(5);
+      const day = `${h.dayChangePct >= 0 ? "▲" : "▼"}${Math.abs(h.dayChangePct).toFixed(1)}%`;
+      return `${star}${name} ${dist} ${fmtPrice(h.cmp)} (${day})`;
+    });
+    parts.push("", `${emoji} <b>${label} (${group.length})</b>`, `<pre>${rows.join("\n")}</pre>`);
   }
 
-  return lines.join("\n");
+  if (hits.some(h => h.isNew)) parts.push("", "* new this check");
+  return parts.join("\n");
 }
 
 export async function GET(request: NextRequest) {
@@ -115,7 +121,9 @@ export async function GET(request: NextRequest) {
   }
 
   const force = request.nextUrl.searchParams.get("force") === "1";
-  if (!force && !isMarketOpen()) {
+  // On-demand snapshot: send the current picture, write nothing.
+  const snapshotMode = request.nextUrl.searchParams.get("snapshot") === "1";
+  if (!force && !snapshotMode && !isMarketOpen()) {
     return NextResponse.json({ ok: true, skipped: "market closed" });
   }
 
@@ -174,6 +182,7 @@ export async function GET(request: NextRequest) {
         if (dist <= threshold) {
           hits.push({
             tikr,
+            name: getCompanyShort(stock as { official_name?: string | null; tikr?: string | null }),
             target,
             cmp: quote.price,
             targetPrice,
@@ -191,7 +200,7 @@ export async function GET(request: NextRequest) {
     const nowIso = new Date().toISOString();
 
     // Exits are safe to persist regardless of send outcome (re-arm only).
-    if (exits.length > 0) {
+    if (!snapshotMode && exits.length > 0) {
       const { error } = await supabase.from("alert_state").upsert(
         exits.map(e => ({
           tikr: e.tikr,
@@ -206,10 +215,17 @@ export async function GET(request: NextRequest) {
     }
 
     let sent = false;
-    if (newEntries.length > 0) {
+    if (snapshotMode || newEntries.length > 0) {
       if (!isTelegramConfigured()) {
         // Don't mark entries in-band: alert would be silently swallowed.
         console.warn("[alerts/check] Telegram not configured — entries left un-fired for retry");
+      } else if (snapshotMode) {
+        // Read-only: report the current picture, leave all state untouched.
+        const text = hits.length > 0
+          ? buildMessage(hits)
+          : `🔔 <b>Near targets</b> · ${istTimeNow()} IST\n\nNothing within ${(threshold * 100).toFixed(0)}% of any target right now.`;
+        await sendTelegramMessage(text);
+        sent = true;
       } else {
         // Send FIRST; only persist in_band=true on success so a failed
         // delivery retries next cycle instead of going silent.
@@ -265,6 +281,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       threshold,
+      snapshot: snapshotMode,
       checked,
       fired: newEntries.map(h => ({ tikr: h.tikr, target: h.target, dist: +(h.dist * 100).toFixed(2) })),
       inBand: hits.map(h => ({ tikr: h.tikr, target: h.target, dist: +(h.dist * 100).toFixed(2) })),
