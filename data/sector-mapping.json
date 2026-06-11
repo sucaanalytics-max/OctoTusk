@@ -8,6 +8,7 @@
     "Oil, Gas & Consumable Fuels",
     "Power",
     "Capital Goods",
+    "Automobile and Auto Components",
     "Construction",
     "Construction Materials",
     "Realty",
@@ -111,6 +112,8 @@
     "538734":      { "sector": "Capital Goods", "subsector": "IT Services (Defense & Geomatics)" },
     "505192":      { "sector": "Capital Goods", "subsector": "Commercial Vehicles" },
 
+    "MOTHERSON":   { "sector": "Automobile and Auto Components", "subsector": "Auto Components & Equipments" },
+
     "SPMLINFRA":   { "sector": "Construction", "subsector": "Civil Construction (Water Infra)" },
     "GPTINFRA":    { "sector": "Construction", "subsector": "Civil Construction (Railways/Bridges)" },
 
@@ -165,7 +168,8 @@
     "SMARTWORKS COWORKING SPACES LIMITED (XNSE:SMARTWORKS)": "Smartworks",
     "IIFL Finance": "IIFL",
     "ITC HOTELS LIMITED (XNSE:ITCHOTELS)": "ITCHOTELS",
-    "Capitaland India REIT": "CLAIT"
+    "Capitaland India REIT": "CLAIT",
+    "XNSE:MOTHERSON": "MOTHERSON"
   },
   "substantiveNotes": {
     "ADANIPORTS": "subsector was 'Diagnostics' — pure data error",

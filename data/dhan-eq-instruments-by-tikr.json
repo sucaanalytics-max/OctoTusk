@@ -406,5 +406,9 @@
   "SAREGAMA": {
     "securityId": 4892,
     "exchange": "NSE_EQ"
+  },
+  "MOTHERSON": {
+    "securityId": 4204,
+    "exchange": "NSE_EQ"
   }
 }

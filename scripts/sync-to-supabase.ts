@@ -80,6 +80,7 @@ const TIKR_ALIAS: Record<string, string> = {
   "PSUBNKBEES": "XBOM:590108",
   "SMARTWORKS COWORKING SPACES LIMITED (XNSE:SMARTWORKS)": "Smartworks",
   "IIFL Finance": "IIFL",
+  "XNSE:MOTHERSON": "MOTHERSON",
 };
 
 // ── Helpers ──
