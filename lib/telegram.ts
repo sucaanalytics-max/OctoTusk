@@ -13,10 +13,13 @@ export function isTelegramConfigured(): boolean {
   return !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
 }
 
-export async function sendTelegramMessage(text: string): Promise<void> {
+export async function sendTelegramMessage(
+  text: string,
+  opts?: { chatId?: string | number; replyTo?: number }
+): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) {
+  const chatId = opts?.chatId ?? process.env.TELEGRAM_CHAT_ID;
+  if (!token || chatId == null || chatId === "") {
     throw new Error("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set");
   }
 
@@ -33,6 +36,7 @@ export async function sendTelegramMessage(text: string): Promise<void> {
       text: body,
       parse_mode: "HTML",
       disable_web_page_preview: true,
+      ...(opts?.replyTo ? { reply_to_message_id: opts.replyTo, allow_sending_without_reply: true } : {}),
     }),
     cache: "no-store",
   });
