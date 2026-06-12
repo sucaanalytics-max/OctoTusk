@@ -3,7 +3,9 @@ import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import { isMarketOpen } from "@/lib/marketHours";
 import { isTelegramConfigured, sendTelegramMessage } from "@/lib/telegram";
 import { getCompanyShort } from "@/lib/companyName";
+import { OCTOPUS_INDICES_BROAD } from "@/lib/indices";
 import { buildQuotesMap } from "../../quotes/route";
+import { buildIndicesPayload, type IndexTick } from "../../indices/route";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,15 +19,20 @@ export const maxDuration = 60;
  * For every alert-enabled stock with vF targets, computes the distance of the
  * live CMP to bear/base/bull. A (stock, target) pair "enters the band" when
  * distance ≤ 5%; it re-arms only after exiting past 6% (hysteresis), so each
- * band entry alerts exactly once. When at least one NEW entry fires, ONE
- * Telegram message is sent with the full current picture: every pair presently
- * in-band, grouped by target, with day change %, new entrants marked 🆕.
+ * band entry alerts exactly once.
+ *
+ * Cadence (cron fires every 15 min during market hours):
+ *   - every run:   per-stock ping for each NEW band entrant (>6 at once →
+ *                  one consolidated message, e.g. cold start)
+ *   - IST :00/:30: full near-target snapshot (when anything is in range)
+ *   - IST :00:     index strip (broad + sector, price & day change)
  *
  * Debug/utility params (still CRON_SECRET-gated):
  *   ?threshold=0.5  — widen the band to force alerts end-to-end
  *   ?force=1        — bypass the market-hours guard
  *   ?snapshot=1     — send the current full in-band picture on demand,
  *                     WITHOUT writing state or journal rows
+ *   ?indices=1      — send the indices message on demand
  */
 
 const DEFAULT_THRESHOLD = 0.05;
@@ -108,6 +115,32 @@ function buildMessage(hits: BandHit[]): string {
   }
 
   if (hits.some(h => h.isNew)) parts.push("", "* new this check");
+  return parts.join("\n");
+}
+
+const TARGET_EMOJI: Record<TargetType, string> = { bear: "🐻", base: "🎯", bull: "🐂" };
+
+function buildPingMessage(h: BandHit): string {
+  const arrow = h.dayChangePct >= 0 ? "🟢▲" : "🔴▼";
+  return [
+    `🔔 <b>${escapeHtml(h.name)}</b> entered the ${TARGET_EMOJI[h.target]} <b>${h.target.toUpperCase()}</b> band`,
+    `<pre>${fmtNum(h.targetPrice)} (${(h.dist * 100).toFixed(1)}% away) - CMP ${fmtNum(h.cmp)} (${arrow}${Math.abs(h.dayChangePct).toFixed(1)}%)</pre>`,
+  ].join("\n");
+}
+
+function buildIndicesMessage(ticks: IndexTick[]): string {
+  const line = (t: IndexTick, width: number) => {
+    const value = t.value != null ? fmtNum(t.value) : "—";
+    const day = t.dayPct != null
+      ? `${t.dayPct >= 0 ? "🟢▲" : "🔴▼"}${Math.abs(t.dayPct).toFixed(1)}%`
+      : "";
+    return `${t.label.padEnd(width)} ${value.padStart(9)}  ${day}`;
+  };
+  const broad = ticks.slice(0, OCTOPUS_INDICES_BROAD.length);
+  const sector = ticks.slice(OCTOPUS_INDICES_BROAD.length);
+  const parts = [`📈 <b>Indices</b> · ${istTimeNow()} IST`];
+  if (broad.length) parts.push(`<pre>${broad.map(t => line(t, 17)).join("\n")}</pre>`);
+  if (sector.length) parts.push("<b>Sectors</b>", `<pre>${sector.map(t => line(t, 11)).join("\n")}</pre>`);
   return parts.join("\n");
 }
 
@@ -219,79 +252,139 @@ export async function GET(request: NextRequest) {
       if (error) console.error("[alerts/check] exit upsert failed:", error.message);
     }
 
-    let sent = false;
-    if (snapshotMode || newEntries.length > 0) {
-      if (!isTelegramConfigured()) {
-        // Don't mark entries in-band: alert would be silently swallowed.
-        console.warn("[alerts/check] Telegram not configured — entries left un-fired for retry");
-      } else if (snapshotMode) {
-        // Read-only: report the current picture, leave all state untouched.
-        const text = hits.length > 0
-          ? buildMessage(hits)
-          : `🔔 <b>Near targets</b> · ${istTimeNow()} IST\n\nNothing within ${(threshold * 100).toFixed(0)}% of any target right now.`;
-        await sendTelegramMessage(text);
-        sent = true;
-      } else {
-        // Send FIRST; only persist in_band=true on success so a failed
-        // delivery retries next cycle instead of going silent.
-        await sendTelegramMessage(buildMessage(hits));
-        sent = true;
+    // Mark entries in-band + journal them — called only AFTER their alert
+    // delivered, so a failed send retries next cycle instead of going silent.
+    const persistEntries = async (entries: BandHit[]) => {
+      const { error } = await supabase.from("alert_state").upsert(
+        entries.map(h => ({
+          tikr: h.tikr,
+          target_type: h.target,
+          in_band: true,
+          last_alert_at: nowIso,
+          last_cmp: h.cmp,
+          updated_at: nowIso,
+        })),
+        { onConflict: "tikr,target_type" }
+      );
+      if (error) console.error("[alerts/check] entry upsert failed:", error.message);
 
-        const { error } = await supabase.from("alert_state").upsert(
-          newEntries.map(h => ({
-            tikr: h.tikr,
-            target_type: h.target,
-            in_band: true,
-            last_alert_at: nowIso,
-            last_cmp: h.cmp,
-            updated_at: nowIso,
-          })),
-          { onConflict: "tikr,target_type" }
-        );
-        if (error) console.error("[alerts/check] entry upsert failed:", error.message);
-
-        // Audit trail — best effort, non-fatal. Batch insert, falling back to
-        // per-row so one bad row (e.g. an oversized vF tikr) can't reject all.
-        const journalRows = newEntries.map(h => ({
-          tikr: h.tikr.slice(0, 100),
-          event_type: "zone_enter",
-          zone_name: `near_${h.target}_5pct`,
-          cmp_at_event: h.cmp,
-          upside_bear: upsideFor(stocks, h.tikr, "bear", h.cmp),
-          upside_base: upsideFor(stocks, h.tikr, "base", h.cmp),
-          upside_bull: upsideFor(stocks, h.tikr, "bull", h.cmp),
-          user_email: "alerts-bot",
-        }));
-        const { error: jErr } = await supabase.from("decision_journal").insert(journalRows);
-        if (jErr) {
-          console.error("[alerts/check] journal batch insert failed, retrying per-row:", jErr.message);
-          for (const row of journalRows) {
-            let { error: rowErr } = await supabase.from("decision_journal").insert(row);
-            if (rowErr) {
-              // decision_journal.tikr is varchar(30) until widened — truncate rather than lose the row.
-              ({ error: rowErr } = await supabase
-                .from("decision_journal")
-                .insert({ ...row, tikr: row.tikr.slice(0, 30) }));
-            }
-            if (rowErr) console.error(`[alerts/check] journal insert failed for ${row.tikr}:`, rowErr.message);
+      // Audit trail — best effort, non-fatal. Batch insert, falling back to
+      // per-row so one bad row (e.g. an oversized vF tikr) can't reject all.
+      const journalRows = entries.map(h => ({
+        tikr: h.tikr.slice(0, 100),
+        event_type: "zone_enter",
+        zone_name: `near_${h.target}_5pct`,
+        cmp_at_event: h.cmp,
+        upside_bear: upsideFor(stocks, h.tikr, "bear", h.cmp),
+        upside_base: upsideFor(stocks, h.tikr, "base", h.cmp),
+        upside_bull: upsideFor(stocks, h.tikr, "bull", h.cmp),
+        user_email: "alerts-bot",
+      }));
+      const { error: jErr } = await supabase.from("decision_journal").insert(journalRows);
+      if (jErr) {
+        console.error("[alerts/check] journal batch insert failed, retrying per-row:", jErr.message);
+        for (const row of journalRows) {
+          let { error: rowErr } = await supabase.from("decision_journal").insert(row);
+          if (rowErr) {
+            // decision_journal.tikr is varchar(30) until widened — truncate rather than lose the row.
+            ({ error: rowErr } = await supabase
+              .from("decision_journal")
+              .insert({ ...row, tikr: row.tikr.slice(0, 30) }));
           }
+          if (rowErr) console.error(`[alerts/check] journal insert failed for ${row.tikr}:`, rowErr.message);
+        }
+      }
+    };
+
+    // Cron fires at UTC :00/:15/:30/:45 (+ ~44s). IST = UTC+5:30, so UTC
+    // :00/:30 are the IST half-hours and UTC :30 is the IST top-of-hour.
+    const utcMin = new Date().getUTCMinutes();
+    const slot = (Math.round(utcMin / 15) * 15) % 60;
+    const isHalfHourSlot = slot === 0 || slot === 30;
+    const isHourSlot = slot === 30;
+    const indicesMode = request.nextUrl.searchParams.get("indices") === "1";
+
+    let pingsSent = 0;
+    let snapshotSent = false;
+    let indicesSent = false;
+
+    if (!isTelegramConfigured()) {
+      // Don't mark entries in-band: alerts would be silently swallowed.
+      console.warn("[alerts/check] Telegram not configured — nothing sent, entries left un-fired for retry");
+    } else {
+      // 1) Per-stock pings for new band entrants (every cycle).
+      //    snapshotMode is read-only by contract — no pings, no persists.
+      if (!snapshotMode && newEntries.length > 0) {
+        if (newEntries.length > 6) {
+          // Flood guard (cold start / threshold tests): one consolidated message.
+          try {
+            await sendTelegramMessage(buildMessage(newEntries));
+            await persistEntries(newEntries);
+            pingsSent = newEntries.length;
+          } catch (err) {
+            console.error("[alerts/check] consolidated entry send failed:", err instanceof Error ? err.message : err);
+          }
+        } else {
+          for (const h of newEntries) {
+            try {
+              await sendTelegramMessage(buildPingMessage(h));
+              await persistEntries([h]);
+              pingsSent++;
+            } catch (err) {
+              console.error(`[alerts/check] ping failed for ${h.tikr}/${h.target} (retries next cycle):`, err instanceof Error ? err.message : err);
+            }
+          }
+        }
+      }
+
+      // 2) Full snapshot — every IST half-hour, or on demand (?snapshot=1).
+      if (snapshotMode || isHalfHourSlot) {
+        try {
+          if (hits.length > 0) {
+            await sendTelegramMessage(buildMessage(hits));
+            snapshotSent = true;
+          } else if (snapshotMode) {
+            await sendTelegramMessage(
+              `🔔 <b>Near targets</b> · ${istTimeNow()} IST\n\nNothing within ${(threshold * 100).toFixed(0)}% of any target right now.`
+            );
+            snapshotSent = true;
+          }
+        } catch (err) {
+          console.error("[alerts/check] snapshot send failed:", err instanceof Error ? err.message : err);
+        }
+      }
+
+      // 3) Indices strip — every IST top-of-hour, or on demand (?indices=1).
+      if (indicesMode || (!snapshotMode && isHourSlot)) {
+        try {
+          const { indices } = await buildIndicesPayload();
+          await sendTelegramMessage(buildIndicesMessage(indices));
+          indicesSent = true;
+        } catch (err) {
+          console.error("[alerts/check] indices push failed:", err instanceof Error ? err.message : err);
         }
       }
     }
 
+    const sent = pingsSent > 0 || snapshotSent || indicesSent;
+
     console.log(
-      `[alerts/check] checked=${checked} inBand=${hits.length} new=${newEntries.length} rearmed=${exits.length} sent=${sent}`
+      `[alerts/check] checked=${checked} inBand=${hits.length} new=${newEntries.length} rearmed=${exits.length} slot=${slot} pings=${pingsSent} snapshot=${snapshotSent} indices=${indicesSent}`
     );
 
     return NextResponse.json({
       ok: true,
       threshold,
       snapshot: snapshotMode,
+      slot,
       checked,
       fired: newEntries.map(h => ({ tikr: h.tikr, target: h.target, dist: +(h.dist * 100).toFixed(2) })),
       inBand: hits.map(h => ({ tikr: h.tikr, target: h.target, dist: +(h.dist * 100).toFixed(2) })),
       rearmed: exits.map(e => ({ tikr: e.tikr, target: e.target })),
       sent,
+      pingsSent,
+      snapshotSent,
+      indicesSent,
       telegramConfigured: isTelegramConfigured(),
     });
   } catch (err) {

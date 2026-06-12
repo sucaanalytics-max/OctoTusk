@@ -20,7 +20,7 @@ const yf = new (YahooFinance as any)({
   fetchOptions: { cache: "no-store" },
 });
 
-interface IndexTick {
+export interface IndexTick {
   label: string;
   value: number | null;
   dayPct: number | null;
@@ -54,7 +54,9 @@ async function fetchYahooBatch(symbols: string[]): Promise<Record<string, any>> 
   }
 }
 
-async function buildPayload(): Promise<IndicesPayload> {
+// Exposed for /api/indices (token-gated GET) and the hourly Telegram
+// indices push in /api/alerts/check.
+export async function buildIndicesPayload(): Promise<IndicesPayload> {
   const primaries = OCTOPUS_INDICES.map((i) => i.primary);
   const got = await fetchYahooBatch(primaries);
 
@@ -98,7 +100,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const payload = await buildPayload();
+    const payload = await buildIndicesPayload();
     cached = { payload, expiresAt: now + CACHE_TTL_MS };
     return NextResponse.json(payload, { headers: { "x-cache": "MISS" } });
   } catch (err) {
