@@ -1,10 +1,7 @@
 name: Price near-target alerts
+# Scheduled triggering moved to Vercel Cron (vercel.json) on 2026-06-12 —
+# GitHub's shared cron fired ~1 in 25 slots. Kept for manual runs only.
 on:
-  schedule:
-    # Every 15 min, ~08:30-16:00 IST window (UTC 03:00-10:45), Mon-Fri.
-    # /api/alerts/check itself skips when the market is closed, so the
-    # extra firings at the edges are harmless no-ops.
-    - cron: '*/15 3-10 * * 1-5'
   workflow_dispatch: {}        # Manual trigger via GitHub UI
 
 jobs:
