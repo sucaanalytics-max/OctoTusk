@@ -1,0 +1,16 @@
+{
+  "_generatedAt": "2026-06-13T03:19:22.326Z",
+  "_note": "Front-month MCX gold/silver. Re-run scripts/build-mcx-commodities.ts after a contract expires.",
+  "gold": {
+    "securityId": 466583,
+    "displayName": "GOLD AUG FUT",
+    "expiry": "2026-08-05",
+    "segment": "MCX_COMM"
+  },
+  "silver": {
+    "securityId": 464150,
+    "displayName": "SILVER JUL FUT",
+    "expiry": "2026-07-03",
+    "segment": "MCX_COMM"
+  }
+}

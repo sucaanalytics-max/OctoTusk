@@ -3,6 +3,14 @@
     {
       "path": "/api/alerts/check",
       "schedule": "*/15 3-10 * * 1-5"
+    },
+    {
+      "path": "/api/alerts/digest?type=preopen",
+      "schedule": "0 3 * * 1-5"
+    },
+    {
+      "path": "/api/alerts/digest?type=recap",
+      "schedule": "15 10 * * 1-5"
     }
   ]
 }
