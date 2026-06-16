@@ -122,14 +122,27 @@ function enrichFromStaticDb(stocks: Record<string, unknown>[]): { filledCount: n
   return { filledCount, addedCount };
 }
 
+// Surgical sector correction for tikrs whose vF "Tusk - Summary" F5 cell is generic or
+// miscategorised (e.g. the Vedanta demerger entities listed 2026-06-15). Mirrors the map in
+// scripts/sync-to-supabase.ts. Applied inside deduplicateStocks (the common pre-upsert chokepoint).
+const SECTOR_OVERRIDE: Record<string, { sector: string; subsector: string }> = {
+  VEDPOWER: { sector: "Power & Energy", subsector: "Legacy" },   // vF F5 reads "Industry"
+  VOGL: { sector: "Oil & Gas", subsector: "Upstream" },          // vF F5 reads "Metals & Mining"
+};
+
 function deduplicateStocks(stocks: Record<string, unknown>[]): Record<string, unknown>[] {
   const seen = new Set<string>();
-  return stocks.filter((s) => {
+  const deduped = stocks.filter((s) => {
     const key = (s.tikr as string)?.toLowerCase();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+  for (const s of deduped) {
+    const ov = SECTOR_OVERRIDE[s.tikr as string];
+    if (ov) { s.sector = ov.sector; s.subsector = ov.subsector; }
+  }
+  return deduped;
 }
 
 function excelDateToISO(serial: number | string): string {

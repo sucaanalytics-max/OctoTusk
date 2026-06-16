@@ -15,6 +15,22 @@
     "securityId": 625,
     "exchange": "NSE_EQ"
   },
+  "VOGL": {
+    "securityId": 750460,
+    "exchange": "NSE_EQ"
+  },
+  "VAML": {
+    "securityId": 750191,
+    "exchange": "NSE_EQ"
+  },
+  "VISL": {
+    "securityId": 750324,
+    "exchange": "NSE_EQ"
+  },
+  "VEDPOWER": {
+    "securityId": 750550,
+    "exchange": "NSE_EQ"
+  },
   "J&KBANK": {
     "securityId": 5633,
     "exchange": "NSE_EQ"

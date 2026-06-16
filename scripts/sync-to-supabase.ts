@@ -83,6 +83,14 @@ const TIKR_ALIAS: Record<string, string> = {
   "XNSE:MOTHERSON": "MOTHERSON",
 };
 
+// Surgical sector correction for tikrs whose vF "Tusk - Summary" F5 cell is generic or
+// miscategorised (e.g. the Vedanta demerger entities listed 2026-06-15). Keyed by tikr,
+// applied post-merge/post-dedup so it wins over the vF-derived sector. Keep this narrow.
+const SECTOR_OVERRIDE: Record<string, { sector: string; subsector: string }> = {
+  VEDPOWER: { sector: "Power & Energy", subsector: "Legacy" },   // vF F5 reads "Industry"
+  VOGL: { sector: "Oil & Gas", subsector: "Upstream" },          // vF F5 reads "Metals & Mining"
+};
+
 // ── Helpers ──
 
 function excelDateToISO(serial: number | string): string {
@@ -817,6 +825,14 @@ async function main() {
     return true;
   });
   if (mergedStocks.length < beforeDedup) console.log(`[sync] Deduped: removed ${beforeDedup - mergedStocks.length} duplicate stocks`);
+
+  // Surgical sector correction (post-dedup, pre-upsert) for tikrs whose vF F5 cell is miscategorised.
+  let sectorOverrides = 0;
+  for (const stock of mergedStocks as Array<Record<string, unknown>>) {
+    const ov = SECTOR_OVERRIDE[stock.tikr as string];
+    if (ov) { stock.sector = ov.sector; stock.subsector = ov.subsector; sectorOverrides++; }
+  }
+  if (sectorOverrides > 0) console.log(`[sync] Applied ${sectorOverrides} sector override(s): ${Object.keys(SECTOR_OVERRIDE).join(", ")}`);
 
   // 3. Read holdings and F&O positions
   console.log("[sync] Reading holdings and F&O positions...");
