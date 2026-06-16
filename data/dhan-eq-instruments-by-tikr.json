@@ -3,8 +3,32 @@
     "securityId": 3387,
     "exchange": "NSE_EQ"
   },
+  "533278": {
+    "securityId": 20374,
+    "exchange": "NSE_EQ"
+  },
   "538734": {
     "securityId": 761037,
+    "exchange": "NSE_EQ"
+  },
+  "ABREL": {
+    "securityId": 625,
+    "exchange": "NSE_EQ"
+  },
+  "J&KBANK": {
+    "securityId": 5633,
+    "exchange": "NSE_EQ"
+  },
+  "KTKBANK": {
+    "securityId": 8054,
+    "exchange": "NSE_EQ"
+  },
+  "PIRAMALFIN": {
+    "securityId": 759551,
+    "exchange": "NSE_EQ"
+  },
+  "ITCHOTELS": {
+    "securityId": 29251,
     "exchange": "NSE_EQ"
   },
   "Smartworks": {
@@ -28,7 +52,7 @@
     "exchange": "BSE_EQ"
   },
   "E2E": {
-    "securityId": 8940,
+    "securityId": 8937,
     "exchange": "NSE_EQ"
   },
   "MOTILALOFS": {
@@ -401,6 +425,14 @@
   },
   "SKIPPER": {
     "securityId": 9428,
+    "exchange": "NSE_EQ"
+  },
+  "PRESTIGE": {
+    "securityId": 20302,
+    "exchange": "NSE_EQ"
+  },
+  "Brigade": {
+    "securityId": 15184,
     "exchange": "NSE_EQ"
   },
   "SAREGAMA": {
