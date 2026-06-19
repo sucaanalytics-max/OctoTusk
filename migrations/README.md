@@ -16,6 +16,7 @@ exists`), so re-running a file is safe.
 | `004_notes_stock_follows.sql` | `stock_follows` — per-user followed stocks | Notes |
 | `005_push_subscriptions.sql` | `push_subscriptions` — web-push endpoints | PWA/Push |
 | `006_push_alert_mutes.sql` | `push_alert_mutes` — per-user price-alert mute | PWA/Push |
+| `007_pin_attempts.sql` | `pin_attempts` — holdings-PIN brute-force lockout (H3) | Security |
 
 ## Important
 

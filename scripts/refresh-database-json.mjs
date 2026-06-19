@@ -1,6 +1,8 @@
 // Refreshes the static fallback data/database.json (stocks + ticker_map) from the live
-// Supabase snapshot, so keyless/preview/outage fallbacks aren't stale. Preserves holdings,
-// fo_positions, metadata. Run: node --env-file=.env.local scripts/refresh-database-json.mjs
+// Supabase snapshot, so keyless/preview/outage fallbacks aren't stale. Preserves metadata.
+// SECURITY (V2): holdings/fo_positions are NEVER written to this committed file — the real
+// portfolio lives only in Supabase + the PIN-gated /api/holdings. This script forces them
+// empty so they cannot be reintroduced. Run: node --env-file=.env.local scripts/refresh-database-json.mjs
 import { createClient } from "@supabase/supabase-js";
 import { readFileSync, writeFileSync } from "node:fs";
 
@@ -25,6 +27,11 @@ db.stocks = (data.stocks || []).filter((s) => {
   return true;
 });
 if (data.ticker_map && typeof data.ticker_map === "object") db.ticker_map = data.ticker_map;
+
+// SECURITY (V2): enforce no portfolio data in the committed static file.
+db.holdings = [];
+db.fo_positions = [];
+if (db.metadata && typeof db.metadata === "object") db.metadata.total_holdings = 0;
 
 writeFileSync(path, JSON.stringify(db, null, 2) + "\n");
 

@@ -73,11 +73,75 @@ No `.env.example`. Required:
 | `GRAPH_POSITIONS_FOLDER_ID` | Holdings exports folder |
 | `AUTH_MICROSOFT_ENTRA_ID_ID`, `AUTH_MICROSOFT_ENTRA_ID_SECRET` | NextAuth (restricted to `@tuskinvest.com`) |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Persistence (optional) |
-| `HOLDINGS_PIN` | PIN to unlock holdings tab |
+| `HOLDINGS_PIN_HASH` | SHA-256 hash of the PIN that unlocks the holdings tab (server-only; never the raw PIN) |
 
 ### CSS conventions
 
 All design tokens are CSS custom properties in `app/globals.css` (`--color-*`, `--text-*`, `--space-*`). For new responsive layout, **prefer fluid techniques** — `.kpi-grid` uses `auto-fill minmax(160px, 1fr)`, `.pnl-scenario-grid` uses `repeat(3, 1fr)`, SVG charts use `viewBox` + CSS `max-width`. Avoid adding `@media` breakpoints for new layout; use `clamp()` and `auto-fill` instead.
+
+---
+
+## Do-Not-Touch Boundary
+
+During mobile-UI work — and any feature that is not explicitly a pipeline change — these files are **frozen**. Do not edit, move, or delete them; a feature may only *read* their outputs (`/api/*` GET + pure `lib/` helpers). To intentionally touch one, the user must say so explicitly in-prompt; state which file and why before editing, then run `/boundary-check`.
+
+**Data pipeline (frozen):**
+- `scripts/sync-to-supabase.ts`
+- `app/api/sync/route.ts`, `app/api/cron/sync/route.ts`
+- `app/api/alerts/check/route.ts`, `app/api/alerts/digest/route.ts`
+- `lib/graph-fetch.ts`
+- `data/database.json` — carries `stocks` + `ticker_map` only; **never** holdings/PII (see Security)
+- `.github/workflows/sync-onedrive.yml`
+- Supabase `sync_snapshot` table (no schema migrations)
+
+**Existing web UI (frozen):**
+- `app/dashboard/**` (incl. the 4,909-line `DashboardClient.tsx` — never extend it)
+- `app/octopus/**`
+- `app/globals.css` (consume tokens; never fork/edit)
+
+**Glob form** (single source of truth for `.claude/hooks/boundary-guard.sh`):
+`scripts/sync-to-supabase.ts`, `app/api/sync/**`, `app/api/cron/**`, `app/api/alerts/**`, `lib/graph-fetch.ts`, `data/database.json`, `.github/workflows/sync-onedrive.yml`, `app/dashboard/**`, `app/octopus/**`, `app/globals.css`
+
+**Allowed-but-call-out** (editable; announce first): `middleware.ts`, `next.config.js`, `app/manifest.ts`, `app/api/snapshot/route.ts`, `app/api/holdings/route.ts`.
+
+---
+
+## Mobile UI architecture
+
+The mobile app is a **fully isolated** route tree under `app/m/**`, modelled on the clean, modular `app/octopus/**` split (server `page.tsx` → `*Client.tsx` → presentational components). It only *reads* the existing API surface. **Never extend `DashboardClient.tsx`.**
+
+- **Aesthetic:** the **Dashboard** token system in `app/globals.css` (`:root` / `[data-theme="dark"]`), cards + chips, light+dark; OLED-dark default for `/m` set **server-side** in `app/m/layout.tsx` (no inline `<script>` → keeps CSP strict + avoids FOUC). See `docs/DASHBOARD-GUIDELINE.md`.
+- **Auth:** `app/m/layout.tsx` calls `auth()` + `redirect("/")` itself (like `app/dashboard/page.tsx`). The `middleware.ts` matcher does NOT gate page auth — never rely on it. Every `/m` route: `export const dynamic = "force-dynamic"`.
+- **Numbers:** via `lib/format.ts` (create first). **Reuse** pure `lib/` helpers (`sebi`, `marketHours`, `companyName`, `sectors`, `holdings-match`, `noteTypes`, `roles`); never fork them. Only `lib/scenarioUpside.ts` + `lib/holdingsPnl.ts` are new (re-expressed from inline `DashboardClient.tsx` logic with source-line cross-refs — don't import the monolith).
+- **Mobile-only styles:** new `app/m.css` with `.m-*` classes consuming tokens, scoped under `[data-mroot]`, imported once in `app/m/layout.tsx`. Never edit `globals.css`.
+
+---
+
+## Multi-Agent & Multi-Model
+
+Custom agents in `.claude/agents/*.md` specialize the built-in Explore/Plan/general-purpose agents and the `superpowers` skills (brainstorming → writing-plans → executing-plans) — they don't replace them. Use `superpowers:using-git-worktrees` for isolation.
+
+| Agent | Model | Dispatch when… |
+|---|---|---|
+| `architect` | opus | planning any 3+-step task, a new route/screen, or an architecture decision (read-only) |
+| `red-teamer` | opus | before executing a non-trivial plan or merging — adversarial review |
+| `code-reviewer` | opus | after a unit of work — correctness + guideline-conformance gate |
+| `security-reviewer` | opus | any diff under `app/m/**`, `lib/mobile/**`, `app/api/holdings`, `public/sw.js`, `next.config.js` |
+| `frontend-builder` | sonnet | implementing `app/m/**` + shared `lib/` UI from an approved plan |
+| `data-guardian` | sonnet | pipeline-adjacent work, or auditing a diff for boundary violations |
+| `explorer` | haiku | mechanical "where is X / what imports Y" search + file mapping |
+
+Model tiering is declared in each agent's frontmatter (`model:`). Slash commands orchestrate them: `/mobile-feature`, `/red-team`, `/boundary-check`, `/sync-check`, `/security-check`. A `PreToolUse` hook (`.claude/hooks/boundary-guard.sh`) blocks edits to frozen files unless `OCTOTUSK_ALLOW_PIPELINE_EDIT=1` is set.
+
+---
+
+## Security (must-hold invariants)
+
+- **Portfolio data is sensitive.** Holdings / P&L / PIN / note bodies never reach client storage (localStorage / sessionStorage / IndexedDB / CacheStorage), URLs, or push payloads. Holdings come only via the **PIN-gated** `POST /api/holdings`.
+- `GET /api/snapshot` is session-gated and returns `stocks` / `ticker_map` only — never holdings.
+- `data/database.json` carries `stocks` + `ticker_map` only (holdings live in Supabase + `/api/holdings`).
+- Holdings PIN: constant-time compare + server-side lockout (`lib/pinLockout.ts`, migration `007_pin_attempts.sql`). `HOLDINGS_PIN_HASH` is a SHA-256 hash, server-only.
+- `public/sw.js` must never cache `/api/*` responses.
 
 ---
 
@@ -153,6 +217,8 @@ a summary.
 4. **Explain Changes**: High-level summary at each step
 5. **Document Results**: Add review section to `tasks/todo.md`
 6. **Capture Lessons**: Update `tasks/lessons.md` after corrections
+
+Both files exist: `tasks/todo.md` is per-feature scratch (gitignored); `tasks/lessons.md` is committed, durable shared memory — read it at session start.
 
 ---
 

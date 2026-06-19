@@ -10,13 +10,21 @@ export const revalidate = 0;
  * GET /api/snapshot
  * Returns the last persisted sync snapshot from Supabase.
  * Falls back to database.json if Supabase is not configured or no snapshot exists.
+ *
+ * SECURITY (V1): session-gated, and the payload deliberately EXCLUDES holdings /
+ * fo_positions. Portfolio data is sensitive and must only be served by the
+ * PIN-gated POST /api/holdings — never by this endpoint. (Consumers: the
+ * dashboard's mount fetch reads only stocks/source/synced_at.)
  */
 export async function GET() {
+  const session = await auth();
+  if (!session?.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json({
       stocks: staticDb.stocks,
-      holdings: staticDb.holdings,
-      fo_positions: (staticDb as Record<string, unknown>).fo_positions ?? [],
       ticker_map: staticDb.ticker_map,
       source: "static_fallback",
       synced_at: null,
@@ -27,15 +35,13 @@ export async function GET() {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from("sync_snapshot")
-      .select("stocks, holdings, fo_positions, ticker_map, synced_at")
+      .select("stocks, ticker_map, synced_at")
       .eq("id", 1)
       .single();
 
     if (error || !data) {
       return NextResponse.json({
         stocks: staticDb.stocks,
-        holdings: staticDb.holdings,
-        fo_positions: (staticDb as Record<string, unknown>).fo_positions ?? [],
         ticker_map: staticDb.ticker_map,
         source: "static_fallback",
         synced_at: null,
@@ -56,8 +62,6 @@ export async function GET() {
 
     return NextResponse.json({
       stocks,
-      holdings: data.holdings,
-      fo_positions: data.fo_positions ?? [],
       ticker_map: data.ticker_map,
       source: "supabase",
       synced_at: data.synced_at,
@@ -66,8 +70,6 @@ export async function GET() {
     console.error("[snapshot] GET error:", err instanceof Error ? err.message : err);
     return NextResponse.json({
       stocks: staticDb.stocks,
-      holdings: staticDb.holdings,
-      fo_positions: (staticDb as Record<string, unknown>).fo_positions ?? [],
       ticker_map: staticDb.ticker_map,
       source: "static_fallback_error",
       synced_at: null,
