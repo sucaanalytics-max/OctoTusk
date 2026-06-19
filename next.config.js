@@ -43,6 +43,8 @@ const nextConfig = {
               "img-src 'self' data: blob:",
               "font-src 'self' https://fonts.gstatic.com",
               "connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com",
+              "manifest-src 'self'",
+              "worker-src 'self'",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self' https://login.microsoftonline.com",

@@ -6,6 +6,8 @@ import { getCompanyShort } from "@/lib/companyName";
 import { OCTOPUS_INDICES_BROAD } from "@/lib/indices";
 import { buildQuotesMap } from "../../quotes/route";
 import { buildIndicesPayload, type IndexTick } from "../../indices/route";
+import { sendPushToUsers, isWebPushConfigured } from "@/lib/webpush";
+import { toStockKey } from "@/lib/noteTypes";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -198,6 +200,52 @@ export async function GET(request: NextRequest) {
         .map(s => `${s.tikr}|${s.target_type}`)
     );
 
+    // ── Per-user web push recipients (additive to the shared Telegram channel) ──
+    // Source: stock_follows minus per-user push_alert_mutes. The global alert_prefs
+    // mute is already applied above (disabled set), so muted stocks never reach here.
+    // Loaded defensively: if these tables don't exist yet, push is simply skipped —
+    // the Telegram alert engine is never affected.
+    const pushEnabled = isWebPushConfigured() && !snapshotMode;
+    const followersByKey = new Map<string, Set<string>>();
+    const mutedByUserKey = new Set<string>(); // `${email}|${stock_key}`
+    if (pushEnabled) {
+      try {
+        const [followsR, mutesR] = await Promise.all([
+          supabase.from("stock_follows").select("user_email, stock_key"),
+          supabase.from("push_alert_mutes").select("user_email, stock_key"),
+        ]);
+        for (const r of followsR.data || []) {
+          const k = String(r.stock_key);
+          if (!followersByKey.has(k)) followersByKey.set(k, new Set());
+          followersByKey.get(k)!.add(String(r.user_email).toLowerCase());
+        }
+        for (const r of mutesR.data || []) {
+          mutedByUserKey.add(`${String(r.user_email).toLowerCase()}|${String(r.stock_key)}`);
+        }
+      } catch (e) {
+        console.warn("[alerts/check] push recipient load failed (push skipped):", e instanceof Error ? e.message : e);
+      }
+    }
+
+    // Fan out a price-alert push for each band entrant, to its followers who haven't
+    // muted it. Best-effort (never throws); payload carries price data only + deep link.
+    const pushEntries = async (entries: BandHit[]) => {
+      if (!pushEnabled) return;
+      for (const h of entries) {
+        const key = toStockKey(h.tikr);
+        const followers = followersByKey.get(key);
+        if (!followers || followers.size === 0) continue;
+        const recipients = Array.from(followers).filter(e => !mutedByUserKey.has(`${e}|${key}`));
+        if (recipients.length === 0) continue;
+        await sendPushToUsers(recipients, {
+          title: `${h.name} near ${h.target.toUpperCase()} target`,
+          body: `${fmtNum(h.targetPrice)} (${(h.dist * 100).toFixed(1)}% away) · CMP ${fmtNum(h.cmp)}`,
+          url: `/dashboard?stock=${encodeURIComponent(key)}`,
+          tag: `price-${key}-${h.target}`,
+        });
+      }
+    };
+
     const hits: BandHit[] = [];
     const exits: { tikr: string; target: TargetType; cmp: number }[] = [];
     let checked = 0;
@@ -294,6 +342,10 @@ export async function GET(request: NextRequest) {
           if (rowErr) console.error(`[alerts/check] journal insert failed for ${row.tikr}:`, rowErr.message);
         }
       }
+
+      // Per-user web push — mirrors Telegram, deduped by the same in-band hysteresis
+      // (persistEntries is only called after a successful send).
+      await pushEntries(entries);
     };
 
     // Cron fires at UTC :00/:15/:30/:45 (+ ~44s). IST = UTC+5:30, so UTC

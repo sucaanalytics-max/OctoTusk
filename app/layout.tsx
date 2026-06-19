@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Newsreader } from "next/font/google";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import RegisterSW from "./RegisterSW";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
@@ -28,6 +29,23 @@ const newsreader = Newsreader({
 export const metadata: Metadata = {
   title: "OctoTusk — Tusk Invest",
   description: "Tusk Invest Portfolio Intelligence Platform",
+  applicationName: "OctoTusk",
+  appleWebApp: {
+    capable: true,
+    title: "OctoTusk",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0F1117",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // enables env(safe-area-inset-*) for notch / home indicator
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -38,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body>
         <ErrorBoundary>{children}</ErrorBoundary>
+        <RegisterSW />
         <Analytics />
       </body>
     </html>

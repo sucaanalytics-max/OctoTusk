@@ -7,7 +7,13 @@ import { isMarketOpen } from "@/lib/marketHours";
 import { squarify, heatmapColor, type TreeItem, type TreeRect } from "@/lib/treemap";
 import { isRemovedStock } from "@/lib/removedStocks";
 import { cleanTikr, getCompanyShort } from "@/lib/companyName";
+import { resolveHoldingTikr } from "@/lib/holdings-match";
 import { SegmentsTab } from "./SegmentsTab";
+import NotesTab, { type NewNoteInput, type EditNoteInput } from "./NotesTab";
+import StockNotesPanel from "./StockNotesPanel";
+import PushOptIn from "./PushOptIn";
+import { type Note, toStockKey } from "@/lib/noteTypes";
+import type { Role } from "@/lib/roles";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
 
@@ -71,6 +77,7 @@ interface Holding {
   overall_gain: number;
   overall_gain_pct: number;
   current_value: number;
+  tikr?: string; // resolved at sync time; client falls back to resolveHoldingTikr()
 }
 
 interface FoPosition {
@@ -222,6 +229,7 @@ interface Props {
   tickerMap: Record<string, string>;
   metadata: Record<string, unknown>;
   initialHoldings?: Holding[];
+  userEmail: string;
 }
 
 const CMP_REFRESH_INTERVAL = 60;
@@ -621,8 +629,8 @@ const SectorBar = <T extends { tikr: string; companyShort: string; liveCmp?: num
 };
 
 // ═══════════════════════════════ MAIN ═══════════════════════════════
-export default function DashboardClient({ stocks, tickerMap, metadata, initialHoldings = [] }: Props) {
-  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions">("octopus");
+export default function DashboardClient({ stocks, tickerMap, metadata, initialHoldings = [], userEmail }: Props) {
+  const [activeTab, setActiveTab] = useState<"octopus" | "holdings" | "comparison" | "decisions" | "notes">("octopus");
   const [quotes, setQuotes] = useState<Record<string, QuoteData>>({});
   const [quotesLoading, setQuotesLoading] = useState(true);
   const [lastFetched, setLastFetched] = useState<string | null>(null);
@@ -798,6 +806,14 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [journalAnnotation, setJournalAnnotation] = useState("");
   const [journalTikr, setJournalTikr] = useState("");
   const journalFetched = useRef(false);
+
+  // ── Shared Stock Notes ──
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [follows, setFollows] = useState<Set<string>>(new Set());
+  const [userRole, setUserRole] = useState<Role>("analyst");
+  const notesFetched = useRef(false);
+  const deepLinkHandled = useRef(false);
 
   const latestDecisionByTikr = useMemo(() => {
     const m = new Map<string, { date: string; label: string }>();
@@ -1231,6 +1247,83 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     }
   }, [activeTab, fetchJournal]);
 
+  // ── Shared Stock Notes: fetch / mutate ──
+  const fetchNotes = useCallback(async () => {
+    setNotesLoading(true);
+    try {
+      const res = await fetch("/api/notes?limit=500");
+      if (res.ok) {
+        const data = await res.json();
+        setNotes((data.notes || []) as Note[]);
+        if (data.role) setUserRole(data.role as Role);
+      }
+    } catch { /* silent */ }
+    setNotesLoading(false);
+  }, []);
+
+  const fetchFollows = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notes/follows");
+      if (res.ok) {
+        const data = await res.json();
+        setFollows(new Set((data.follows || []) as string[]));
+      }
+    } catch { /* silent */ }
+  }, []);
+
+  const createNote = useCallback(async (input: NewNoteInput) => {
+    try {
+      const res = await fetch("/api/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Could not save note.");
+        return;
+      }
+    } catch { alert("Could not save note."); return; }
+    fetchNotes();
+  }, [fetchNotes]);
+
+  const editNote = useCallback(async (id: number, patch: EditNoteInput) => {
+    try {
+      const res = await fetch(`/api/notes/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+      if (res.status === 409) { alert("This note changed since you opened it — refreshing."); fetchNotes(); return; }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Could not update note.");
+        return;
+      }
+    } catch { alert("Could not update note."); return; }
+    fetchNotes();
+  }, [fetchNotes]);
+
+  const deleteNote = useCallback(async (id: number) => {
+    try {
+      const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Could not delete note.");
+        return;
+      }
+    } catch { alert("Could not delete note."); return; }
+    fetchNotes();
+  }, [fetchNotes]);
+
+  const toggleFollow = useCallback((tikr: string, following: boolean) => {
+    const key = toStockKey(tikr);
+    setFollows(prev => { const next = new Set(prev); if (following) next.add(key); else next.delete(key); return next; });
+    fetch("/api/notes/follows", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tikr, following }) })
+      .catch(() => {/* silent — server state wins on next follows fetch */});
+  }, []);
+
+  // Auto-fetch notes + follows on first visit to the Notes tab or first time a detail panel opens
+  useEffect(() => {
+    if ((activeTab === "notes" || detailStock) && !notesFetched.current) {
+      notesFetched.current = true;
+      fetchNotes();
+      fetchFollows();
+    }
+  }, [activeTab, detailStock, fetchNotes, fetchFollows]);
+
   const fetchChart = useCallback(async (tikr: string, range = "1mo") => {
     const key = `${tikr}_${range}`;
     if (chartCache[key] || chartLoading[key]) return;
@@ -1315,6 +1408,25 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     });
   }, [liveStocks, quotes, simCmpOverrides]);
 
+  // Deep links from push notifications / home-screen shortcut:
+  //   /dashboard?stock=<STOCK_KEY>[&note=<id>]  → open that stock's detail panel
+  //   /dashboard?compose=note[&stock=<KEY>]     → open the Notes tab (or the stock detail)
+  useEffect(() => {
+    if (deepLinkHandled.current || typeof window === "undefined" || enrichedStocks.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    const stockParam = params.get("stock");
+    const compose = params.get("compose");
+    if (!stockParam && compose !== "note") return;
+    deepLinkHandled.current = true;
+    const clearUrl = () => window.history.replaceState(null, "", window.location.pathname);
+    if (stockParam) {
+      const key = stockParam.toUpperCase();
+      const match = enrichedStocks.find(s => s.tikr && toStockKey(s.tikr) === key);
+      if (match) { setDetailStock(match); clearUrl(); return; }
+    }
+    if (compose === "note") { setActiveTab("notes"); clearUrl(); }
+  }, [enrichedStocks]);
+
   const handleSort = (col: string) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortCol(col); setSortDir("asc"); }
@@ -1388,54 +1500,20 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const enrichedHoldings = useMemo(() => {
     const sourceHoldings = holdingsData.length > 0 ? holdingsData : initialHoldings;
     if (!sourceHoldings.length) return [];
-    const nameToTikr: Record<string, string> = {
-      "Kilburn Engineering": "XBOM:522101", "Vedanta Limited": "VEDL", "Nexus Select Trust": "NXST",
-      "Multi Commodity Exchange of India": "MCX", "Tips Music": "TIPSMUSIC", "Apeejay Surrendra Park Hotels": "PARKHOTELS",
-      "Aditya Birla Sun Life AMC": "ABSLAMC", "Bajaj Finserv": "BAJAJFINSV", "SPML Infra": "SPMLINFRA",
-      "JM Financial": "JMFINANCIL", "IIFL Capital Services": "IIFLCAPS", "Godawari Power & Ispat": "GPIL",
-      "Manappuram Finance": "MANAPPURAM", "Canara Robeco Asset Management Company": "CRAMC",
-      "Suraksha Diagnostic": "SURAKSHA", "Annapurna Swadisht": "ANNAPURNA",
-      "Smartworks Coworking Spaces": "Smartworks", "ICICI Prudential Asset Management Company": "ICICIAMC",
-      "E2E Networks": "E2E", "Wework India Management": "Wework", "Duroply Industries": "XBOM:516003",
-      "State Bank Of India": "SBIN", "GPT Infraprojects": "GPTINFRA",
-      "Virtuoso Optoelectronics": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
-      "BSE Ltd": "BSE", "GPT Healthcare": "GPTHEALTH", "Motilal Oswal Financial": "MOTILALOFS",
-      "KFin Technologies": "KFINTECH", "360 One Wam": "360ONE",
-      "Nippon India ETF Nifty PSU Bank BeES": "XBOM:590108",
-      "National Stock Exchange of India": "National Stock Exchange (NSE)",
-      "Can Fin Homes": "CANFINHOME", "Can Fin Homes Limited": "CANFINHOME",
-      "HDFC Asset Management Company": "HDFCAMC", "HDFC Asset Management": "HDFCAMC", "HDFC AMC": "HDFCAMC",
-      "Bank Of India": "BANKINDIA", "Bank of India": "BANKINDIA",
-      "Bank Of Baroda": "BANKBARODA", "Bank of Baroda": "BANKBARODA",
-      "Punjab National Bank": "PNB",
-    };
-    // Fuzzy fallback: match holdings asset_name against stock official_name (best-ratio wins)
-    const fuzzyMatch = (name: string): { tikr: string; officialName: string; ratio: number } | null => {
-      const nl = name.toLowerCase().replace(/\s+limited$/, "").replace(/\s+ltd$/, "").trim();
-      let best: { tikr: string; officialName: string; ratio: number } | null = null;
-      for (const s of enrichedStocks) {
-        const ol = (s.official_name || "").toLowerCase().replace(/\s+limited$/, "").replace(/\s+ltd$/, "").trim();
-        if (!ol) continue;
-        if (ol === nl) return { tikr: s.tikr, officialName: s.official_name || "", ratio: 1 };
-        if ((ol.includes(nl) || nl.includes(ol)) && Math.min(nl.length, ol.length) / Math.max(nl.length, ol.length) >= 0.5) {
-          const ratio = Math.min(nl.length, ol.length) / Math.max(nl.length, ol.length);
-          if (!best || ratio > best.ratio) best = { tikr: s.tikr, officialName: s.official_name || "", ratio };
-        }
-      }
-      return best;
-    };
-    const fuzzyWarnings: { asset: string; tikr: string; officialName: string; ratio: string }[] = [];
+    // Join key is resolved by the shared lib/holdings-match resolver (curated overrides →
+    // exact official_name → conservative fuzzy), the SAME logic used at sync time — so the
+    // server-persisted h.tikr and this client fallback never disagree.
+    const fuzzyWarnings: { asset: string; tikr: string; ratio: string }[] = [];
     const unmatched: string[] = [];
     const items = sourceHoldings.map(h => {
-      let tikr = nameToTikr[h.asset_name];
+      // Prefer the tikr resolved & persisted at sync time; fall back to the shared
+      // resolver for older snapshots written before the field existed.
+      let tikr = h.tikr;
       if (!tikr) {
-        const fm = fuzzyMatch(h.asset_name);
-        if (fm) {
-          tikr = fm.tikr;
-          fuzzyWarnings.push({ asset: h.asset_name, tikr: fm.tikr, officialName: fm.officialName, ratio: (fm.ratio * 100).toFixed(0) + "%" });
-        } else {
-          unmatched.push(h.asset_name);
-        }
+        const r = resolveHoldingTikr(h.asset_name, enrichedStocks);
+        tikr = r.tikr ?? undefined;
+        if (!tikr) unmatched.push(h.asset_name);
+        else if (r.method === "fuzzy") fuzzyWarnings.push({ asset: h.asset_name, tikr, ratio: ((r.ratio ?? 0) * 100).toFixed(0) + "%" });
       }
       const stockData = tikr ? enrichedStocks.find(s => s.tikr === tikr) : null;
       const livePrice = tikr && quotes[tikr] ? quotes[tikr].price : h.current_price;
@@ -1917,7 +1995,19 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
           })()}
         </div>
 
-        {/* ── Tier 3A: Stock Journal Notes ── */}
+        {/* ── Shared Stock Notes (manual, team-visible) ── */}
+        <StockNotesPanel
+          stock={s}
+          notes={notes}
+          userEmail={userEmail}
+          role={userRole}
+          isFollowing={follows.has(toStockKey(s.tikr))}
+          onCreate={createNote}
+          onDelete={deleteNote}
+          onToggleFollow={toggleFollow}
+        />
+
+        {/* ── Tier 3A: Stock Journal Notes (zone events / decision annotations) ── */}
         <div className="metric-card mb-4 animate-fade-in-up delay-4" style={{ borderTop: "2px solid #8B5CF680" }}>
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold uppercase tracking-wider" style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>Decision Notes</h3>
@@ -2111,6 +2201,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             { key: "holdings" as const, label: "Holdings" },
             { key: "comparison" as const, label: "Comparison" },
             { key: "decisions" as const, label: "Decision Support" },
+            { key: "notes" as const, label: "Notes" },
           ]).map(tab => (
             <button key={tab.key} type="button" onClick={() => handleTabSwitch(tab.key)} role="tab" aria-selected={activeTab === tab.key} aria-controls={`panel-${tab.key}`} tabIndex={activeTab === tab.key ? 0 : -1} className={`tab-btn ${activeTab === tab.key ? "tab-active" : ""}`}>
               {tab.label}
@@ -2118,6 +2209,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-3 pr-2 py-2 tab-controls">
+          <PushOptIn />
           {dataLastRefreshed && (
             <span className="lux-timestamp" title={`Last data sync: ${new Date(dataLastRefreshed).toLocaleString("en-IN")}`}>
               <span className="lux-timestamp-label">Data</span>
@@ -3327,6 +3419,21 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       )}
 
       {/* ═══════════════════ TAB 4: DECISION SUPPORT ═══════════════════ */}
+      {activeTab === "notes" && (
+        <NotesTab
+          notes={notes}
+          notesLoading={notesLoading}
+          userEmail={userEmail}
+          role={userRole}
+          enrichedStocks={enrichedStocks}
+          onCreate={createNote}
+          onEdit={editNote}
+          onDelete={deleteNote}
+          onSelectStock={(s) => setDetailStock(s)}
+          onRefresh={fetchNotes}
+        />
+      )}
+
       {activeTab === "decisions" && (
         <div id="panel-decisions" role="tabpanel" aria-labelledby="tab-decisions" className="space-y-4 animate-fade-in">
 
