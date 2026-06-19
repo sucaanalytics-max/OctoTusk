@@ -67,6 +67,7 @@ export default async function DashboardPage() {
       <header style={{ background: "var(--color-bg-secondary)", borderBottom: "1px solid var(--color-border)" }}>
         <div className="max-w-[1600px] mx-auto px-5 py-3 flex items-center justify-between app-header-inner">
           <div className="flex items-center gap-3">
+            <Image src="/icons/icon-192.png" alt="Tusk Invest" width={30} height={30} priority className="rounded-md" style={{ display: "block" }} />
             <Image src="/tusk-logo.svg" alt="Tusk Investments" width={160} height={32} priority unoptimized />
             <div style={{ width: 1, height: 24, background: "var(--color-border)", margin: "0 4px" }} />
             <div>

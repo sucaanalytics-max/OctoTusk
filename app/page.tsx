@@ -1,5 +1,6 @@
 import { auth, signIn } from "@/auth";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 
 export default async function LoginPage() {
   let session = null;
@@ -17,8 +18,8 @@ export default async function LoginPage() {
     <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, var(--color-bg-elevated) 100%)" }}>
       <div className="rounded-2xl p-10 max-w-md w-full mx-4 text-center" style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-elevated)" }}>
         <div className="mb-6">
-          <div className="w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4" style={{ background: "var(--color-accent-tusk)" }}>
-            <span className="text-white text-2xl font-bold" style={{ fontFamily: "var(--font-sans)" }}>T</span>
+          <div className="w-16 h-16 rounded-xl overflow-hidden mx-auto mb-4" style={{ border: "1px solid var(--color-border)" }}>
+            <Image src="/icons/icon-512.png" alt="Tusk Invest" width={64} height={64} priority />
           </div>
           <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-sans)" }}>OctoTusk</h1>
           <p className="mt-2" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-muted)" }}>Portfolio Intelligence Platform</p>
