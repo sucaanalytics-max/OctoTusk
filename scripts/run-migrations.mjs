@@ -37,7 +37,7 @@ try {
   const tables = await sql`
     select table_name from information_schema.tables
     where table_schema = 'public'
-      and table_name in ('user_roles','stock_notes','note_edits','stock_follows','push_subscriptions','push_alert_mutes')
+      and table_name in ('user_roles','stock_notes','note_edits','stock_follows','push_subscriptions','push_alert_mutes','pin_attempts')
     order by table_name`;
   console.log("\nTables present:", tables.map((t) => t.table_name).join(", "));
   const roles = await sql`select email, role from user_roles order by email`;
