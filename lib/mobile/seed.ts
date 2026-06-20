@@ -18,6 +18,7 @@ interface SnapStock {
   base_current?: number;
   bull_current?: number;
   target_1y?: number;
+  target_2y?: number;
   base_pe?: number;
   base_pb?: number;
   base_evebitda?: number;
@@ -44,6 +45,7 @@ function toMobile(s: SnapStock): MobileStock {
     base: num(s.base_current),
     bull: num(s.bull_current),
     target1y: num(s.target_1y),
+    target2y: num(s.target_2y),
     basePe: num(s.base_pe),
     basePb: num(s.base_pb),
     baseEvEbitda: num(s.base_evebitda),

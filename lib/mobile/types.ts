@@ -11,6 +11,7 @@ export interface MobileStock {
   base: number | null;
   bull: number | null;
   target1y: number | null;
+  target2y: number | null;
   basePe: number | null;
   basePb: number | null;
   baseEvEbitda: number | null;

@@ -9,6 +9,7 @@ import { getSebiSegment, SEBI_LABELS } from "@/lib/sebi";
 import DeltaPill from "../../components/DeltaPill";
 import ScenarioBand from "../../components/ScenarioBand";
 import RangeBar from "../../components/RangeBar";
+import StockNotes from "./StockNotes";
 
 function Metric({ label, value, suffix }: { label: string; value: number | null; suffix?: string }) {
   return (
@@ -19,7 +20,7 @@ function Metric({ label, value, suffix }: { label: string; value: number | null;
   );
 }
 
-export default function StockDetailClient({ stock }: { stock: MobileStock }) {
+export default function StockDetailClient({ stock, userEmail }: { stock: MobileStock; userEmail: string }) {
   const { quotes } = useQuotes();
   const quote = quotes[stock.tikr];
   const cmp = quote?.price ?? stock.cmp ?? null;
@@ -90,6 +91,8 @@ export default function StockDetailClient({ stock }: { stock: MobileStock }) {
           VP {stock.vp ?? "—"} · SA {stock.sa ?? "—"}
         </p>
       </section>
+
+      <StockNotes tikr={stock.tikr} stockName={name} userEmail={userEmail} />
     </div>
   );
 }

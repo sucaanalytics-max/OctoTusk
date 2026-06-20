@@ -3,7 +3,9 @@ import { useMemo, useState } from "react";
 import type { MobileStock } from "@/lib/mobile/types";
 import { useQuotes } from "@/lib/mobile/useQuotes";
 import { scenarioUpside } from "@/lib/scenarioUpside";
+import { isMobileHidden } from "@/lib/mobile/hiddenStocks";
 import StockCard from "../components/StockCard";
+import FilterSheet, { type Conviction, type SortKey } from "../components/FilterSheet";
 
 const FRESH_LABEL: Record<string, string> = {
   LIVE: "● Live",
@@ -12,39 +14,118 @@ const FRESH_LABEL: Record<string, string> = {
   CLOSED: "○ Mkt closed",
   LOADING: "○ Loading…",
 };
+const CONV_LABEL: Record<Conviction, string> = { all: "All", "4plus": "4+", "5": "5 only" };
+const SORT_LABEL: Record<SortKey, string> = {
+  bear: "Bear ↑",
+  base: "Base ↑",
+  bull: "Bull ↑",
+  y1: "1Y ↑",
+  y2: "2Y ↑",
+  change: "Day %",
+  name: "A–Z",
+};
 
-type SortKey = "upside" | "change" | "name";
+function uniqSorted(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((v): v is string => !!v && v !== "0"))).sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
 
 export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
   const { quotes, state, fetchedAt } = useQuotes();
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState<SortKey>("upside");
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Filter state — defaults per spec: Conviction 4+, the de-prioritized names hidden.
+  const [conviction, setConviction] = useState<Conviction>("4plus");
+  const [sort, setSort] = useState<SortKey>("base");
+  const [selectedSectors, setSelectedSectors] = useState<Set<string>>(new Set());
+  const [selectedVps, setSelectedVps] = useState<Set<string>>(new Set());
+  const [selectedSas, setSelectedSas] = useState<Set<string>>(new Set());
+  const [inFnoOnly, setInFnoOnly] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+
+  const allSectors = useMemo(() => uniqSorted(stocks.map((s) => s.sector)), [stocks]);
+  const allVps = useMemo(() => uniqSorted(stocks.map((s) => s.vp)), [stocks]);
+  const allSas = useMemo(() => uniqSorted(stocks.map((s) => s.sa)), [stocks]);
+
+  const toggleIn = (setter: typeof setSelectedSectors) => (val: string) =>
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(val)) next.delete(val);
+      else next.add(val);
+      return next;
+    });
+  const toggleSector = toggleIn(setSelectedSectors);
+  const toggleVp = toggleIn(setSelectedVps);
+  const toggleSa = toggleIn(setSelectedSas);
+
+  const reset = () => {
+    setConviction("4plus");
+    setSort("base");
+    setSelectedSectors(new Set());
+    setSelectedVps(new Set());
+    setSelectedSas(new Set());
+    setInFnoOnly(false);
+    setShowHidden(false);
+  };
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    let list = stocks;
-    if (term) {
-      list = list.filter(
-        (s) =>
+    const cmpOf = (s: MobileStock) => quotes[s.tikr]?.price ?? s.cmp;
+    const list = stocks.filter((s) => {
+      if (!showHidden && isMobileHidden(s.tikr)) return false;
+      if (conviction === "4plus" && !(s.conviction != null && s.conviction >= 4)) return false;
+      if (conviction === "5" && s.conviction !== 5) return false;
+      if (inFnoOnly && !s.inFno) return false;
+      if (selectedSectors.size > 0 && !selectedSectors.has(s.sector)) return false;
+      if (selectedVps.size > 0 && !(s.vp && selectedVps.has(s.vp))) return false;
+      if (selectedSas.size > 0 && !(s.sa && selectedSas.has(s.sa))) return false;
+      if (
+        term &&
+        !(
           s.name.toLowerCase().includes(term) ||
           s.tikr.toLowerCase().includes(term) ||
-          s.sector.toLowerCase().includes(term),
-      );
-    }
-    const cmpOf = (s: MobileStock) => quotes[s.tikr]?.price ?? s.cmp;
-    const arr = [...list];
+          s.sector.toLowerCase().includes(term)
+        )
+      )
+        return false;
+      return true;
+    });
+
     if (sort === "name") {
-      arr.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sort === "change") {
-      arr.sort((a, b) => (quotes[b.tikr]?.changePct ?? -Infinity) - (quotes[a.tikr]?.changePct ?? -Infinity));
+      list.sort((a, b) => a.name.localeCompare(b.name));
     } else {
-      arr.sort(
-        (a, b) =>
-          (scenarioUpside(b.base, cmpOf(b)) ?? -Infinity) - (scenarioUpside(a.base, cmpOf(a)) ?? -Infinity),
-      );
+      const val = (s: MobileStock): number => {
+        const cmp = cmpOf(s);
+        switch (sort) {
+          case "bear":
+            return scenarioUpside(s.bear, cmp) ?? -Infinity;
+          case "bull":
+            return scenarioUpside(s.bull, cmp) ?? -Infinity;
+          case "y1":
+            return scenarioUpside(s.target1y, cmp) ?? -Infinity;
+          case "y2":
+            return scenarioUpside(s.target2y, cmp) ?? -Infinity;
+          case "change":
+            return quotes[s.tikr]?.changePct ?? -Infinity;
+          default:
+            return scenarioUpside(s.base, cmp) ?? -Infinity;
+        }
+      };
+      list.sort((a, b) => val(b) - val(a));
     }
-    return arr;
-  }, [stocks, q, sort, quotes]);
+    return list;
+  }, [stocks, q, conviction, selectedSectors, selectedVps, selectedSas, inFnoOnly, showHidden, sort, quotes]);
+
+  const activeCount =
+    (conviction !== "4plus" ? 1 : 0) +
+    (sort !== "base" ? 1 : 0) +
+    (selectedSectors.size > 0 ? 1 : 0) +
+    (selectedVps.size > 0 ? 1 : 0) +
+    (selectedSas.size > 0 ? 1 : 0) +
+    (inFnoOnly ? 1 : 0) +
+    (showHidden ? 1 : 0);
 
   const updated = fetchedAt
     ? new Date(fetchedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
@@ -67,32 +148,82 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
         aria-label="Search stocks"
       />
 
-      <div className="m-chips" role="tablist" aria-label="Sort">
-        {(["upside", "change", "name"] as SortKey[]).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={sort === k}
-            className={`m-chip${sort === k ? " is-active" : ""}`}
-            onClick={() => setSort(k)}
-          >
-            {k === "upside" ? "Base upside" : k === "change" ? "Day %" : "A–Z"}
+      {/* Filter bar: Filters button + active-filter chips (tap a chip to clear it) */}
+      <div className="m-filterbar">
+        <button className="m-filterbtn" onClick={() => setSheetOpen(true)} aria-haspopup="dialog">
+          <span aria-hidden>⚙</span> Filters
+          {activeCount > 0 && <span className="m-filterbadge">{activeCount}</span>}
+        </button>
+        <div className="m-activechips">
+          <button className="m-chip is-active" onClick={() => setSheetOpen(true)}>
+            ↕ {SORT_LABEL[sort]}
           </button>
-        ))}
+          <button className="m-chip is-active" onClick={() => setSheetOpen(true)}>
+            Conv {CONV_LABEL[conviction]}
+          </button>
+          {Array.from(selectedVps).map((v) => (
+            <button key={`vp-${v}`} className="m-chip is-active" onClick={() => toggleVp(v)}>
+              VP {v} ✕
+            </button>
+          ))}
+          {Array.from(selectedSas).map((v) => (
+            <button key={`sa-${v}`} className="m-chip is-active" onClick={() => toggleSa(v)}>
+              SA {v} ✕
+            </button>
+          ))}
+          {Array.from(selectedSectors).map((s) => (
+            <button key={`sec-${s}`} className="m-chip is-active" onClick={() => toggleSector(s)}>
+              {s} ✕
+            </button>
+          ))}
+          {inFnoOnly && (
+            <button className="m-chip is-active" onClick={() => setInFnoOnly(false)}>
+              F&amp;O ✕
+            </button>
+          )}
+          {showHidden && (
+            <button className="m-chip is-active" onClick={() => setShowHidden(false)}>
+              Hidden shown ✕
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="m-cardlist">
         {filtered.length === 0 ? (
-          <p className="m-empty">No stocks match “{q}”.</p>
+          <p className="m-empty">No stocks match these filters.</p>
         ) : (
           filtered.map((s) => <StockCard key={s.tikr} stock={s} quote={quotes[s.tikr]} />)
         )}
       </div>
 
       <p className="m-count">
-        {filtered.length} stocks{updated ? ` · updated ${updated}` : ""}
+        {filtered.length} of {stocks.length} stocks{updated ? ` · updated ${updated}` : ""}
       </p>
+
+      <FilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        conviction={conviction}
+        setConviction={setConviction}
+        sort={sort}
+        setSort={setSort}
+        allSectors={allSectors}
+        selectedSectors={selectedSectors}
+        toggleSector={toggleSector}
+        allVps={allVps}
+        selectedVps={selectedVps}
+        toggleVp={toggleVp}
+        allSas={allSas}
+        selectedSas={selectedSas}
+        toggleSa={toggleSa}
+        inFnoOnly={inFnoOnly}
+        setInFnoOnly={setInFnoOnly}
+        showHidden={showHidden}
+        setShowHidden={setShowHidden}
+        resultCount={filtered.length}
+        onReset={reset}
+      />
     </div>
   );
 }

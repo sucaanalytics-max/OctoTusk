@@ -7,6 +7,7 @@ import {
   isNoteCategory,
   isNoteVisibility,
   normalizeTags,
+  normalizeLinks,
   MAX_BODY_LEN,
 } from "@/lib/noteTypes";
 
@@ -99,23 +100,37 @@ export async function PATCH(req: NextRequest, { params }: RouteCtx) {
     }
     if (reqBody?.tags !== undefined) patch.tags = normalizeTags(reqBody.tags);
     if (reqBody?.pinned !== undefined) patch.pinned = reqBody.pinned === true;
+    if (reqBody?.links !== undefined) patch.links = normalizeLinks(reqBody.links);
 
-    // Re-derive mentions when the body or visibility could change, and re-enforce the
-    // private-note rule (no @mentions in a private note).
+    // Re-derive mentions when the body, visibility, or share list could change, and
+    // re-enforce the private-note rule (no @mentions in a private note). An explicit
+    // share-with list forces the note to "shared".
+    const shareWithProvided = reqBody?.share_with !== undefined;
     let mentions: string[] | undefined;
-    if (bodyChanged || visibilityChanged) {
-      const effectiveBody = bodyChanged ? patch.body : note.body;
-      const effectiveVisibility = visibilityChanged ? patch.visibility : note.visibility;
+    if (bodyChanged || visibilityChanged || shareWithProvided) {
       const teamEmails = await getTeamEmails();
       teamEmails.add(email);
-      const resolved = parseMentions(effectiveBody, teamEmails);
-      if (effectiveVisibility === "private" && resolved.length > 0) {
+      const effectiveBody = bodyChanged ? patch.body : note.body;
+      const shareMentions = (Array.isArray(reqBody?.share_with) ? reqBody.share_with : [])
+        .filter((e: unknown): e is string => typeof e === "string")
+        .map((e: string) => e.trim().toLowerCase())
+        .filter((e: string) => teamEmails.has(e) && e !== email);
+      let effectiveVisibility = visibilityChanged ? patch.visibility : note.visibility;
+      if (shareMentions.length > 0) {
+        effectiveVisibility = "shared";
+        patch.visibility = "shared";
+      }
+      const bodyMentions = parseMentions(effectiveBody, teamEmails);
+      if (effectiveVisibility === "private" && bodyMentions.length > 0) {
         return NextResponse.json(
           { error: "Private notes can't @mention teammates." },
           { status: 400 }
         );
       }
-      mentions = effectiveVisibility === "private" ? [] : resolved;
+      mentions =
+        effectiveVisibility === "private"
+          ? []
+          : Array.from(new Set([...bodyMentions, ...shareMentions]));
       patch.mentions = mentions;
     }
 

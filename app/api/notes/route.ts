@@ -10,6 +10,7 @@ import {
   isNoteVisibility,
   isValidTikr,
   normalizeTags,
+  normalizeLinks,
   toStockKey,
   MAX_BODY_LEN,
 } from "@/lib/noteTypes";
@@ -17,7 +18,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const NOTE_COLUMNS =
-  "id, stock_key, original_tikr, stock_name, author_email, category, body, tags, visibility, pinned, mentions, edited, created_at, updated_at";
+  "id, stock_key, original_tikr, stock_name, author_email, category, body, tags, visibility, pinned, mentions, edited, created_at, updated_at, links";
 
 /**
  * GET /api/notes — list notes the caller is allowed to see.
@@ -106,14 +107,28 @@ export async function POST(req: NextRequest) {
     // Resolve @mentions against the team allowlist (+ the author themself).
     const teamEmails = await getTeamEmails();
     teamEmails.add(email);
-    const mentions = parseMentions(text, teamEmails);
+    const bodyMentions = parseMentions(text, teamEmails);
 
-    if (visibility === "private" && mentions.length > 0) {
+    // Explicit "share with people" picker (mobile): validate against the team allowlist,
+    // exclude self. Sharing with someone implies the note is shared.
+    const shareWithRaw = Array.isArray(body?.share_with) ? body.share_with : [];
+    const shareMentions = shareWithRaw
+      .filter((e: unknown): e is string => typeof e === "string")
+      .map((e: string) => e.trim().toLowerCase())
+      .filter((e: string) => teamEmails.has(e) && e !== email);
+
+    const effectiveVisibility = shareMentions.length > 0 ? "shared" : visibility;
+
+    // Body @mentions in a private note are rejected (the mentioned user couldn't read it).
+    if (effectiveVisibility === "private" && bodyMentions.length > 0) {
       return NextResponse.json(
         { error: "Private notes can't @mention teammates. Make it Shared or remove the mention." },
         { status: 400 }
       );
     }
+
+    const mentions = Array.from(new Set([...bodyMentions, ...shareMentions]));
+    const links = normalizeLinks(body?.links);
 
     const supabase = getSupabase();
     const { data, error } = await supabase
@@ -126,9 +141,10 @@ export async function POST(req: NextRequest) {
         category,
         body: text,
         tags: normalizeTags(body?.tags),
-        visibility,
+        visibility: effectiveVisibility,
         pinned: body?.pinned === true,
         mentions,
+        links,
       })
       .select("id, created_at")
       .single();
@@ -139,7 +155,7 @@ export async function POST(req: NextRequest) {
     // The note is already committed with an id; sendPush* never throws, so this can
     // neither fail nor duplicate the note write. Payloads carry NO note body (privacy) —
     // just who/which stock + a deep link the recipient opens through the auth-gated app.
-    if (visibility === "shared" && isWebPushConfigured()) {
+    if (effectiveVisibility === "shared" && isWebPushConfigured()) {
       try {
         const noteId = data.id;
         const stockKey = toStockKey(tikr);
