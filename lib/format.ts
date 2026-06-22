@@ -43,3 +43,13 @@ export function fmtCr(rupees: number | null | undefined, decimals = 0): string {
   if (rupees == null || !Number.isFinite(rupees)) return EMPTY;
   return "₹" + fmtNum(rupees / 1e7, decimals) + " Cr";
 }
+
+/** Compact money: ₹X Cr (≥1 crore), ₹X L (≥1 lakh), else ₹X. Real minus, en-IN. */
+export function fmtMoney(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return EMPTY;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? MINUS : "";
+  if (abs >= 1e7) return `${sign}₹${group(abs / 1e7, 2)} Cr`;
+  if (abs >= 1e5) return `${sign}₹${group(abs / 1e5, 2)} L`;
+  return `${sign}₹${group(abs, 0)}`;
+}

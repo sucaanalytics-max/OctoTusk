@@ -1,12 +1,11 @@
+import { loadMobileStocks } from "@/lib/mobile/seed";
+import PortfolioClient from "./PortfolioClient";
+
 export const dynamic = "force-dynamic";
 
-export default function PortfolioPage() {
-  return (
-    <div className="m-page">
-      <header className="m-pagehead">
-        <h1 className="m-title">Portfolio</h1>
-      </header>
-      <p className="m-empty">PIN-protected holdings &amp; live P&amp;L arrive in the next update.</p>
-    </div>
-  );
+export default async function PortfolioPage() {
+  // Seed the stock universe (non-sensitive) for holding→tikr resolution + scenario prices.
+  // Holdings themselves arrive only after the PIN unlock, client-side via /api/holdings.
+  const stocks = await loadMobileStocks();
+  return <PortfolioClient stocks={stocks} />;
 }
