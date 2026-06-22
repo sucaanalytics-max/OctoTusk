@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, reason: "db_not_configured" });
   }
 
-  let body: { stocks?: unknown; holdings?: unknown; fo_positions?: unknown; ticker_map?: unknown } = {};
+  let body: { stocks?: unknown; holdings?: unknown; fo_positions?: unknown; ticker_map?: unknown; patchStock?: unknown } = {};
   try {
     body = await request.json();
   } catch {
@@ -101,6 +101,59 @@ export async function POST(request: Request) {
 
   try {
     const supabase = getSupabase();
+
+    // ── Single-stock patch (per-stock "Refresh vF") ──
+    // Merge ONE freshly-parsed stock into the existing snapshot without
+    // re-sending the whole ~120-stock array. The patch carries only the
+    // filtered vF override fields + provenance (built by /api/sync mode:"single"),
+    // so a shallow merge preserves every JVB-baseline + transient field we don't touch.
+    // Uses a compare-and-set on synced_at so a manual refresh never clobbers a
+    // concurrent full sync / cron write to the shared id=1 row.
+    if (body.patchStock && typeof body.patchStock === "object" && !Array.isArray(body.patchStock)) {
+      const patch = body.patchStock as Record<string, unknown>;
+      const patchTikr = typeof patch.tikr === "string" ? patch.tikr : "";
+      if (!patchTikr) {
+        return NextResponse.json({ ok: false, error: "patchStock requires a string tikr" }, { status: 400 });
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const { data: existing, error: readErr } = await supabase
+          .from("sync_snapshot")
+          .select("stocks, synced_at")
+          .eq("id", 1)
+          .single();
+        if (readErr || !existing) {
+          return NextResponse.json({ ok: false, error: "snapshot read failed" }, { status: 500 });
+        }
+        const stocks = Array.isArray(existing.stocks) ? (existing.stocks as Record<string, unknown>[]) : [];
+        // A transient empty read must never shrink the snapshot to a single row.
+        if (stocks.length === 0) {
+          return NextResponse.json({ ok: false, error: "snapshot empty — refusing partial write" }, { status: 409 });
+        }
+        const prevSyncedAt = existing.synced_at as string | null;
+        const idx = stocks.findIndex(s => String(s.tikr ?? "").toLowerCase() === patchTikr.toLowerCase());
+        // Refuse to ADD a new stock via a patch — it carries only vF override fields,
+        // so pushing it would create a degraded half-row (no baseline / cmp / official_name).
+        // The dashboard button only fires for stocks already in the snapshot; a miss here
+        // means a casing or race issue → tell the caller to run a full sync instead.
+        if (idx < 0) {
+          return NextResponse.json({ ok: false, error: `stock "${patchTikr}" not in snapshot — run a full sync to add it` }, { status: 409 });
+        }
+        stocks[idx] = { ...stocks[idx], ...patch };
+        const savedAt = new Date().toISOString();
+        // Compare-and-set: write only if synced_at is unchanged since our read.
+        let q = supabase.from("sync_snapshot").update({ stocks, synced_at: savedAt }).eq("id", 1);
+        if (prevSyncedAt) q = q.eq("synced_at", prevSyncedAt);
+        const { data: written, error: writeErr } = await q.select("id");
+        if (writeErr) {
+          return NextResponse.json({ ok: false, error: writeErr.message }, { status: 500 });
+        }
+        if (written && written.length > 0) {
+          return NextResponse.json({ ok: true, updated: patchTikr, saved_at: savedAt });
+        }
+        // 0 rows updated → a concurrent write landed between our read and write; retry once.
+      }
+      return NextResponse.json({ ok: false, error: "snapshot changed concurrently, retry" }, { status: 409 });
+    }
 
     // Each field is independently preserved when the caller sends empty/missing:
     // - holdings / fo_positions: per-day OneDrive exports can fail transiently;

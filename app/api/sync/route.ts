@@ -10,6 +10,7 @@ async function getXLSX() {
 }
 import { auth } from "@/auth";
 import { reportError, reportSuccess } from "@/lib/health";
+import { fetchWithRetry } from "@/lib/graph-fetch";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -276,19 +277,23 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
   return allFiles;
 }
 
+// Canonical company key for a vF filename: strips the date prefix + trailing
+// vF/vF2 suffix, lowercased. Dedupes the folder listing AND (in mode:"single")
+// re-finds a stock's file from its stored _vf_source across a date-prefix rename.
+// Mirrors scripts/sync-to-supabase.ts:vfDedupKey. "" for non-vF names.
+function vfDedupKey(fileName: string): string {
+  if (!fileName) return "";
+  const dated = fileName.match(/^\d{6,8}[_ ]?(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
+  if (dated) return dated[1].trim().toLowerCase();
+  const undated = fileName.match(/^(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
+  return undated ? undated[1].trim().toLowerCase() : "";
+}
+
 function deduplicateVFFiles(files: VFFile[]): VFFile[] {
   const stockMap = new Map<string, VFFile>();
   for (const f of files) {
-    const match = f.name.match(/^\d{6,8}[_ ]?(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
-    if (!match) {
-      const match2 = f.name.match(/^(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
-      if (match2) {
-        const key = match2[1].trim().toLowerCase();
-        if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) stockMap.set(key, f);
-      }
-      continue;
-    }
-    const key = match[1].trim().toLowerCase();
+    const key = vfDedupKey(f.name);
+    if (!key) continue;
     if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) stockMap.set(key, f);
   }
   return Array.from(stockMap.values());
@@ -376,17 +381,19 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<Record<str
   const baseUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/workbook`;
   let sessionId: string | undefined;
   try {
-    const sessionRes = await fetch(`${baseUrl}/createSession`, {
+    // Heavy Workbook calls: one attempt at a generous timeout, then fall back to
+    // the reliable XLSX download (retrying a server-side timeout is futile).
+    const GRAPH = { timeoutMs: 60000, maxAttempts: 1, label: file.name };
+    const sessionRes = await fetchWithRetry(`${baseUrl}/createSession`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ persistChanges: false }),
-      signal: AbortSignal.timeout(30000),
-    });
+    }, GRAPH);
     if (!sessionRes.ok) throw new Error(`createSession HTTP ${sessionRes.status}`);
     sessionId = (await sessionRes.json()).id as string;
     const sh: Record<string, string> = { Authorization: `Bearer ${token}`, "workbook-session-id": sessionId };
 
-    const sheetsRes = await fetch(`${baseUrl}/worksheets?$select=name`, { headers: sh, signal: AbortSignal.timeout(30000) });
+    const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: sh }, GRAPH);
     if (!sheetsRes.ok) throw new Error(`worksheets HTTP ${sheetsRes.status}`);
     const sheetsData = await sheetsRes.json();
     if (sheetsData.error) throw new Error(sheetsData.error.message || "worksheets error");
@@ -395,7 +402,7 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<Record<str
       .find((n) => n.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
     if (!summary) { console.warn(`[vF] SKIP ${file.name}: no "Tusk - Summary" sheet`); return null; }
 
-    const rangeRes = await fetch(`${baseUrl}/worksheets('${encodeURIComponent(summary)}')/range(address='A1:G22')?$select=values`, { headers: sh, signal: AbortSignal.timeout(30000) });
+    const rangeRes = await fetchWithRetry(`${baseUrl}/worksheets('${encodeURIComponent(summary)}')/range(address='A1:G22')?$select=values`, { headers: sh }, GRAPH);
     if (!rangeRes.ok) throw new Error(`range HTTP ${rangeRes.status}`);
     const rangeData = await rangeRes.json();
     if (rangeData.error) throw new Error(rangeData.error.message || "range error");
@@ -411,7 +418,9 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<Record<str
 async function parseVFFileXlsx(token: string, file: VFFile): Promise<Record<string, unknown> | null> {
   try {
     const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
+    // Plain blob download (no server recalc) — the reliable backstop: generous timeout + retries.
+    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" },
+      { timeoutMs: 90000, maxAttempts: 3, label: file.name });
     if (!res.ok) { console.warn(`[vF] Failed to download ${file.name}: ${res.status}`); return null; }
     const buffer = await res.arrayBuffer();
     const XLSX = await getXLSX();
@@ -981,6 +990,79 @@ export async function POST(request: Request) {
         unmatchedVf,
         done: isDone,
         totalVfFiles: vfFileList.length,
+        refreshedAt: new Date().toISOString(),
+      });
+    }
+
+    // ── Mode: single ── re-parse ONE stock's vF file (per-stock "Refresh vF").
+    // Finds the file from the stock's stored _vf_source (date-insensitive dedup key),
+    // parses just it, and returns a FILTERED override record for /api/snapshot
+    // { patchStock } to merge. Pure parse — no persistence here.
+    if (mode === "single") {
+      const reqTikr = typeof body.tikr === "string" ? body.tikr.trim() : "";
+      const vfSource = typeof body.vfSource === "string" ? body.vfSource.trim() : "";
+      if (!reqTikr || !vfSource) {
+        return NextResponse.json({ error: "single mode requires { tikr, vfSource }" }, { status: 400 });
+      }
+      const wantKey = vfDedupKey(vfSource);
+      if (!wantKey) {
+        return NextResponse.json({ error: `unrecognized vfSource "${vfSource}"` }, { status: 400 });
+      }
+      const matches = deduplicateVFFiles(await listVFFiles(token)).filter((f) => vfDedupKey(f.name) === wantKey);
+      if (matches.length === 0) {
+        return NextResponse.json({ error: `vF file for "${vfSource}" not in folder (renamed, excluded, or >20MB) — use full sync` }, { status: 404 });
+      }
+      if (matches.length > 1) {
+        return NextResponse.json({ error: `ambiguous file match for "${vfSource}"`, candidates: matches.map((f) => f.name) }, { status: 409 });
+      }
+      const file = matches[0];
+      console.log(`[sync] Mode: single tikr=${reqTikr} file=${file.name}`);
+      const parsed = await parseVFFile(token, file);
+      if (!parsed) {
+        return NextResponse.json({ error: `failed to parse ${file.name}` }, { status: 502 });
+      }
+
+      // Verify the parsed file belongs to the requested stock (alias THEN fuzzy —
+      // the same matching the full sync uses), so we never write the wrong row.
+      const rawTikr = String(parsed.tikr ?? "");
+      const aliasResolved = TIKR_ALIAS[rawTikr] ?? rawTikr;
+      const tikrMatches = (a: string, b: string): boolean => {
+        const al = a.toLowerCase(), bl = b.toLowerCase();
+        if (al === bl) return true;
+        const shorter = Math.min(a.length, b.length), longer = Math.max(a.length, b.length);
+        return longer > 0 && (al.includes(bl) || bl.includes(al)) && shorter / longer >= 0.5;
+      };
+      if (!tikrMatches(aliasResolved, reqTikr) && !tikrMatches(rawTikr, reqTikr)) {
+        return NextResponse.json(
+          { error: "tikr mismatch — file does not belong to this stock", requested: reqTikr, parsedTikr: rawTikr },
+          { status: 409 },
+        );
+      }
+
+      // Filtered override: only non-empty VF_OVERRIDE_FIELDS + provenance, stamped
+      // with the caller's tikr. Never include cmp/score/holding_pct/etc. (they'd
+      // clobber JVB-baseline data in the shallow patch merge at /api/snapshot).
+      const stock: Record<string, unknown> = { tikr: reqTikr };
+      for (const f of VF_OVERRIDE_FIELDS) {
+        const v = parsed[f];
+        if (v !== null && v !== undefined && v !== "") stock[f] = v;
+      }
+      stock._vf_source = parsed._vf_source;
+      stock._vf_method = parsed._vf_method;
+      stock.vf_web_url = parsed.vf_web_url;
+      // A fresh parse is no longer carried-forward — clear the cron's stale markers.
+      stock._vf_carried_forward = false;
+      stock._vf_stale_since = null;
+      // Surgical sector correction (the full sync applies this in deduplicateStocks).
+      const ov = SECTOR_OVERRIDE[reqTikr];
+      if (ov) { stock.sector = ov.sector; stock.subsector = ov.subsector; }
+
+      reportSuccess("sync");
+      return NextResponse.json({
+        mode: "single",
+        stock,
+        parsedTikr: rawTikr,
+        matchedFile: file.name,
         refreshedAt: new Date().toISOString(),
       });
     }

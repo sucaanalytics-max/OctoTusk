@@ -66,6 +66,7 @@ interface Stock {
   exp_profit_fy27?: number;
   exp_profit_fy28?: number;
   vf_web_url?: string;
+  _vf_source?: string;
   [key: string]: unknown;
 }
 
@@ -649,6 +650,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [liveStocks, setLiveStocks] = useState<Stock[]>(stocks);
   const [dataRefreshing, setDataRefreshing] = useState(false);
+  const [refreshingTikr, setRefreshingTikr] = useState<string | null>(null);
   const [holdingsRefreshing, setHoldingsRefreshing] = useState(false);
   const [dataLastRefreshed, setDataLastRefreshed] = useState<string | null>(
     (metadata?.snapshot_synced_at as string | null | undefined) ?? null
@@ -1174,6 +1176,55 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       setSyncStatus("Failed");
     }
     finally { setDataRefreshing(false); }
+  }, []);
+
+  // Per-stock refresh: re-parse ONLY this stock's vF file (seconds, vs the ~10-min
+  // full sync). /api/sync mode:"single" returns a filtered override record; we then
+  // atomically merge just that stock via /api/snapshot { patchStock }.
+  const refreshStock = useCallback(async (stock: Stock) => {
+    const tikr = stock.tikr;
+    const vfSource = stock._vf_source;
+    if (!tikr || !vfSource) return;
+    setRefreshingTikr(tikr);
+    setSyncStatus(`Refreshing ${tikr}…`);
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "single", tikr, vfSource }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error || !data.stock) {
+        const msg = data.error || `HTTP ${res.status}`;
+        setSyncStatus(`Refresh failed: ${msg}`);
+        alert(`Refresh failed for ${tikr}: ${msg}`);
+        return;
+      }
+      const patch = data.stock as Record<string, unknown>;
+      const snapRes = await fetch("/api/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patchStock: patch }),
+      });
+      const snapData = await snapRes.json().catch(() => ({}));
+      if (!snapRes.ok || snapData.ok === false) {
+        const msg = snapData.error || `HTTP ${snapRes.status}`;
+        setSyncStatus(`Refresh save failed: ${msg}`);
+        alert(`Parsed ${tikr} but persistence failed: ${msg}`);
+        return;
+      }
+      // Mirror the server-side shallow merge locally so the UI updates immediately.
+      setLiveStocks(prev => prev.map(s => (s.tikr === tikr ? { ...s, ...patch } : s)));
+      setDetailStock(prev => (prev && prev.tikr === tikr ? ({ ...prev, ...patch } as EnrichedStock) : prev));
+      setDataLastRefreshed(new Date().toISOString());
+      setSyncStatus(`Refreshed ${tikr}`);
+    } catch (err) {
+      console.error("[refresh-stock] error:", err);
+      setSyncStatus("Refresh failed");
+      alert(`Refresh failed for ${tikr} — see console.`);
+    } finally {
+      setRefreshingTikr(null);
+    }
   }, []);
 
   const enrichmentCacheRef = useRef(enrichmentCache);
@@ -1847,6 +1898,12 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                     Open vF Model
                   </button>
                 )}
+                {s._vf_source && (
+                  <button onClick={() => refreshStock(s)} disabled={refreshingTikr === s.tikr} className="btn btn-ghost btn-sm" title="Re-parse just this stock's vF file (fast)" style={{ fontSize: "var(--text-xs)", padding: "2px 8px", gap: 4, display: "inline-flex", alignItems: "center" }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 8"/><path d="M3 4v4h4"/><path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.36-2.64L21 16"/><path d="M21 20v-4h-4"/></svg>
+                    {refreshingTikr === s.tikr ? "Refreshing…" : "Refresh vF"}
+                  </button>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -2439,6 +2496,11 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                           {s.vf_web_url && (
                             <button onClick={() => window.open(s.vf_web_url as string, "_blank", "noopener")} className="stock-action-btn" title="Open vF in Excel Online" aria-label="Open valuation file in Excel Online">
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            </button>
+                          )}
+                          {s._vf_source && (
+                            <button onClick={(e) => { e.stopPropagation(); refreshStock(s); }} disabled={refreshingTikr === s.tikr} className="stock-action-btn" title="Refresh this stock from its vF file" aria-label="Refresh this stock from its vF file">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={refreshingTikr === s.tikr ? { opacity: 0.5 } : undefined}><path d="M21 12a9 9 0 0 0-9-9 9 9 0 0 0-6.36 2.64L3 8"/><path d="M3 4v4h4"/><path d="M3 12a9 9 0 0 0 9 9 9 9 0 0 0 6.36-2.64L21 16"/><path d="M21 20v-4h-4"/></svg>
                             </button>
                           )}
                           {Object.keys(watchlists).length > 0 && (
