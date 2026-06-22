@@ -7,12 +7,18 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Headroom over the script's internal 15m run deadline (SYNC_DEADLINE_MS), which
+    # is the real guarantee the upsert is reached before GitHub kills the job.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # The sync relies on AbortSignal.any (Node ≥ 20.3) to compose per-request
+      # timeouts with the run deadline. Fail fast & loud if the runner lacks it.
+      - name: Assert AbortSignal.any is available
+        run: node -e "if (typeof AbortSignal.any !== 'function') { console.error('AbortSignal.any missing — Node too old'); process.exit(1); } console.log('AbortSignal.any OK on', process.version)"
       - run: npm ci --ignore-scripts
       - name: Sync OneDrive data to Supabase
         run: npx tsx scripts/sync-to-supabase.ts

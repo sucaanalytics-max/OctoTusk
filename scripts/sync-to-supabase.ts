@@ -8,9 +8,11 @@
  */
 
 import * as XLSX from "xlsx";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import * as fs from "fs";
 import * as path from "path";
+import { attachHoldingTikrs } from "../lib/holdings-match";
+import { fetchWithRetry, isDeadlineError, DeadlineError, type FetchRetryConfig } from "../lib/graph-fetch";
 
 // ── Environment ──
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -25,6 +27,25 @@ const SHEET_NAME = "JVB Output";
 const VF_FOLDER_PATH = process.env.GRAPH_VF_FOLDER_PATH || "Tusk Equity/Portfolio Stock Valuations - Bull Base Bear (Tusk Prop)";
 const VF_FOLDER_ID_FALLBACK = process.env.GRAPH_VF_FOLDER_ID || "01XUUXNQYRQ7B5PBRKMZGLUVNKA5K5MXY5";
 const POSITIONS_FOLDER_ID = process.env.GRAPH_POSITIONS_FOLDER_ID || "01XUUXNQYRGGGJMZ3F3VAYAO4FAA37IMDZ";
+
+// ── Reliability tunables (see plan "Airtight OneDrive → Supabase Sync") ──
+const GRAPH_FETCH_TIMEOUT_MS = Number(process.env.SYNC_GRAPH_TIMEOUT_MS || 60000); // heavy Workbook calls
+const XLSX_FETCH_TIMEOUT_MS = Number(process.env.SYNC_XLSX_TIMEOUT_MS || 90000);   // plain /content blob
+const VF_CONCURRENCY = Number(process.env.SYNC_VF_CONCURRENCY || 3);
+const RUN_DEADLINE_MS = Number(process.env.SYNC_DEADLINE_MS || 15 * 60_000);       // < GH job cap (30m)
+const MIN_STOCKS_FRACTION = Number(process.env.SYNC_MIN_STOCKS_FRACTION || 0.5);   // floor gate
+const STALE_ESCALATE_DAYS = Number(process.env.SYNC_STALE_ESCALATE_DAYS || 14);    // carry-forward alert
+const DRY_RUN = process.env.SYNC_DRY_RUN === "1";                                  // run pipeline, skip upsert
+
+// Set once by main(); threaded implicitly into every Graph fetch so no request
+// outlives the overall run deadline. Left undefined when helpers run under test.
+let runDeadline: AbortSignal | undefined;
+
+// Build a fetch-retry config for a Graph Workbook call (heavy; retrying a
+// server-side timeout is futile, so callers pass maxAttempts:1 to fall back fast).
+function graphCfg(label: string, maxAttempts = 3): FetchRetryConfig {
+  return { timeoutMs: GRAPH_FETCH_TIMEOUT_MS, maxAttempts, deadlineSignal: runDeadline, label };
+}
 
 // ── Column mapping (JVB Output) ──
 const COL_MAP: Record<number, string> = {
@@ -109,7 +130,7 @@ async function getGraphToken(): Promise<string> {
   if (!AZURE_TENANT_ID || !GRAPH_CLIENT_ID || !GRAPH_CLIENT_SECRET) {
     throw new Error("Missing AZURE_TENANT_ID, GRAPH_CLIENT_ID, or GRAPH_CLIENT_SECRET");
   }
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token`,
     {
       method: "POST",
@@ -120,7 +141,8 @@ async function getGraphToken(): Promise<string> {
         client_secret: GRAPH_CLIENT_SECRET,
         scope: "https://graph.microsoft.com/.default",
       }),
-    }
+    },
+    graphCfg("oauth token"),
   );
   const data = await res.json();
   if (!data.access_token) {
@@ -133,7 +155,7 @@ async function getGraphToken(): Promise<string> {
 
 async function readJVBOutput(token: string): Promise<unknown[][]> {
   const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${OCTOPUS_ITEM_ID}/workbook/worksheets('${encodeURIComponent(SHEET_NAME)}')/usedRange(valuesOnly=true)`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` } }, graphCfg("JVB Output"));
   const data = await res.json();
   if (data.error) throw new Error(`Graph Excel error (JVB Output): ${data.error.message || JSON.stringify(data.error)}`);
   return data.values || [];
@@ -174,7 +196,7 @@ async function resolveVFFolderUrl(token: string): Promise<string> {
   if (VF_FOLDER_PATH) {
     const encodedPath = encodeURIComponent(VF_FOLDER_PATH);
     const pathUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/root:/${encodedPath}:/children?$top=200&$select=id,name,size,lastModifiedDateTime,file,webUrl`;
-    const testRes = await fetch(pathUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const testRes = await fetchWithRetry(pathUrl, { headers: { Authorization: `Bearer ${token}` } }, graphCfg("vF folder (path)"));
     if (testRes.ok) { console.log(`[sync] Resolved vF folder by path`); return pathUrl; }
     console.warn(`[sync] Path lookup failed, trying folder ID fallback`);
   }
@@ -188,7 +210,7 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
   const allFiles: VFFile[] = [];
   let url: string | null = await resolveVFFolderUrl(token);
   while (url) {
-    const res: Response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const res: Response = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` } }, graphCfg("vF folder listing"));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = await res.json();
     if (data.error) throw new Error(`Graph folder listing error: ${data.error.message}`);
@@ -214,46 +236,32 @@ async function listVFFiles(token: string): Promise<VFFile[]> {
   return allFiles;
 }
 
+// Canonical company key for a vF filename: strips the leading date prefix and
+// the trailing "vF"/"vF2" suffix, lowercased. Used both to deduplicate the live
+// folder listing AND to match a failed file against its prior `_vf_source` for
+// carry-forward — so a renamed (new-date) file still maps to the same stock.
+// Returns "" for names that don't look like a vF file (no carry-forward match).
+function vfDedupKey(fileName: string): string {
+  if (!fileName) return "";
+  const dated = fileName.match(/^\d{6,8}[_ ]?(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
+  if (dated) return dated[1].trim().toLowerCase();
+  const undated = fileName.match(/^(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
+  return undated ? undated[1].trim().toLowerCase() : "";
+}
+
 function deduplicateVFFiles(files: VFFile[]): VFFile[] {
   const stockMap = new Map<string, VFFile>();
   for (const f of files) {
-    const match = f.name.match(/^\d{6,8}[_ ]?(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
-    if (!match) {
-      const match2 = f.name.match(/^(.+?)(?:[_ ]?[vV][fF]\d?)?\.xls[xm]$/i);
-      if (match2) {
-        const key = match2[1].trim().toLowerCase();
-        if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) stockMap.set(key, f);
-      }
-      continue;
-    }
-    const key = match[1].trim().toLowerCase();
+    const key = vfDedupKey(f.name);
+    if (!key) continue;
     if (!stockMap.has(key) || f.name > (stockMap.get(key)!.name)) stockMap.set(key, f);
   }
   return Array.from(stockMap.values());
 }
 
-type ParseFailure = { ok: false; reason: "no_sheet" | "no_tikr" | "http_error" | "parse_error"; file: string; detail: string };
+type ParseFailure = { ok: false; reason: "no_sheet" | "no_tikr" | "http_error" | "parse_error" | "deadline"; file: string; detail: string };
 type ParseSuccess = { ok: true; data: Record<string, unknown> };
 type ParseResult = ParseSuccess | ParseFailure;
-
-async function fetchWithRetry(url: string, opts: RequestInit, fileName: string, maxAttempts = 3): Promise<Response> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const res = await fetch(url, { ...opts, signal: AbortSignal.timeout(30000) });
-      return res;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (attempt < maxAttempts) {
-        const delay = attempt * 2000;
-        console.warn(`[vF] Retry ${attempt}/${maxAttempts}: ${fileName} (${msg}), waiting ${delay}ms`);
-        await new Promise(r => setTimeout(r, delay));
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw new Error("unreachable");
-}
 
 type CellReader = { raw(addr: string): unknown; num(addr: string): number | null; str(addr: string): string };
 
@@ -323,7 +331,7 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ persistChanges: false }),
-    }, file.name);
+    }, graphCfg(file.name, 1));
     if (!sessionRes.ok) {
       const txt = await sessionRes.text().catch(() => "");
       return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${sessionRes.status} createSession: ${txt.slice(0, 150)}` };
@@ -332,7 +340,7 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
     sessionId = sessionJson.id as string;
     const sessionHeaders = { Authorization: `Bearer ${token}`, "workbook-session-id": sessionId } as Record<string, string>;
 
-    const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: sessionHeaders }, file.name);
+    const sheetsRes = await fetchWithRetry(`${baseUrl}/worksheets?$select=name`, { headers: sessionHeaders }, graphCfg(file.name, 1));
     if (!sheetsRes.ok) return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${sheetsRes.status} listing sheets` };
     const sheetsData = await sheetsRes.json();
     if (sheetsData.error) return { ok: false, reason: "parse_error", file: file.name, detail: sheetsData.error.message };
@@ -342,7 +350,7 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
     if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
 
     const rangeUrl = `${baseUrl}/worksheets('${encodeURIComponent(summarySheet)}')/range(address='A1:G22')?$select=values`;
-    const rangeRes = await fetchWithRetry(rangeUrl, { headers: sessionHeaders }, file.name);
+    const rangeRes = await fetchWithRetry(rangeUrl, { headers: sessionHeaders }, graphCfg(file.name, 1));
     if (!rangeRes.ok) {
       const txt = await rangeRes.text().catch(() => "");
       return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${rangeRes.status} reading range: ${txt.slice(0, 200)}` };
@@ -351,6 +359,12 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
     if (rangeData.error) return { ok: false, reason: "parse_error", file: file.name, detail: rangeData.error.message };
     return buildVfData(file, readerFromGraphValues((rangeData.values || []) as unknown[][]), "graph");
   } catch (err) {
+    // Run deadline fired → terminal. Do NOT classify as a per-request timeout
+    // (that would trigger a fresh XLSX fallback fetch which would also run past
+    // the deadline). parseVFFile must skip the fallback for this reason.
+    if (isDeadlineError(err)) {
+      return { ok: false, reason: "deadline", file: file.name, detail: "run deadline reached" };
+    }
     const msg = err instanceof Error ? err.message : String(err);
     // AbortSignal.timeout rejects with DOMException name="TimeoutError";
     // node's fetch may also surface plain AbortError. Classify these as
@@ -380,13 +394,17 @@ async function parseVFFileGraph(token: string, file: VFFile): Promise<ParseResul
 async function parseVFFileXlsx(token: string, file: VFFile): Promise<ParseResult> {
   try {
     const url = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`;
-    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" }, file.name);
+    // /content is a plain blob download (no server-side recalc) — the dependable
+    // path. Generous timeout + retries since this is the integrity backstop.
+    const res = await fetchWithRetry(url, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" },
+      { timeoutMs: XLSX_FETCH_TIMEOUT_MS, maxAttempts: 3, deadlineSignal: runDeadline, label: file.name });
     if (!res.ok) return { ok: false, reason: "http_error", file: file.name, detail: `HTTP ${res.status} downloading binary` };
     const wb = XLSX.read(new Uint8Array(await res.arrayBuffer()), { type: "array" });
     const summarySheet = wb.SheetNames.find(s => s.toLowerCase().replace(/\s+/g, " ").trim() === "tusk - summary");
     if (!summarySheet) return { ok: false, reason: "no_sheet", file: file.name, detail: "no \"Tusk - Summary\" sheet" };
     return buildVfData(file, readerFromXlsxSheet(wb.Sheets[summarySheet]), "xlsx");
   } catch (err) {
+    if (isDeadlineError(err)) return { ok: false, reason: "deadline", file: file.name, detail: "run deadline reached" };
     return { ok: false, reason: "parse_error", file: file.name, detail: err instanceof Error ? err.message : String(err) };
   }
 }
@@ -398,18 +416,24 @@ async function parseVFFile(token: string, file: VFFile): Promise<ParseResult> {
   // at least get cached values rather than dropping the override entirely.
   const graph = await parseVFFileGraph(token, file);
   if (graph.ok) return graph;
+  // "deadline" / "no_sheet" / "no_tikr" / "parse_error" are not transient transport
+  // failures — XLSX won't help (and once the deadline fired we must not start a
+  // fresh fetch). Only a Graph http_error (incl. timeout/504) falls back.
   if (graph.reason !== "http_error") return graph;
+  if (runDeadline?.aborted) return { ok: false, reason: "deadline", file: file.name, detail: "run deadline reached" };
   console.warn(`[vF] Graph failed for ${file.name} (${graph.detail.slice(0, 100)}), falling back to XLSX cached values`);
   return parseVFFileXlsx(token, file);
 }
 
-async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
+async function processVFFiles(token: string, files: VFFile[], concurrency = VF_CONCURRENCY) {
   const results = new Map<string, Record<string, unknown>>();
   const skipped: string[] = [];
   const failed: string[] = [];
   const queue = [...files];
   async function worker() {
-    while (queue.length > 0) {
+    // Stop pulling new files once the run deadline fires (in-flight files finish,
+    // or surface a "deadline" failure → carry-forward covers them downstream).
+    while (queue.length > 0 && !runDeadline?.aborted) {
       const file = queue.shift()!;
       const result = await parseVFFile(token, file);
       if (result.ok) {
@@ -439,6 +463,12 @@ async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
     }
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, files.length) }, () => worker()));
+  // Files left unprocessed because the deadline fired are failures for this run —
+  // record them so carry-forward preserves their last-known-good values.
+  if (queue.length > 0) {
+    console.warn(`[vF] Run deadline reached with ${queue.length} file(s) unprocessed: ${queue.map(f => f.name).join(", ")}`);
+    for (const f of queue) failed.push(f.name);
+  }
   return { results, skipped, failed };
 }
 
@@ -447,12 +477,13 @@ async function processVFFiles(token: string, files: VFFile[], concurrency = 3) {
 interface HoldingRecord {
   asset_name: string; quantity: number; avg_price: number; amt_invested: number;
   current_price: number; overall_gain: number; overall_gain_pct: number; current_value: number;
+  tikr?: string; // resolved against merged stocks at sync time (see lib/holdings-match)
 }
 
 async function readHoldings(token: string): Promise<HoldingRecord[] | null> {
   try {
     const listUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${POSITIONS_FOLDER_ID}/children?$select=id,name,lastModifiedDateTime,file&$top=50`;
-    const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const listRes = await fetchWithRetry(listUrl, { headers: { Authorization: `Bearer ${token}` } }, graphCfg("holdings folder"));
     const listData = await listRes.json();
     if (listData.error) { console.warn(`[holdings] Folder listing error: ${listData.error.message}`); return null; }
 
@@ -465,7 +496,8 @@ async function readHoldings(token: string): Promise<HoldingRecord[] | null> {
     const file = eqFiles[0];
     console.log(`[holdings] Reading: ${file.name}`);
 
-    const dlRes = await fetch(`https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
+    const dlRes = await fetchWithRetry(`https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" },
+      { timeoutMs: XLSX_FETCH_TIMEOUT_MS, maxAttempts: 3, deadlineSignal: runDeadline, label: "holdings download" });
     if (!dlRes.ok) { console.warn(`[holdings] Download failed: ${dlRes.status}`); return null; }
 
     const buffer = await dlRes.arrayBuffer();
@@ -547,7 +579,7 @@ function parseExpiry(ddmmyy: string): string {
 async function readFoPositions(token: string): Promise<FoPosition[] | null> {
   try {
     const listUrl = `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${POSITIONS_FOLDER_ID}/children?$select=id,name,lastModifiedDateTime,file&$top=50`;
-    const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+    const listRes = await fetchWithRetry(listUrl, { headers: { Authorization: `Bearer ${token}` } }, graphCfg("fo folder"));
     const listData = await listRes.json();
     if (listData.error) { console.warn(`[fo] Folder listing error: ${listData.error.message}`); return null; }
 
@@ -560,7 +592,8 @@ async function readFoPositions(token: string): Promise<FoPosition[] | null> {
     const file = foFiles[0];
     console.log(`[fo] Reading: ${file.name}`);
 
-    const dlRes = await fetch(`https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" });
+    const dlRes = await fetchWithRetry(`https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}/items/${file.id}/content`, { headers: { Authorization: `Bearer ${token}` }, redirect: "follow" },
+      { timeoutMs: XLSX_FETCH_TIMEOUT_MS, maxAttempts: 3, deadlineSignal: runDeadline, label: "fo download" });
     if (!dlRes.ok) { console.warn(`[fo] Download failed: ${dlRes.status}`); return null; }
 
     const buffer = await dlRes.arrayBuffer();
@@ -688,6 +721,135 @@ function loadStaticDb(): { ticker_map: Record<string, string>; holdings: unknown
   }
 }
 
+// ── Carry-forward (last-known-good) ──
+
+interface PrevSnapshot {
+  stocksByTikr: Map<string, Record<string, unknown>>; // keyed lowercase tikr
+  sourceKeys: Set<string>;                            // vfDedupKey(_vf_source) of every prev stock with a vF file
+  holdings: unknown[] | null;
+  foPositions: unknown[] | null;
+  count: number;
+}
+
+// Read the last successful sync_snapshot so a file that fails THIS run keeps its
+// last-known-good values instead of regressing to the git-committed static db.
+// Never throws — a failed read disables carry-forward for this run only.
+async function readPrevSnapshot(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: SupabaseClient<any, any, any, any, any>,
+): Promise<PrevSnapshot | null> {
+  try {
+    const query = supabase.from("sync_snapshot").select("stocks, holdings, fo_positions").eq("id", 1).single();
+    // supabase-js doesn't accept an AbortSignal cleanly; race a 10s timeout so a
+    // slow read can never eat into the run deadline.
+    const timeout = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: "prevSnapshot read timed out" } }), 10_000));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await Promise.race([query, timeout]);
+    const data = result?.data;
+    const error = result?.error;
+    if (error || !data) {
+      console.warn(`[carry-forward] prevSnapshot unavailable (${error?.message || "no row"}) — carry-forward DISABLED this run`);
+      return null;
+    }
+    const stocks = (data.stocks || []) as Record<string, unknown>[];
+    const stocksByTikr = new Map<string, Record<string, unknown>>();
+    const sourceKeys = new Set<string>();
+    for (const s of stocks) {
+      const tikr = typeof s.tikr === "string" ? s.tikr : "";
+      if (!tikr) continue;
+      stocksByTikr.set(tikr.toLowerCase(), s);
+      const srcKey = vfDedupKey(String(s._vf_source || ""));
+      if (srcKey) sourceKeys.add(srcKey);
+    }
+    const hold = (data.holdings as unknown[] | null) ?? null;
+    const fo = (data.fo_positions as unknown[] | null) ?? null;
+    console.log(`[carry-forward] prevSnapshot loaded: ${stocks.length} stocks, ${hold?.length ?? 0} holdings, ${fo?.length ?? 0} fo`);
+    return { stocksByTikr, sourceKeys, holdings: hold, foPositions: fo, count: stocks.length };
+  } catch (err) {
+    console.warn(`[carry-forward] prevSnapshot read failed (${err instanceof Error ? err.message : String(err)}) — carry-forward DISABLED this run`);
+    return null;
+  }
+}
+
+// Floor gate: refuse to overwrite a healthy snapshot with a collapsed one (e.g.
+// an empty JVB read). Pure — unit-testable.
+function isFloorBreached(mergedCount: number, prevCount: number, fraction: number): boolean {
+  return prevCount > 0 && mergedCount < prevCount * fraction;
+}
+
+interface CarryForwardResult { carried: string[]; carriedTikrs: Set<string> }
+
+// Restore last-known-good vF fields onto stocks whose vF file was present-but-failed
+// this run. Pure (mutates the passed array, no I/O) so it can be unit-tested.
+// Precedence is enforced positively: fresh-vF-this-run (in liveVfTikrs) always wins,
+// so carry-forward is skipped for those. Removed-from-folder files are NOT resurrected
+// (their dedup key won't be in `failedFiles`). Staleness age is preserved across
+// consecutive carried runs so it climbs honestly toward the escalation threshold.
+function applyCarryForward(
+  mergedStocks: Record<string, unknown>[],
+  prev: PrevSnapshot,
+  liveVfTikrs: Set<string>,
+  failedFiles: string[],
+  todayISO: string,
+): CarryForwardResult {
+  const liveLower = new Set(Array.from(liveVfTikrs).map(t => t.toLowerCase()));
+  const failedKeys = new Set(failedFiles.map(vfDedupKey).filter(Boolean));
+  const carried: string[] = [];
+  const carriedTikrs = new Set<string>();
+  const mergedLower = new Set(mergedStocks.map(s => String(s.tikr || "").toLowerCase()).filter(Boolean));
+
+  const ageDays = (since: string): number => {
+    const ms = new Date(since).getTime();
+    return isNaN(ms) ? 0 : Math.max(0, Math.floor((new Date(todayISO).getTime() - ms) / 86400000));
+  };
+
+  const carryInto = (stock: Record<string, unknown>, prevStock: Record<string, unknown>): void => {
+    for (const f of VF_OVERRIDE_FIELDS) {
+      const v = prevStock[f];
+      if (v !== null && v !== undefined && v !== "") stock[f] = v;
+    }
+    stock._vf_source = prevStock._vf_source;
+    stock._vf_method = prevStock._vf_method;
+    stock.vf_web_url = prevStock.vf_web_url;
+    stock._vf_carried_forward = true;
+    // Keep climbing the staleness clock across consecutive carried runs; only a
+    // genuinely-fresh prior value (not itself carried) resets it to today.
+    const prevWasCarried = prevStock._vf_carried_forward === true;
+    const since = prevWasCarried ? (String(prevStock._vf_stale_since || "") || todayISO) : todayISO;
+    stock._vf_stale_since = since;
+    const tikr = String(stock.tikr || "");
+    carried.push(`${tikr}(${ageDays(since)}d)`);
+    carriedTikrs.add(tikr.toLowerCase());
+  };
+
+  // 1) Stocks already in the merge (baseline or fresh-standalone) that were not
+  //    refreshed this run and whose vF file was present-but-failed.
+  for (const stock of mergedStocks) {
+    const tikrLower = String(stock.tikr || "").toLowerCase();
+    if (!tikrLower || liveLower.has(tikrLower)) continue;           // fresh wins
+    const prevStock = prev.stocksByTikr.get(tikrLower);
+    if (!prevStock) continue;
+    const prevKey = vfDedupKey(String(prevStock._vf_source || ""));
+    if (!prevKey || !failedKeys.has(prevKey)) continue;             // file not present-but-failed
+    carryInto(stock, prevStock);
+  }
+
+  // 2) Standalone-only prev stocks (absent from this run's merge) whose vF file
+  //    failed — re-add so they don't vanish entirely.
+  for (const [tikrLower, prevStock] of Array.from(prev.stocksByTikr.entries())) {
+    if (mergedLower.has(tikrLower) || liveLower.has(tikrLower)) continue;
+    const prevKey = vfDedupKey(String(prevStock._vf_source || ""));
+    if (!prevKey || !failedKeys.has(prevKey)) continue;
+    const clone: Record<string, unknown> = { ...prevStock };
+    carryInto(clone, prevStock);
+    mergedStocks.push(clone);
+    mergedLower.add(tikrLower);
+  }
+
+  return { carried, carriedTikrs };
+}
+
 // ── Main ──
 
 async function main() {
@@ -697,6 +859,19 @@ async function main() {
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   const staticDb = loadStaticDb();
+
+  // Hard run deadline: no Graph fetch outlives it, and we always reach the upsert
+  // (files unparsed by the deadline fall back to carry-forward). Well under the
+  // GitHub job cap (30m). unref() so a pending timer never holds the process open.
+  const deadlineController = new AbortController();
+  const deadlineTimer = setTimeout(() => deadlineController.abort(new DeadlineError()), RUN_DEADLINE_MS);
+  deadlineTimer.unref?.();
+  runDeadline = deadlineController.signal;
+  console.log(`[sync] Run deadline: ${Math.round(RUN_DEADLINE_MS / 60000)}m`);
+
+  // Last successful snapshot (for carry-forward). Independent of the Graph token,
+  // so read it early; never throws — a failed read just disables carry-forward.
+  const prev = await readPrevSnapshot(supabase);
 
   console.log("[sync] Getting Graph token...");
   const token = await getGraphToken();
@@ -713,7 +888,7 @@ async function main() {
   const dedupedFiles = deduplicateVFFiles(allFiles);
   console.log(`[sync] Found ${allFiles.length} files, deduplicated to ${dedupedFiles.length}`);
 
-  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, 3);
+  const { results: vfMap, skipped: vfSkipped, failed: vfFailed } = await processVFFiles(token, dedupedFiles, VF_CONCURRENCY);
   console.log(`[sync] Parsed ${vfMap.size} vF files, skipped ${vfSkipped.length} (no sheet), ${vfFailed.length} errors`);
   console.log(`[sync] vF tikrs: ${Array.from(vfMap.keys()).join(", ")}`);
   if (vfSkipped.length > 0) console.warn(`[sync] Skipped files (no Tusk - Summary sheet): ${vfSkipped.join(", ")}`);
@@ -776,6 +951,21 @@ async function main() {
     }
   }
   if (standaloneTikrs.size > 0) console.log(`[sync] Added ${standaloneTikrs.size} standalone vF stocks`);
+
+  // Carry forward last-known-good for files that failed THIS run — runs after the
+  // fresh-vF merge (fresh always wins via liveVfTikrs) and before the static-db
+  // fill, so precedence is: fresh-vF > carried-forward > baseline > static-db.
+  let carriedForward: string[] = [];
+  if (prev) {
+    const todayISO = new Date().toISOString().split("T")[0];
+    const cf = applyCarryForward(mergedStocks, prev, liveVfTikrs, vfFailed, todayISO);
+    carriedForward = cf.carried;
+    if (carriedForward.length > 0) {
+      console.log(`[carry-forward] ${carriedForward.length} stock(s) kept at last-known-good: ${carriedForward.join(", ")}`);
+    }
+  } else if (vfFailed.length > 0) {
+    console.warn(`[carry-forward] ${vfFailed.length} file(s) failed and no prevSnapshot — those stocks fall back to baseline/static-db this run`);
+  }
 
   // Preserve static-db: fill missing fields on existing stocks + add absent stocks
   const isEmpty = (v: unknown) => v === null || v === undefined || v === "";
@@ -840,8 +1030,11 @@ async function main() {
     readHoldings(token),
     readFoPositions(token),
   ]);
-  const holdings = liveHoldings ?? staticDb.holdings;
-  const foPositions = liveFoPositions ?? staticDb.fo_positions;
+  // Prefer last-good Supabase over the git-committed static db on a live-read miss.
+  const holdings = liveHoldings ?? prev?.holdings ?? staticDb.holdings;
+  const foPositions = liveFoPositions ?? prev?.foPositions ?? staticDb.fo_positions;
+  const holdingsSource = liveHoldings ? "live" : prev?.holdings ? "prev-snapshot" : "static";
+  const foSource = liveFoPositions ? "live" : prev?.foPositions ? "prev-snapshot" : "static";
 
   // Add unlisted holdings not in demat export
   const manualHoldings = [
@@ -862,8 +1055,8 @@ async function main() {
     }
   }
 
-  console.log(`[sync] Holdings: ${(holdings as unknown[]).length} records (${liveHoldings ? "live" : "static"})`);
-  console.log(`[sync] F&O positions: ${(foPositions as unknown[]).length} records (${liveFoPositions ? "live" : "static"})`);
+  console.log(`[sync] Holdings: ${(holdings as unknown[]).length} records (${holdingsSource})`);
+  console.log(`[sync] F&O positions: ${(foPositions as unknown[]).length} records (${foSource})`);
 
   // ── Per-stock validation report ──
   // Lets us spot-check that what lands on the dashboard matches the source vF cells,
@@ -875,15 +1068,16 @@ async function main() {
   for (const stock of mergedStocks) {
     const tikr = stock.tikr as string;
     const live = liveVfTikrs.has(tikr);
-    const file = live ? ((stock._vf_source as string) || "?") : "NONE";
-    const method = live ? ((stock._vf_method as string) || "?") : "-";
+    const carried = stock._vf_carried_forward === true;
+    const file = (live || carried) ? ((stock._vf_source as string) || "?") : "NONE";
+    const method = live ? ((stock._vf_method as string) || "?") : (carried ? `carried@${stock._vf_stale_since}` : "-");
     const bear = stock.bear_current ?? "null";
     const base = stock.base_current ?? "null";
     const bull = stock.bull_current ?? "null";
     const lu = (stock.last_updated as string) ?? "";
     console.log(`[validate] tikr=${tikr} method=${method} file=${file} bear=${bear} base=${base} bull=${bull} last_updated=${lu}`);
 
-    if (!live && lu) {
+    if (!live && !carried && lu) {
       const luMs = new Date(lu).getTime();
       if (!isNaN(luMs)) {
         const daysOld = Math.floor((todayMs - luMs) / 86400000);
@@ -894,14 +1088,49 @@ async function main() {
   console.log(`[unmatched] ${standaloneTikrs.size} vF stocks added as standalone (potential silent stale clones if a baseline row also exists for the same company): ${Array.from(standaloneTikrs).join(", ") || "none"}`);
   console.log(`[stale] ${stale.length} baseline stocks with no live vF override this run and last_updated > ${STALE_DAYS}d: ${stale.join(", ") || "none"}`);
 
+  // Resolve & persist each holding's tikr (shared resolver — identical logic to the client).
+  const { holdings: holdingsWithTikr, report: holdingsTikrReport } = attachHoldingTikrs(
+    holdings as HoldingRecord[],
+    mergedStocks as unknown as { tikr: string; official_name?: string }[]
+  );
+  console.log(`[holdings-tikr] unmatched (no stock row): ${holdingsTikrReport.unmatched.join(", ") || "none"}`);
+  console.log(`[holdings-tikr] low-confidence (fuzzy): ${holdingsTikrReport.lowConfidence.map(l => `${l.asset_name}->${l.tikr}(${l.ratio}%)`).join(", ") || "none"}`);
+
+  // ── Integrity gates (computed before the write) ──
+  // Genuine data loss: a file failed this run AND we had no last-known-good to carry.
+  const genuineLoss = vfFailed.filter(f => {
+    const k = vfDedupKey(f);
+    if (!k) return true;                       // unparseable name → can't match a prior value
+    return !prev || !prev.sourceKeys.has(k);   // prev never had this file → nothing to carry
+  });
+  // Escalation: a carried-forward stock has been stale beyond the threshold.
+  const staleEscalated = carriedForward.filter(entry => {
+    const m = entry.match(/\((\d+)d\)$/);
+    return m ? Number(m[1]) > STALE_ESCALATE_DAYS : false;
+  });
+  console.log(`[carry-forward] summary: carried=${carriedForward.length}, genuine-loss=${genuineLoss.length}, stale>${STALE_ESCALATE_DAYS}d=${staleEscalated.length}`);
+
+  // Floor gate: never overwrite a healthy snapshot with a collapsed one (e.g. an
+  // empty JVB read). Refusing the write keeps the last-good snapshot live.
+  const prevCount = prev?.count ?? 0;
+  if (isFloorBreached(mergedStocks.length, prevCount, MIN_STOCKS_FRACTION)) {
+    console.error(`[sync] ABORT upsert: ${mergedStocks.length} stocks < ${Math.round(MIN_STOCKS_FRACTION * 100)}% of prev ${prevCount} — refusing to overwrite a healthy snapshot with a collapsed one`);
+    process.exit(1);
+  }
+
   // 4. Write to Supabase
+  if (DRY_RUN) {
+    console.log(`[dry-run] SKIPPING upsert. Would write ${mergedStocks.length} stocks, ${(holdings as unknown[]).length} holdings, ${(foPositions as unknown[]).length} fo. carried=${carriedForward.length} loss=${genuineLoss.length} stale>${STALE_ESCALATE_DAYS}d=${staleEscalated.length}`);
+    return;
+  }
+
   console.log("[sync] Writing to Supabase...");
   const { error } = await supabase
     .from("sync_snapshot")
     .upsert({
       id: 1,
       stocks: mergedStocks,
-      holdings,
+      holdings: holdingsWithTikr,
       fo_positions: foPositions ?? [],
       ticker_map: staticDb.ticker_map,
       synced_at: new Date().toISOString(),
@@ -912,9 +1141,27 @@ async function main() {
   }
 
   console.log(`[sync] Done! Synced ${mergedStocks.length} stocks, ${(holdings as unknown[]).length} holdings, ${(foPositions as unknown[]).length} fo_positions to Supabase`);
+
+  // Alert AFTER a successful write (never block the DB update). Exit non-zero so
+  // the GitHub Action goes red and emails on genuine loss or chronic staleness.
+  if (genuineLoss.length > 0) {
+    console.error(`[loss] ${genuineLoss.length} file(s) failed with NO last-known-good to carry forward: ${genuineLoss.join(", ")}`);
+  }
+  if (staleEscalated.length > 0) {
+    console.error(`[stale-escalate] ${staleEscalated.length} stock(s) carried-forward beyond ${STALE_ESCALATE_DAYS}d — fix the source file: ${staleEscalated.join(", ")}`);
+  }
+  if (genuineLoss.length > 0 || staleEscalated.length > 0) {
+    process.exit(1);
+  }
 }
 
-main().catch(e => {
-  console.error("[sync] FATAL:", e);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(e => {
+    console.error("[sync] FATAL:", e);
+    process.exit(1);
+  });
+}
+
+// Exported for unit harnesses (see scripts/__tests__). Importing does not run main().
+export { vfDedupKey, applyCarryForward, parseStocks, deduplicateVFFiles, isFloorBreached };
+export type { PrevSnapshot };
