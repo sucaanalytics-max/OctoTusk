@@ -10,6 +10,7 @@ async function getXLSX() {
 }
 import { auth } from "@/auth";
 import { reportError, reportSuccess } from "@/lib/health";
+import { attachHoldingTikrs } from "@/lib/holdings-match";
 import { fetchWithRetry } from "@/lib/graph-fetch";
 
 export const dynamic = "force-dynamic";
@@ -489,6 +490,7 @@ interface HoldingRecord {
   overall_gain: number;
   overall_gain_pct: number;
   current_value: number;
+  tikr?: string; // resolved against merged stocks at sync time (see lib/holdings-match)
 }
 
 async function readHoldings(token: string): Promise<HoldingRecord[] | null> {
@@ -1143,11 +1145,19 @@ export async function POST(request: Request) {
     console.log(`[sync] Holdings: ${holdings.length} records (${holdingsSource})`);
     console.log(`[sync] F&O positions: ${liveFoPositions === null ? "null (read failed) — caller should preserve last-good" : `${liveFoPositions.length} records (live)`}`);
 
+    // Resolve & persist each holding's tikr (shared resolver — identical logic to the client).
+    const { holdings: holdingsWithTikr, report: holdingsTikrReport } = attachHoldingTikrs(
+      holdings as { asset_name: string }[],
+      finalStocks as unknown as { tikr: string; official_name?: string }[]
+    );
+    console.log(`[holdings-tikr] unmatched (no stock row): ${holdingsTikrReport.unmatched.join(", ") || "none"}`);
+    console.log(`[holdings-tikr] low-confidence (fuzzy): ${holdingsTikrReport.lowConfidence.map(l => `${l.asset_name}->${l.tikr}(${l.ratio}%)`).join(", ") || "none"}`);
+
     reportSuccess("sync");
     return NextResponse.json({
       mode: "full",
       stocks: finalStocks,
-      holdings,
+      holdings: holdingsWithTikr,
       fo_positions: liveFoPositions,
       ticker_map: staticDb.ticker_map,
       metadata: {
