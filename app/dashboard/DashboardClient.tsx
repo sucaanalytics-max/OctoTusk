@@ -14,6 +14,7 @@ import StockNotesPanel from "./StockNotesPanel";
 import PushOptIn from "./PushOptIn";
 import { type Note, toStockKey } from "@/lib/noteTypes";
 import type { Role } from "@/lib/roles";
+import { DEFAULT_HIDDEN_TIKRS, DEFAULT_CONVICTION_FILTER } from "@/lib/dashboardDefaults";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
 
@@ -641,7 +642,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [filterSector, setFilterSector] = useState<string>("all");
   const [filterSubsector, setFilterSubsector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
-  const [filterConviction, setFilterConviction] = useState<string>("all");
+  const [filterConviction, setFilterConviction] = useState<string>(DEFAULT_CONVICTION_FILTER);
   const [filterSegment, setFilterSegment] = useState<string>("all");
   const [filterHoldingsOnly, setFilterHoldingsOnly] = useState(false);
   const [filterUpside1Y, setFilterUpside1Y] = useState<number | null>(null);
@@ -829,7 +830,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
   // Watchlists & hidden stocks
-  const [hiddenStocks, setHiddenStocks] = useState<Set<string>>(new Set());
+  const [hiddenStocks, setHiddenStocks] = useState<Set<string>>(new Set(DEFAULT_HIDDEN_TIKRS));
   // Per-stock price-alert prefs (server-persisted; missing key = alerts ON)
   const [alertPrefs, setAlertPrefs] = useState<Record<string, boolean>>({});
   const [watchlists, setWatchlists] = useState<Record<string, string[]>>({});
@@ -1780,7 +1781,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   // Th moved to module scope to avoid remount on every render
 
-  const activeFilters = [filterSector, filterSubsector, filterVP, filterConviction, filterSegment].filter(f => f !== "all").length + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
+  const activeFilters = [filterSector, filterSubsector, filterVP, filterSegment].filter(f => f !== "all").length + (filterConviction !== DEFAULT_CONVICTION_FILTER ? 1 : 0) + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
 
 
   // ── Pill toggle style helper ──
@@ -2333,7 +2334,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </span>
             {activeFilters > 0 && (
               <button
-                onClick={() => { setFilterSector("all"); setFilterSubsector("all"); setFilterVP("all"); setFilterConviction("all"); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
+                onClick={() => { setFilterSector("all"); setFilterSubsector("all"); setFilterVP("all"); setFilterConviction(DEFAULT_CONVICTION_FILTER); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
                 className="btn btn-ghost btn-sm"
                 style={{ color: "var(--color-warning)", whiteSpace: "nowrap" }}
                 aria-label="Clear all filters"
