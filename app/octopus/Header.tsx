@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 export type DisplayState = "LIVE" | "STALE" | "DISCONNECTED" | "CLOSED" | "LOADING";
 
@@ -41,6 +41,8 @@ export const DEFAULT_BAND = 3;
 export type StripDensity = "comfortable" | "compact";
 export const DENSITY_DEFAULT: StripDensity = "comfortable";
 
+const DENSITY_BTN: CSSProperties = { display: "inline-flex", alignItems: "center", padding: "6px 9px" };
+
 export function Header({
   state,
   ageSeconds,
@@ -75,7 +77,7 @@ export function Header({
   const pill = PILL[state];
 
   return (
-    <header className="ox-masthead">
+    <header className="ox-masthead" style={{ gridTemplateColumns: "max-content minmax(0, 1fr)" }}>
       <div className="ox-masthead-brand">
         <h1 className="ox-masthead-title">
           <span className="ox-masthead-dot" aria-hidden />
@@ -86,7 +88,7 @@ export function Header({
           <span className="ox-bullet">·</span> Live Market View
         </p>
       </div>
-      <div className="ox-masthead-state">
+      <div className="ox-masthead-state" style={{ flexWrap: "wrap", justifyContent: "flex-end", rowGap: "8px" }}>
         {view !== undefined && onViewChange && (
           <div className="ox-view-toggle" role="tablist" aria-label="Centerpiece view">
             <button
@@ -141,28 +143,38 @@ export function Header({
           </div>
         )}
         {density !== undefined && onDensityChange && (
-          <div className="ox-band-control">
-            <span className="ox-band-control-label">Density</span>
-            <div className="ox-view-toggle" role="group" aria-label="Index strip density">
-              <button
-                type="button"
-                className="ox-view-toggle-btn"
-                data-active={density === "comfortable" || undefined}
-                aria-pressed={density === "comfortable"}
-                onClick={() => onDensityChange("comfortable")}
-              >
-                Comfortable
-              </button>
-              <button
-                type="button"
-                className="ox-view-toggle-btn"
-                data-active={density === "compact" || undefined}
-                aria-pressed={density === "compact"}
-                onClick={() => onDensityChange("compact")}
-              >
-                Compact
-              </button>
-            </div>
+          <div className="ox-view-toggle" role="group" aria-label="Index strip density">
+            <button
+              type="button"
+              className="ox-view-toggle-btn"
+              style={DENSITY_BTN}
+              data-active={density === "comfortable" || undefined}
+              aria-pressed={density === "comfortable"}
+              aria-label="Comfortable density"
+              title="Comfortable density"
+              onClick={() => onDensityChange("comfortable")}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden fill="currentColor">
+                <rect x="2" y="3.25" width="12" height="3.5" rx="1" />
+                <rect x="2" y="9.25" width="12" height="3.5" rx="1" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="ox-view-toggle-btn"
+              style={DENSITY_BTN}
+              data-active={density === "compact" || undefined}
+              aria-pressed={density === "compact"}
+              aria-label="Compact density"
+              title="Compact density"
+              onClick={() => onDensityChange("compact")}
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden fill="currentColor">
+                <rect x="2" y="2.5" width="12" height="2.4" rx="0.8" />
+                <rect x="2" y="6.8" width="12" height="2.4" rx="0.8" />
+                <rect x="2" y="11.1" width="12" height="2.4" rx="0.8" />
+              </svg>
+            </button>
           </div>
         )}
         <button
