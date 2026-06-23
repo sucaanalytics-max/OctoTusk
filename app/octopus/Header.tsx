@@ -37,6 +37,10 @@ export type OctopusView = "day" | "upside" | "movers";
 export const BAND_PRESETS = [2, 3, 5] as const;
 export const DEFAULT_BAND = 3;
 
+/** Index-strip density. Comfortable = 3-line cells; Compact = 2-line (value + change inline). */
+export type StripDensity = "comfortable" | "compact";
+export const DENSITY_DEFAULT: StripDensity = "comfortable";
+
 export function Header({
   state,
   ageSeconds,
@@ -45,6 +49,8 @@ export function Header({
   onViewChange,
   band,
   onBandChange,
+  density,
+  onDensityChange,
 }: {
   state: DisplayState;
   ageSeconds: number | null;
@@ -53,6 +59,8 @@ export function Header({
   onViewChange?: (v: OctopusView) => void;
   band?: number;
   onBandChange?: (b: number) => void;
+  density?: StripDensity;
+  onDensityChange?: (d: StripDensity) => void;
 }) {
   const [now, setNow] = useState<Date | null>(null);
   const [isMac, setIsMac] = useState(false);
@@ -129,6 +137,31 @@ export function Header({
                   ±{b}%
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+        {density !== undefined && onDensityChange && (
+          <div className="ox-band-control">
+            <span className="ox-band-control-label">Density</span>
+            <div className="ox-view-toggle" role="group" aria-label="Index strip density">
+              <button
+                type="button"
+                className="ox-view-toggle-btn"
+                data-active={density === "comfortable" || undefined}
+                aria-pressed={density === "comfortable"}
+                onClick={() => onDensityChange("comfortable")}
+              >
+                Comfortable
+              </button>
+              <button
+                type="button"
+                className="ox-view-toggle-btn"
+                data-active={density === "compact" || undefined}
+                aria-pressed={density === "compact"}
+                onClick={() => onDensityChange("compact")}
+              >
+                Compact
+              </button>
             </div>
           </div>
         )}

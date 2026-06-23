@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isMarketOpen, nextDailyResetMs } from "@/lib/marketHours";
-import { Header, type DisplayState, type OctopusView, BAND_PRESETS, DEFAULT_BAND } from "./Header";
+import { Header, type DisplayState, type OctopusView, type StripDensity, BAND_PRESETS, DEFAULT_BAND, DENSITY_DEFAULT } from "./Header";
 import { IndexStrip, type IndexTick } from "./IndexStrip";
 import { SectorGrid } from "./SectorGrid";
 import { SectorOrbital } from "./SectorOrbital";
@@ -85,6 +85,7 @@ const BACKOFF_SCHEDULE_MS = [30_000, 60_000, 120_000, 300_000];
 const LOCALSTORAGE_KEY = "octopus:lastFeed";
 const LOCALSTORAGE_IDX = "octopus:lastIndices";
 const LOCALSTORAGE_BAND = "octopus:band";
+const LOCALSTORAGE_DENSITY = "octopus:density";
 
 function loadCache<T>(key: string): T | null {
   if (typeof window === "undefined") return null;
@@ -128,6 +129,7 @@ export default function OctopusClient({
   const [marketOpen, setMarketOpen] = useState<boolean>(false);
   const [view, setView] = useState<OctopusView>("day");
   const [band, setBandState] = useState<number>(DEFAULT_BAND);
+  const [density, setDensityState] = useState<StripDensity>(DENSITY_DEFAULT);
 
   // Restore the persisted Movers band after mount (client-only — keeps the
   // first render identical to SSR so there's no hydration mismatch).
@@ -138,9 +140,22 @@ export default function OctopusClient({
     }
   }, []);
 
+  // Restore the persisted strip density after mount (same SSR-safe pattern as band).
+  useEffect(() => {
+    const saved = loadCache<StripDensity>(LOCALSTORAGE_DENSITY);
+    if (saved === "comfortable" || saved === "compact") {
+      setDensityState(saved);
+    }
+  }, []);
+
   const setBand = useCallback((b: number) => {
     setBandState(b);
     saveCache(LOCALSTORAGE_BAND, b);
+  }, []);
+
+  const setDensity = useCallback((d: StripDensity) => {
+    setDensityState(d);
+    saveCache(LOCALSTORAGE_DENSITY, d);
   }, []);
 
   // Interaction state
@@ -422,8 +437,10 @@ export default function OctopusClient({
         onViewChange={setView}
         band={band}
         onBandChange={setBand}
+        density={density}
+        onDensityChange={setDensity}
       />
-      <IndexStrip ticks={indices?.indices ?? null} />
+      <IndexStrip ticks={indices?.indices ?? null} density={density} />
       <div className={`octopus-body${showRail ? "" : " octopus-body-full"}`}>
         <div className="octopus-sectorgrid-wrap">
           {stocks.length === 0 ? (
