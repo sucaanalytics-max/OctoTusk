@@ -538,3 +538,68 @@
 .m-alert-state.is-on { color: var(--color-positive); border: 1px solid var(--color-positive); }
 .m-alert-state.is-off { color: var(--color-text-muted); border: 1px solid var(--color-border); }
 .m-alert-actions { display: flex; gap: 6px; }
+
+/* ── Financials (Trendlyne) ───────────────────────────────────────────── */
+.m-fin-pick { display: flex; flex-direction: column; gap: 2px; }
+.m-fin-pick-name { font-weight: 600; color: var(--color-text-primary); }
+
+.m-fin-statusbar { display: flex; align-items: center; gap: var(--space-2, 8px); }
+.m-fin-asof { font-size: var(--text-xs, 12px); color: var(--color-text-muted); }
+.m-fin-chip {
+  font-size: var(--text-xs, 11px); font-weight: 700;
+  padding: 1px 8px; border-radius: var(--radius-full, 999px);
+}
+.m-fin-chip.is-stale { color: var(--color-warning); border: 1px solid var(--color-warning); }
+.m-fin-chip.is-fresh { color: var(--color-positive); border: 1px solid var(--color-positive); }
+
+/* Statement switcher — horizontally scrollable chip row */
+.m-fin-tabs {
+  display: flex; gap: var(--space-2, 8px);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.m-fin-tab {
+  flex: 0 0 auto;
+  height: 32px; padding: 0 var(--space-3, 12px);
+  border-radius: var(--radius-full, 999px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs, 12px); white-space: nowrap;
+}
+.m-fin-tab.is-active {
+  color: #fff; background: var(--color-accent-tusk);
+  border-color: var(--color-accent-tusk);
+}
+
+/* Dense statement table — sticky row labels, no media queries (fluid only) */
+.m-fin-scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-bg-card);
+}
+.m-fin-table {
+  border-collapse: collapse;
+  width: max-content; min-width: 100%;
+  font-size: var(--text-sm, 13px);
+  font-variant-numeric: tabular-nums;
+}
+.m-fin-table th,
+.m-fin-table td {
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  white-space: nowrap; text-align: right;
+  border-bottom: 1px solid var(--color-border);
+}
+.m-fin-table thead th {
+  color: var(--color-text-secondary); font-weight: 600;
+  position: sticky; top: 0; background: var(--color-bg-secondary);
+}
+.m-fin-table tbody tr:nth-child(even) { background: var(--color-bg-secondary); }
+.m-fin-rowhead {
+  position: sticky; left: 0; z-index: 1;
+  text-align: left; color: var(--color-text-primary);
+  background: var(--color-bg-card);
+}
+.m-fin-table thead .m-fin-rowhead { background: var(--color-bg-secondary); z-index: 2; }
+.m-fin-table tbody tr:nth-child(even) .m-fin-rowhead { background: var(--color-bg-secondary); }

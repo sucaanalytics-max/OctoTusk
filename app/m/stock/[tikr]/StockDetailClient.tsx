@@ -92,6 +92,10 @@ export default function StockDetailClient({ stock, userEmail }: { stock: MobileS
         </p>
       </section>
 
+      <Link href={`/m/financials/${encodeURIComponent(stock.tikr)}`} className="m-row-link">
+        View full financials (Trendlyne) →
+      </Link>
+
       <StockNotes tikr={stock.tikr} stockName={name} userEmail={userEmail} />
     </div>
   );
