@@ -22,6 +22,31 @@ const yf = new (YahooFinance as any)({
   fetchOptions: { cache: "no-store" },
 });
 
+// MCX (Dhan) is on this ~60s-polled hot path, but the commodity contracts move slowly
+// intraday AND the leg 401s when the Dhan plan lacks MCX commodity data. Cache successes
+// for a few minutes and back off after an empty/failed fetch so we stop hammering Dhan
+// (which adds 429 pressure to the working equity/F&O legs) on every poll. Self-heals
+// within MCX_BACKOFF_MS once MCX data is enabled on the Dhan account.
+const MCX_CACHE_TTL_MS = 5 * 60 * 1000; // refresh real MCX prices at most every 5 min
+const MCX_BACKOFF_MS = 15 * 60 * 1000; // after an empty/401/429 fetch, skip Dhan for 15 min
+let mcxCache: { quotes: Record<number, { ltp: number | null; pct: number | null }>; expiresAt: number } | null = null;
+let mcxBackoffUntil = 0;
+
+async function getMcxQuotesCached(ids: number[]): Promise<Record<number, { ltp: number | null; pct: number | null }>> {
+  const now = Date.now();
+  if (mcxCache && mcxCache.expiresAt > now) return mcxCache.quotes;
+  if (now < mcxBackoffUntil) return {}; // recently failed — don't re-hit Dhan yet
+  const quotes = await fetchMcxQuotes(ids);
+  const gotAny = Object.values(quotes).some((q) => q.ltp != null);
+  if (gotAny) {
+    mcxCache = { quotes, expiresAt: now + MCX_CACHE_TTL_MS };
+  } else {
+    mcxBackoffUntil = now + MCX_BACKOFF_MS; // no MCX access / rate-limited — back off
+    mcxCache = { quotes: {}, expiresAt: now + MCX_CACHE_TTL_MS };
+  }
+  return mcxCache.quotes;
+}
+
 export interface IndexTick {
   label: string;
   value: number | null;   // index value, or commodity USD price
@@ -123,7 +148,7 @@ export async function buildStripPayload(): Promise<IndicesPayload> {
     const entry = c.mcxKey ? mcxMap[c.mcxKey] : undefined;
     if (entry?.securityId) idByLabel.set(c.label, entry.securityId);
   }
-  const mcxQuotes = await fetchMcxQuotes(Array.from(idByLabel.values()));
+  const mcxQuotes = await getMcxQuotesCached(Array.from(idByLabel.values()));
 
   const commodityTicks: IndexTick[] = OCTOPUS_STRIP_COMMODITIES.map((c) => {
     const u = got[c.usdSymbol];
