@@ -19,6 +19,7 @@ exists`), so re-running a file is safe.
 | `007_pin_attempts.sql` | `pin_attempts` — holdings-PIN brute-force lockout (H3) | Security |
 | `008_note_links.sql` | `stock_notes.links` — link attachments on notes | Notes |
 | `009_user_alerts.sql` | `user_alerts` — per-user custom price/target/upside/day-move alerts | Alerts |
+| `010_financials_cache.sql` | `financials_cache` — Trendlyne financials cache (public market data; not PII) | Financials |
 
 ## Important
 
