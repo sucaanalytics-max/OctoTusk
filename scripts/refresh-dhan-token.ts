@@ -117,11 +117,21 @@ async function main(): Promise<void> {
   const deployHook = need("VERCEL_DEPLOY_HOOK_URL");
 
   // 1) Mint a fresh 24h token via the headless PIN + TOTP endpoint.
+  // NOTE: Dhan's generateAccessToken API accepts dhanClientId/pin/totp ONLY as URL query
+  // params — there is no JSON-body or header variant (confirmed against the DhanHQ v2 auth
+  // docs). The request is HTTPS (params encrypted in transit) and this URL is NEVER logged;
+  // the catch below sanitises any thrown network error (whose `cause` can embed the URL) so
+  // the PIN/TOTP can never leak into CI logs.
   const code = totp(totpSecret);
   const mintUrl =
     `https://auth.dhan.co/app/generateAccessToken` +
     `?dhanClientId=${encodeURIComponent(clientId)}&pin=${encodeURIComponent(pin)}&totp=${encodeURIComponent(code)}`;
-  const mintRes = await fetch(mintUrl, { method: "POST", headers: { Accept: "application/json" } });
+  let mintRes: Awaited<ReturnType<typeof fetch>>;
+  try {
+    mintRes = await fetch(mintUrl, { method: "POST", headers: { Accept: "application/json" } });
+  } catch {
+    throw new Error("Dhan token mint request failed (network error reaching auth.dhan.co)");
+  }
   const mintBody = (await mintRes.json().catch(() => ({}))) as Record<string, unknown>;
   const accessToken = typeof mintBody.accessToken === "string" ? mintBody.accessToken : "";
   if (!mintRes.ok || !accessToken) {
@@ -136,7 +146,13 @@ async function main(): Promise<void> {
   await patchEnvValue(projectId, teamId, vercelToken, envId, accessToken);
 
   // 3) Redeploy so runtime functions read the new value (env binds at deploy time).
-  const hookRes = await fetch(deployHook, { method: "POST" });
+  // The deploy-hook URL is itself a secret, so sanitise any network error too.
+  let hookRes: Awaited<ReturnType<typeof fetch>>;
+  try {
+    hookRes = await fetch(deployHook, { method: "POST" });
+  } catch {
+    throw new Error("Vercel deploy hook request failed (network error)");
+  }
   if (!hookRes.ok) throw new Error(`Vercel deploy hook failed: ${hookRes.status}`);
 
   console.log(`OK: Dhan access token refreshed (expires ${expiry}); Vercel env updated + redeploy triggered.`);
