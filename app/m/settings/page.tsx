@@ -1,4 +1,5 @@
 import { auth, signOut } from "@/auth";
+import SettingsClient from "./SettingsClient";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ export default async function SettingsPage() {
         <span className="m-card-meta">Signed in as</span>
         <span className="m-card-name">{email || "—"}</span>
       </div>
+
+      <SettingsClient />
 
       <a className="m-row-link" href="/dashboard">
         Open desktop dashboard ›
