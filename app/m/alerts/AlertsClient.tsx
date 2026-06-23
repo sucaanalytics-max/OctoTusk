@@ -4,6 +4,7 @@ import type { MobileStock } from "@/lib/mobile/types";
 import { useUserAlerts } from "@/lib/mobile/useUserAlerts";
 import { ALERT_METRIC_LABELS, ALERT_TARGET_LABELS, metricUnit, type UserAlert } from "@/lib/userAlerts";
 import { fmtRupee } from "@/lib/format";
+import { SkeletonRows } from "../components/Skeleton";
 import PushOptInM from "./PushOptInM";
 import CreateAlertSheet from "./CreateAlertSheet";
 
@@ -49,7 +50,7 @@ export default function AlertsClient({ stocks }: { stocks: MobileStock[] }) {
       {error && <p className="m-note-err">{error}</p>}
 
       {loading ? (
-        <p className="m-empty">Loading alerts…</p>
+        <SkeletonRows count={3} />
       ) : alerts.length === 0 ? (
         <p className="m-empty">No alerts yet. Tap “+ New” to set a price, target, upside, or day-move alert.</p>
       ) : (

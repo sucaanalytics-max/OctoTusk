@@ -539,6 +539,37 @@
 .m-alert-state.is-off { color: var(--color-text-muted); border: 1px solid var(--color-border); }
 .m-alert-actions { display: flex; gap: 6px; }
 
+/* ── Polish: skeletons + a11y focus ─────────────────────────── */
+.m-skeleton {
+  border-radius: var(--radius-sm, 6px);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-hover) 25%,
+    var(--color-border-subtle, var(--color-border)) 37%,
+    var(--color-bg-hover) 63%
+  );
+  background-size: 400% 100%;
+  animation: m-shimmer 1.4s ease infinite;
+}
+@keyframes m-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-skeleton, .m-sheet { animation: none; }
+}
+
+/* Keyboard / switch-control focus ring on every interactive mobile control. */
+[data-mroot] a:focus-visible,
+[data-mroot] button:focus-visible,
+[data-mroot] input:focus-visible,
+[data-mroot] select:focus-visible,
+[data-mroot] textarea:focus-visible {
+  outline: 2px solid var(--color-accent-blue);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 6px);
+}
+
 /* ── Financials (Trendlyne) ───────────────────────────────────────────── */
 .m-fin-pick { display: flex; flex-direction: column; gap: 2px; }
 .m-fin-pick-name { font-weight: 600; color: var(--color-text-primary); }

@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { Note } from "@/lib/noteTypes";
 import { NOTE_CATEGORY_LABELS, type NoteCategory } from "@/lib/noteTypes";
 import { useStockNotes } from "@/lib/mobile/useStockNotes";
+import { SkeletonRows } from "../../components/Skeleton";
 import NoteComposer from "./NoteComposer";
 
 function relTime(iso: string): string {
@@ -117,7 +118,7 @@ export default function StockNotes({
       {error && <p className="m-note-err">{error}</p>}
 
       {loading ? (
-        <p className="m-empty">Loading notes…</p>
+        <SkeletonRows count={2} />
       ) : notes.length === 0 ? (
         <p className="m-empty">No notes yet. Add the first one.</p>
       ) : (
