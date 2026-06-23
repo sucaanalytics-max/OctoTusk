@@ -57,33 +57,50 @@ function dirOf(p: number | null): "up" | "down" | "flat" {
   return p == null ? "flat" : p > 0 ? "up" : p < 0 ? "down" : "flat";
 }
 
-// Inline styles — app/globals.css (where .ox-* lives) is a frozen file, so the new
-// commodity/caption styling is expressed here, consuming the octopus CSS tokens.
-const GROUP_STYLE: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "clamp(2px, 0.2vh, 4px)",
-};
-const CAPTION_STYLE: CSSProperties = {
-  fontSize: "clamp(8px, 0.6vw, 10px)",
+// COMPACT density. app/globals.css (.ox-* classes) is frozen, so we keep the classes
+// (for the data-dir green/red wash, ox-pos/ox-neg colors, and mono/tabular numerals)
+// and override only sizing/spacing via inline styles — inline beats the class. The goal
+// is a ~1/3-screen strip so the 100vh grid's `1fr` body (the stock table) fills the rest.
+const STRIP: CSSProperties = { gap: 5, paddingBottom: 5 };
+const GROUP: CSSProperties = { display: "flex", flexDirection: "column", gap: 1 };
+const CAPTION: CSSProperties = {
+  fontSize: 9,
   letterSpacing: "0.14em",
   textTransform: "uppercase",
   fontWeight: 700,
   color: "var(--ox-ink-soft)",
-  opacity: 0.6,
+  opacity: 0.5,
+  lineHeight: 1.3,
   paddingLeft: 2,
 };
-const UNIT_STYLE: CSSProperties = { fontSize: "0.6em", opacity: 0.55, marginLeft: 1, fontWeight: 500 };
-const INR_STYLE: CSSProperties = {
-  fontSize: "clamp(11px, 0.9vw, 15px)",
-  fontWeight: 600,
-  fontVariantNumeric: "tabular-nums",
-  color: "var(--ox-ink-soft)",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  lineHeight: 1.1,
+const ROW_GAP = 4;
+const CELL: CSSProperties = { padding: "2px 8px", gap: 0 };
+const LABEL: CSSProperties = { fontSize: 9, letterSpacing: "0.06em", lineHeight: 1.3 };
+const VALROW: CSSProperties = {
+  display: "flex",
+  alignItems: "baseline",
+  justifyContent: "space-between",
+  gap: 4,
 };
+const VALUE: CSSProperties = { fontSize: 15, fontWeight: 600, lineHeight: 1.2, flex: 1, minWidth: 0 };
+const PCT: CSSProperties = { fontSize: 11, fontWeight: 700, lineHeight: 1, flexShrink: 0 };
+const ARROW: CSSProperties = { marginRight: 1, fontSize: "0.9em" };
+const UNIT: CSSProperties = { fontSize: "0.62em", opacity: 0.55, marginLeft: 1, fontWeight: 500 };
+const INR: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: "var(--ox-ink-soft)",
+  lineHeight: 1.25,
+};
+
+function Pct({ dayPct }: { dayPct: number | null }) {
+  return (
+    <span className={`ox-index-pct ${pctClass(dayPct)}`} style={PCT}>
+      <span style={ARROW}>{arrow(dayPct)}</span>
+      {fmtPct(dayPct)}
+    </span>
+  );
+}
 
 function IndexRow({
   indices,
@@ -97,7 +114,7 @@ function IndexRow({
   return (
     <div
       className={`ox-index-row ox-index-row-${variant}`}
-      style={{ gridTemplateColumns: `repeat(${indices.length}, 1fr)` }}
+      style={{ gridTemplateColumns: `repeat(${indices.length}, 1fr)`, gap: ROW_GAP }}
     >
       {indices.map((cfg, i) => {
         const t = lookup.get(cfg.label);
@@ -108,12 +125,12 @@ function IndexRow({
             className="ox-index-cell"
             data-leading={i === 0 || undefined}
             data-dir={dirOf(dayPct)}
+            style={CELL}
           >
-            <div className="ox-index-label">{cfg.label}</div>
-            <div className="ox-index-value">{fmtValue(t?.value ?? null)}</div>
-            <div className={`ox-index-pct ${pctClass(dayPct)}`}>
-              <span className="ox-index-arrow">{arrow(dayPct)}</span>
-              {fmtPct(dayPct)}
+            <div className="ox-index-label" style={LABEL}>{cfg.label}</div>
+            <div style={VALROW}>
+              <span className="ox-index-value" style={VALUE}>{fmtValue(t?.value ?? null)}</span>
+              <Pct dayPct={dayPct} />
             </div>
           </div>
         );
@@ -132,7 +149,7 @@ function CommodityRow({
   return (
     <div
       className="ox-index-row ox-index-row-sector"
-      style={{ gridTemplateColumns: `repeat(${commodities.length}, 1fr)` }}
+      style={{ gridTemplateColumns: `repeat(${commodities.length}, 1fr)`, gap: ROW_GAP }}
     >
       {commodities.map((cfg, i) => {
         const t = lookup.get(cfg.label);
@@ -145,19 +162,19 @@ function CommodityRow({
             className="ox-index-cell"
             data-leading={i === 0 || undefined}
             data-dir={dirOf(dayPct)}
+            style={CELL}
           >
-            <div className="ox-index-label">{cfg.label}</div>
-            <div className="ox-index-value">
-              {fmtUsd(usd)}
-              {usd != null ? <span style={UNIT_STYLE}>{cfg.usdUnit}</span> : null}
+            <div className="ox-index-label" style={LABEL}>{cfg.label}</div>
+            <div style={VALROW}>
+              <span className="ox-index-value" style={VALUE}>
+                {fmtUsd(usd)}
+                {usd != null ? <span style={UNIT}>{cfg.usdUnit}</span> : null}
+              </span>
+              <Pct dayPct={dayPct} />
             </div>
-            <div style={INR_STYLE}>
+            <div className="ox-index-value" style={INR}>
               {fmtInr(inr)}
-              {inr != null && cfg.inrUnit ? <span style={UNIT_STYLE}>{cfg.inrUnit}</span> : null}
-            </div>
-            <div className={`ox-index-pct ${pctClass(dayPct)}`}>
-              <span className="ox-index-arrow">{arrow(dayPct)}</span>
-              {fmtPct(dayPct)}
+              {inr != null && cfg.inrUnit ? <span style={UNIT}>{cfg.inrUnit}</span> : null}
             </div>
           </div>
         );
@@ -171,10 +188,10 @@ export function IndexStrip({ ticks }: { ticks: IndexTick[] | null }) {
   for (const t of ticks ?? []) lookup.set(t.label, t);
 
   return (
-    <section className="ox-index-strip" aria-label="NSE indices, macro & commodities">
+    <section className="ox-index-strip" style={STRIP} aria-label="NSE indices, macro & commodities">
       {OCTOPUS_STRIP_GROUPS.map((g) => (
-        <div key={g.label} style={GROUP_STYLE}>
-          <div style={CAPTION_STYLE}>{g.label}</div>
+        <div key={g.label} style={GROUP}>
+          <div style={CAPTION}>{g.label}</div>
           {g.kind === "index" ? (
             <IndexRow indices={g.indices} lookup={lookup} variant={g.variant} />
           ) : (
