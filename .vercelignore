@@ -1,0 +1,9 @@
+# Keep internal analyst artifacts + dev output out of the Vercel deployment build context.
+# (Only public/ is web-served, but these don't belong on build infra at all.)
+*.xlsx
+data/sector-update-report.json
+data/sector-update-backup-*.json
+.playwright-mcp/
+scripts/ltf/
+scripts/build-allocation-workbook.ts
+tasks/
