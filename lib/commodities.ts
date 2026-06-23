@@ -40,11 +40,20 @@ async function fetchGlobal(): Promise<Record<string, { px: number | null; pct: n
   return out;
 }
 
-async function fetchMcx(): Promise<Record<number, { ltp: number | null; pct: number | null }>> {
+/**
+ * Generic Dhan MCX last-price + day-% fetch, keyed by security id. Fail-soft (creds
+ * missing / HTTP error / timeout → empty map). Reused by the digest (gold/silver) and
+ * the wall-display strip (gold/silver/aluminium/crude).
+ */
+export async function fetchMcxQuotes(
+  securityIds: number[],
+  timeoutMs = 5000,
+): Promise<Record<number, { ltp: number | null; pct: number | null }>> {
   const out: Record<number, { ltp: number | null; pct: number | null }> = {};
   const clientId = process.env.DHAN_CLIENT_ID;
   const accessToken = process.env.DHAN_ACCESS_TOKEN;
-  const gold = mcx.gold as McxEntry, silver = mcx.silver as McxEntry;
+  const ids = Array.from(new Set(securityIds.filter((id) => Number.isFinite(id) && id > 0)));
+  if (!ids.length) return out;
   if (!clientId || !accessToken) {
     console.warn("[commodities] DHAN creds missing — MCX leg skipped");
     return out;
@@ -53,8 +62,9 @@ async function fetchMcx(): Promise<Record<number, { ltp: number | null; pct: num
     const res = await fetch("https://api.dhan.co/v2/marketfeed/quote", {
       method: "POST",
       headers: { "Content-Type": "application/json", "client-id": clientId, "access-token": accessToken },
-      body: JSON.stringify({ MCX_COMM: [gold.securityId, silver.securityId] }),
+      body: JSON.stringify({ MCX_COMM: ids }),
       cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) {
       console.warn(`[commodities] Dhan MCX leg ${res.status}`);
@@ -75,8 +85,11 @@ async function fetchMcx(): Promise<Record<number, { ltp: number | null; pct: num
 }
 
 export async function fetchCommodities(): Promise<Commodities> {
-  const [global, mcxQuotes] = await Promise.all([fetchGlobal(), fetchMcx()]);
   const gold = mcx.gold as McxEntry, silver = mcx.silver as McxEntry;
+  const [global, mcxQuotes] = await Promise.all([
+    fetchGlobal(),
+    fetchMcxQuotes([gold.securityId, silver.securityId]),
+  ]);
 
   return {
     gold: {

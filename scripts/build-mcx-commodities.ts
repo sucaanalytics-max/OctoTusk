@@ -20,7 +20,16 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 const OUT_PATH = path.join(REPO_ROOT, "data", "mcx-commodities.json");
 const MASTER_URL = "https://images.dhan.co/api-data/api-scrip-master-detailed.csv";
 
-const METALS = ["GOLD", "SILVER"] as const;
+// CORE must exist — the daily digest (lib/commodities.ts) depends on gold/silver.
+// EXTRA is best-effort for the wall-display strip; a missing contract is warned + skipped
+// so it can never block the gold/silver regen.
+const CORE = ["GOLD", "SILVER"] as const;
+const EXTRA = ["ALUMINIUM", "CRUDEOIL"] as const;
+const WANTED = [...CORE, ...EXTRA] as const;
+// MCX SYMBOL_NAME → output key in data/mcx-commodities.json
+const OUT_KEY: Record<string, string> = {
+  GOLD: "gold", SILVER: "silver", ALUMINIUM: "aluminium", CRUDEOIL: "crude",
+};
 
 interface Contract {
   securityId: number;
@@ -57,7 +66,7 @@ async function main(): Promise<void> {
     if (f.length <= C_EXPIRY) continue;
     if (f[C_EXCH] !== "MCX" || f[C_INSTR] !== "FUTCOM") continue;
     const sym = (f[C_SYMBOL] || "").toUpperCase();
-    if (!METALS.includes(sym as (typeof METALS)[number])) continue; // exact GOLD/SILVER, not GOLDM/MIC
+    if (!WANTED.includes(sym as (typeof WANTED)[number])) continue; // exact names, not GOLDM/MIC etc.
     const expiry = (f[C_EXPIRY] || "").slice(0, 10);
     if (!expiry || expiry < today) continue; // skip expired
     const id = Number(f[C_SECID]);
@@ -68,20 +77,28 @@ async function main(): Promise<void> {
     }
   }
 
-  for (const m of METALS) {
+  for (const m of CORE) {
     if (!best[m]) throw new Error(`No non-expired MCX ${m} FUTCOM found`);
   }
+  for (const m of EXTRA) {
+    if (!best[m]) console.warn(`[build-mcx] WARNING: no non-expired MCX ${m} FUTCOM found — skipping`);
+  }
 
-  const out = {
+  const out: Record<string, unknown> = {
     _generatedAt: new Date().toISOString(),
-    _note: "Front-month MCX gold/silver. Re-run scripts/build-mcx-commodities.ts after a contract expires.",
+    _note: "Front-month MCX commodities — gold/silver for the daily digest, +aluminium/crude for the /octopus wall strip. Re-run scripts/build-mcx-commodities.ts after a contract expires.",
     gold: best.GOLD,
     silver: best.SILVER,
   };
+  for (const sym of EXTRA) {
+    if (best[sym]) out[OUT_KEY[sym]] = best[sym];
+  }
   fs.writeFileSync(OUT_PATH, JSON.stringify(out, null, 2) + "\n");
   console.log(`[build-mcx] Wrote ${OUT_PATH}`);
-  console.log(`  gold:   ${best.GOLD.displayName} (id ${best.GOLD.securityId}, exp ${best.GOLD.expiry})`);
-  console.log(`  silver: ${best.SILVER.displayName} (id ${best.SILVER.securityId}, exp ${best.SILVER.expiry})`);
+  for (const sym of WANTED) {
+    const c = best[sym];
+    if (c) console.log(`  ${OUT_KEY[sym].padEnd(10)} ${c.displayName} (id ${c.securityId}, exp ${c.expiry})`);
+  }
 }
 
 main().catch((err) => { console.error(err); process.exit(1); });

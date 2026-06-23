@@ -1,6 +1,6 @@
 {
-  "_generatedAt": "2026-06-13T03:19:22.326Z",
-  "_note": "Front-month MCX gold/silver. Re-run scripts/build-mcx-commodities.ts after a contract expires.",
+  "_generatedAt": "2026-06-22T11:02:38.920Z",
+  "_note": "Front-month MCX commodities — gold/silver for the daily digest, +aluminium/crude for the /octopus wall strip. Re-run scripts/build-mcx-commodities.ts after a contract expires.",
   "gold": {
     "securityId": 466583,
     "displayName": "GOLD AUG FUT",
@@ -11,6 +11,18 @@
     "securityId": 464150,
     "displayName": "SILVER JUL FUT",
     "expiry": "2026-07-03",
+    "segment": "MCX_COMM"
+  },
+  "aluminium": {
+    "securityId": 552706,
+    "displayName": "ALUMINIUM JUN FUT",
+    "expiry": "2026-06-30",
+    "segment": "MCX_COMM"
+  },
+  "crude": {
+    "securityId": 520702,
+    "displayName": "CRUDEOIL JUL FUT",
+    "expiry": "2026-07-20",
     "segment": "MCX_COMM"
   }
 }
