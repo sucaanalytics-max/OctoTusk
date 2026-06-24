@@ -48,7 +48,7 @@ export interface FinMeta {
   stale: boolean;
   source: FinSource;
   /** Why payload is null, when applicable — drives the empty-state copy. */
-  reason?: "no_symbol_mapping" | "not_found" | "unconfigured" | "budget_exhausted" | "fetch_failed" | "in_progress";
+  reason?: "no_symbol_mapping" | "not_found" | "not_cached" | "unconfigured" | "budget_exhausted" | "fetch_failed" | "in_progress";
 }
 
 export interface FinResult {

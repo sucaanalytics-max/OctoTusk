@@ -13,6 +13,12 @@ import { STATEMENT_ORDER } from "./mobile/financialsTypes";
 
 const DEFAULT_TIMEOUT_MS = 20000; // Apps Script cold starts are slow
 
+/** True only when a live fetch backend is configured. In the push model (Apps Script writes the
+ *  cache directly) this is false, so Octopus stays cache-only and never attempts an upstream call. */
+export function isFetchConfigured(): boolean {
+  return !!(process.env.TRENDLYNE_WEBAPP_URL && process.env.TRENDLYNE_PROXY_SECRET);
+}
+
 const numOrNull = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) ? v : null;
 

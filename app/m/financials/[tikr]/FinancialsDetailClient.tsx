@@ -9,6 +9,7 @@ import StatementTable from "./StatementTable";
 
 const EMPTY_COPY: Record<string, string> = {
   no_symbol_mapping: "No Trendlyne mapping for this stock yet. Add an override in lib/trendlyneSymbol.ts.",
+  not_cached: "No financials loaded for this stock yet — push it from the Trendlyne sheet.",
   not_found: "Trendlyne has no financials for this symbol.",
   budget_exhausted: "Daily refresh limit reached — try again tomorrow.",
   in_progress: "Fetching financials… reload in a moment.",
@@ -57,6 +58,15 @@ export default function FinancialsDetailClient({ stock, result }: { stock: Mobil
         {asOf && <span className="m-fin-asof">As of {asOf}</span>}
         {meta.stale && payload && <span className="m-fin-chip is-stale">Stale</span>}
         {!meta.stale && payload && <span className="m-fin-chip is-fresh">Live</span>}
+        {payload && (
+          <a
+            className="m-fin-dl"
+            href={`/api/financials/${encodeURIComponent(stock.tikr)}/export`}
+            aria-label="Download financials as Excel"
+          >
+            ⬇ Excel
+          </a>
+        )}
       </div>
 
       {!payload || present.length === 0 ? (
