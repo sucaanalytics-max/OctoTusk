@@ -35,7 +35,7 @@ function PinGate({
       <input
         className="m-search"
         type="password"
-        inputMode="numeric"
+        inputMode="text"
         autoComplete="off"
         placeholder="••••"
         value={pin}
