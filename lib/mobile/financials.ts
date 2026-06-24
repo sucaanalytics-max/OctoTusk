@@ -12,7 +12,7 @@
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
 import staticDb from "@/data/database.json";
 import { resolveTrendlyneSymbol } from "@/lib/trendlyneSymbol";
-import { fetchTrendlyne, isViablePayload } from "@/lib/trendlyne";
+import { fetchTrendlyne, isViablePayload, isFetchConfigured } from "@/lib/trendlyne";
 import type { Exchange, FinMeta, FinPayload, FinResult } from "./financialsTypes";
 
 const TTL_DAYS = Number(process.env.FINANCIALS_TTL_DAYS) || 7;
@@ -132,6 +132,14 @@ export async function loadFinancials(tikr: string): Promise<FinResult> {
 
   // From here we WANT an upstream fetch (miss / stale-positive / expired-negative).
   const haveStale = !!row?.payload;
+
+  // Cache-only (push model): no live fetch backend configured → never claim or fetch. Serve a
+  // usable cached row even when stale; otherwise a clean "not loaded yet" state — no in-flight
+  // placeholder row, no spinner, no epoch timestamp.
+  if (!isFetchConfigured()) {
+    if (haveStale) return servedRow(row!, symbol, exchange, true);
+    return { payload: null, meta: meta({ symbol, exchange, source: "not_found", reason: "not_cached" }) };
+  }
 
   // Another request is mid-flight → don't pile on.
   if (row?.in_progress_until && ms(row.in_progress_until) > now) {
