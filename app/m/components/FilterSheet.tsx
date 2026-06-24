@@ -1,5 +1,6 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/mobile/useFocusTrap";
 
 export type Conviction = "all" | "4plus" | "5";
 export type SortKey = "bear" | "base" | "bull" | "y1" | "y2" | "change" | "name";
@@ -54,12 +55,15 @@ export default function FilterSheet(p: Props) {
     };
   }, [p.open]);
 
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(sheetRef, p.onClose, p.open);
+
   if (!p.open) return null;
 
   return (
     <div className="m-sheet-root" role="dialog" aria-modal="true" aria-label="Filters">
-      <button className="m-sheet-backdrop" aria-label="Close filters" onClick={p.onClose} />
-      <div className="m-sheet">
+      <button className="m-sheet-backdrop" aria-label="Close filters" tabIndex={-1} onClick={p.onClose} />
+      <div className="m-sheet" ref={sheetRef}>
         <div className="m-sheet-grab" aria-hidden />
         <div className="m-sheet-head">
           <span className="m-sheet-title">Filters &amp; sort</span>

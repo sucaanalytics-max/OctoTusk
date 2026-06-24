@@ -63,9 +63,12 @@ export function useStockNotes(tikr: string): UseStockNotes {
   // Team allowlist for the "share with" picker (non-sensitive; fetch once).
   useEffect(() => {
     fetch("/api/notes/team", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : { emails: [] }))
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`team ${r.status}`);
+        return r.json();
+      })
       .then((d) => setTeamEmails((d.emails || []) as string[]))
-      .catch(() => {});
+      .catch((e) => console.warn("[useStockNotes] team fetch failed:", e instanceof Error ? e.message : e));
   }, []);
 
   const create = useCallback(

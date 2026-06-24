@@ -66,30 +66,42 @@ export function useUserAlerts(): UseUserAlerts {
     [refresh],
   );
 
+  // Optimistic: update locally first (no skeleton flash on a primary tap), and only hit the
+  // network to reconcile on FAILURE. On error, refresh() reverts to server truth, then we surface it.
   const toggle = useCallback(
     async (id: number, active: boolean) => {
+      setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, active } : a)));
       try {
-        await fetch(`/api/user-alerts/${id}`, {
+        const res = await fetch(`/api/user-alerts/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ active }),
         });
+        if (!res.ok) {
+          await refresh();
+          setError("Couldn't update alert.");
+        }
       } catch {
-        /* refresh reconciles */
+        await refresh();
+        setError("Couldn't update alert.");
       }
-      await refresh();
     },
     [refresh],
   );
 
   const remove = useCallback(
     async (id: number) => {
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
       try {
-        await fetch(`/api/user-alerts/${id}`, { method: "DELETE" });
+        const res = await fetch(`/api/user-alerts/${id}`, { method: "DELETE" });
+        if (!res.ok) {
+          await refresh();
+          setError("Couldn't delete alert.");
+        }
       } catch {
-        /* refresh reconciles */
+        await refresh();
+        setError("Couldn't delete alert.");
       }
-      await refresh();
     },
     [refresh],
   );

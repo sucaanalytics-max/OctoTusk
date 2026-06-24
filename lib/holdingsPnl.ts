@@ -17,6 +17,7 @@ export interface RawHolding {
 }
 
 export interface LivePnl {
+  priced: boolean; // false ⇒ no live quote matched; livePrice fell back to the snapshot price
   livePrice: number;
   liveChange: number;
   liveChangePct: number;
@@ -27,7 +28,9 @@ export interface LivePnl {
   dayPnlPct: number;
 }
 
-/** Live P&L for one holding given its live quote (falls back to the snapshot price). */
+/** Live P&L for one holding given its live quote (falls back to the snapshot price).
+ *  `priced` lets the UI badge legs with no live quote (which show 0% day change) instead of
+ *  passing them off as flat. Totals still include every leg to mirror the desktop math. */
 export function computeLivePnl(h: RawHolding, quote?: Quote): LivePnl {
   const livePrice = quote ? quote.price : h.current_price;
   const liveChange = quote ? quote.change || 0 : 0;
@@ -37,7 +40,7 @@ export function computeLivePnl(h: RawHolding, quote?: Quote): LivePnl {
   const liveGainPct = h.amt_invested > 0 ? (liveGain / h.amt_invested) * 100 : 0;
   const dayPnl = liveChange * h.quantity;
   const dayPnlPct = h.amt_invested > 0 ? (dayPnl / h.amt_invested) * 100 : 0;
-  return { livePrice, liveChange, liveChangePct, liveValue, liveGain, liveGainPct, dayPnl, dayPnlPct };
+  return { priced: !!quote, livePrice, liveChange, liveChangePct, liveValue, liveGain, liveGainPct, dayPnl, dayPnlPct };
 }
 
 export interface PortfolioTotals {

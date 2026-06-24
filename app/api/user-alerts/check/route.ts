@@ -101,18 +101,22 @@ export async function GET(request: NextRequest) {
       const nextLatch = latchNext(rule, ev, a.in_condition);
 
       // Fire only on the rising edge, subject to one-shot/cooldown/daily-cap gates.
-      let shouldFire = ev.conditionMet && !a.in_condition;
-      if (shouldFire) {
-        if (a.metric === "pct_move_abs" && firedTodayIST(a.last_fired_at)) shouldFire = false;
+      const risingEdge = ev.conditionMet && !a.in_condition;
+      let gated = false;
+      if (risingEdge) {
+        if (a.metric === "pct_move_abs" && firedTodayIST(a.last_fired_at)) gated = true;
         if (!a.one_shot && a.last_fired_at) {
           const elapsed = Date.now() - new Date(a.last_fired_at).getTime();
-          if (elapsed < a.cooldown_sec * 1000) shouldFire = false;
+          if (elapsed < a.cooldown_sec * 1000) gated = true;
         }
       }
+      const shouldFire = risingEdge && !gated;
 
       // Persist FIRST (so a failed write never produces an un-recorded push → no double-fire).
+      // A GATED rising edge must NOT advance the latch — keep the prior value so the next tick
+      // still sees the edge once the gate (cooldown / daily-cap) clears (cooldown = delay, not drop).
       const patch: Record<string, unknown> = {
-        in_condition: shouldFire ? true : nextLatch,
+        in_condition: shouldFire ? true : gated ? a.in_condition : nextLatch,
         updated_at: new Date().toISOString(),
       };
       if (shouldFire) {

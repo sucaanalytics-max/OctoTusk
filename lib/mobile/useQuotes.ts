@@ -32,6 +32,15 @@ export function useQuotes(): UseQuotesResult {
   const failuresRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Force a re-render every 30s so the age-derived freshness state (LIVE/STALE/DISCONNECTED)
+  // recomputes even when polls are FAILING (no setQuotes to trigger it) — avoids a frozen "LIVE"
+  // badge during an outage.
+  const [, setNowTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setNowTick((n) => (n + 1) % 1_000_000), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
   // Hydrate from cache + seed market state on mount.
   useEffect(() => {
     try {

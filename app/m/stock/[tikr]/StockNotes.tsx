@@ -4,6 +4,7 @@ import type { Note } from "@/lib/noteTypes";
 import { NOTE_CATEGORY_LABELS, type NoteCategory } from "@/lib/noteTypes";
 import { useStockNotes } from "@/lib/mobile/useStockNotes";
 import { SkeletonRows } from "../../components/Skeleton";
+import { linkHostname } from "@/lib/mobile/noteUi";
 import NoteComposer from "./NoteComposer";
 
 function relTime(iso: string): string {
@@ -17,14 +18,6 @@ function relTime(iso: string): string {
   const d = Math.floor(h / 24);
   if (d < 7) return `${d}d ago`;
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-function hostname(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return url;
-  }
 }
 
 function NoteCard({ note, canDelete, onDelete }: { note: Note; canDelete: boolean; onDelete: () => void }) {
@@ -57,7 +50,7 @@ function NoteCard({ note, canDelete, onDelete }: { note: Note; canDelete: boolea
               target="_blank"
               rel="noopener noreferrer"
             >
-              🔗 {l.label || hostname(l.url)}
+              🔗 {l.label || linkHostname(l.url)}
             </a>
           ))}
         </div>
@@ -115,7 +108,7 @@ export default function StockNotes({
         />
       )}
 
-      {error && <p className="m-note-err">{error}</p>}
+      {error && <p className="m-note-err" role="alert">{error}</p>}
 
       {loading ? (
         <SkeletonRows count={2} />

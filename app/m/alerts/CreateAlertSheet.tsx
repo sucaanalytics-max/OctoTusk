@@ -1,7 +1,8 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MobileStock } from "@/lib/mobile/types";
 import { useQuotes } from "@/lib/mobile/useQuotes";
+import { useFocusTrap } from "@/lib/mobile/useFocusTrap";
 import { fmtRupee, fmtPctRaw } from "@/lib/format";
 import { getCompanyShort } from "@/lib/companyName";
 import {
@@ -35,6 +36,8 @@ export default function CreateAlertSheet({
   const [repeat, setRepeat] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(sheetRef, onClose);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -77,8 +80,8 @@ export default function CreateAlertSheet({
 
   return (
     <div className="m-sheet-root" role="dialog" aria-modal="true" aria-label="New alert">
-      <button className="m-sheet-backdrop" aria-label="Close" onClick={onClose} />
-      <div className="m-sheet">
+      <button className="m-sheet-backdrop" aria-label="Close" tabIndex={-1} onClick={onClose} />
+      <div className="m-sheet" ref={sheetRef}>
         <div className="m-sheet-grab" aria-hidden />
         <div className="m-sheet-head">
           <span className="m-sheet-title">New alert</span>
@@ -181,7 +184,7 @@ export default function CreateAlertSheet({
             </label>
           </section>
 
-          {err && <p className="m-note-err">{err}</p>}
+          {err && <p className="m-note-err" role="alert">{err}</p>}
         </div>
 
         <div className="m-sheet-foot">

@@ -47,7 +47,7 @@ export default function AlertsClient({ stocks }: { stocks: MobileStock[] }) {
         </p>
       )}
 
-      {error && <p className="m-note-err">{error}</p>}
+      {error && <p className="m-note-err" role="alert">{error}</p>}
 
       {loading ? (
         <SkeletonRows count={3} />

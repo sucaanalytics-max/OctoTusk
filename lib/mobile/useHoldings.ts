@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RawHolding } from "@/lib/holdingsPnl";
 
 // PIN-gated holdings hook. Holds the unlocked payload ONLY in memory — never localStorage,
@@ -42,8 +42,12 @@ export function useHoldings(): UseHoldings {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryAfter, setRetryAfter] = useState<number | null>(null);
+  // Bumped on every lock(); an in-flight unlock() compares against its start value and
+  // bails if a lock happened mid-fetch (TOCTOU guard — never re-expose P&L after backgrounding).
+  const lockEpochRef = useRef(0);
 
   const lock = useCallback(() => {
+    lockEpochRef.current += 1;
     setUnlocked(false);
     setHoldings([]);
     setFoPositions([]);
@@ -65,6 +69,7 @@ export function useHoldings(): UseHoldings {
   }, [lock]);
 
   const unlock = useCallback(async (pin: string) => {
+    const epoch = lockEpochRef.current;
     setLoading(true);
     setError(null);
     setRetryAfter(null);
@@ -89,6 +94,14 @@ export function useHoldings(): UseHoldings {
         return false;
       }
       const data = await res.json();
+      // Bail if a lock() fired while this fetch was in flight, or the tab was backgrounded —
+      // do NOT set holdings/unlocked (would re-expose P&L in a hidden tab).
+      if (
+        lockEpochRef.current !== epoch ||
+        (typeof document !== "undefined" && document.visibilityState === "hidden")
+      ) {
+        return false;
+      }
       setHoldings((data.holdings || []) as RawHolding[]);
       setFoPositions((data.fo_positions || []) as FoPosition[]);
       setHoldingsDate(data.holdingsDate ?? null);

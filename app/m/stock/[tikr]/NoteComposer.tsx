@@ -9,6 +9,7 @@ import {
   MAX_LINKS,
 } from "@/lib/noteTypes";
 import type { CreateNoteInput } from "@/lib/mobile/useStockNotes";
+import { linkHostname } from "@/lib/mobile/noteUi";
 
 interface Props {
   tikr: string;
@@ -125,6 +126,7 @@ export default function NoteComposer({ tikr, stockName, teamEmails, userEmail, o
                 type="button"
                 className={`m-chip${shareWith.has(e) ? " is-active" : ""}`}
                 aria-pressed={shareWith.has(e)}
+                aria-label={`Share with ${e}`}
                 onClick={() => toggleShare(e)}
                 title={e}
               >
@@ -144,9 +146,10 @@ export default function NoteComposer({ tikr, stockName, teamEmails, userEmail, o
                 key={`${l.url}-${i}`}
                 type="button"
                 className="m-chip is-active"
+                aria-label={`Remove link ${l.label || linkHostname(l.url)}`}
                 onClick={() => setLinks((p) => p.filter((_, j) => j !== i))}
               >
-                🔗 {l.label || new URL(l.url).hostname} ✕
+                🔗 {l.label || linkHostname(l.url)} ✕
               </button>
             ))}
           </div>
@@ -184,7 +187,7 @@ export default function NoteComposer({ tikr, stockName, teamEmails, userEmail, o
         />
       </label>
 
-      {err && <p className="m-note-err">{err}</p>}
+      {err && <p className="m-note-err" role="alert">{err}</p>}
 
       <div className="m-composer-actions">
         <button type="button" className="m-chip" onClick={onClose} disabled={saving}>

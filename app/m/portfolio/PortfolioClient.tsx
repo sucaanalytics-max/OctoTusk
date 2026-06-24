@@ -46,7 +46,7 @@ function PinGate({
         aria-label="Holdings PIN"
         disabled={locked}
       />
-      {error && <p className="m-note-err">{error}{retryAfter ? ` (~${retryAfter}s)` : ""}</p>}
+      {error && <p className="m-note-err" role="alert">{error}{retryAfter ? ` (~${retryAfter}s)` : ""}</p>}
       <button
         className="m-composer-save"
         style={{ width: "100%" }}
@@ -178,9 +178,15 @@ export default function PortfolioClient({ stocks }: { stocks: MobileStock[] }) {
                   {h.quantity} @ {fmtRupee(h.avg_price)} → {fmtRupee(h.livePrice)}
                 </span>
               </div>
-              <span className={`m-delta ${h.dayPnl >= 0 ? "is-up" : "is-down"}`}>
-                {fmtPctRaw(h.liveChangePct)}
-              </span>
+              {h.priced ? (
+                <span className={`m-delta ${h.dayPnl >= 0 ? "is-up" : "is-down"}`}>
+                  {fmtPctRaw(h.liveChangePct)}
+                </span>
+              ) : (
+                <span className="m-delta is-flat" title="No live quote — showing last snapshot price">
+                  no live
+                </span>
+              )}
             </div>
             <div className="m-card-row2">
               <span className="m-card-cmp">{fmtMoney(h.liveValue)}</span>

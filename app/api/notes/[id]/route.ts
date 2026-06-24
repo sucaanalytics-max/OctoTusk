@@ -63,7 +63,8 @@ export async function PATCH(req: NextRequest, { params }: RouteCtx) {
 
     const role = await getRole(email);
     if (!canEditNote(role, note.author_email, email)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      // 404 (not 403) so a non-owner can't confirm a private note's existence via its id.
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
     const reqBody = await req.json();
@@ -188,7 +189,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteCtx) {
 
     const role = await getRole(email);
     if (!canDeleteNote(role, note.author_email, email)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      // 404 (not 403) so a non-owner can't confirm a private note's existence via its id.
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
     }
 
     const { error: delErr } = await supabase

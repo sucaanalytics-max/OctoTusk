@@ -95,8 +95,10 @@
 
 .m-chips { display: flex; gap: var(--space-2, 8px); }
 .m-chip {
-  height: 32px;
+  min-height: 44px; /* WCAG 2.5.5 touch target */
   padding: 0 var(--space-3, 12px);
+  display: inline-flex;
+  align-items: center;
   border-radius: var(--radius-full, 999px);
   border: 1px solid var(--color-border);
   background: var(--color-bg-card);
@@ -394,7 +396,8 @@
 /* ── Notes section ──────────────────────────────────────────── */
 .m-note-head { display: flex; align-items: center; justify-content: space-between; }
 .m-note-add {
-  height: 32px; padding: 0 var(--space-3, 12px);
+  min-height: 44px; padding: 0 var(--space-3, 12px);
+  display: inline-flex; align-items: center;
   border-radius: var(--radius-full, 999px);
   border: 1px solid var(--color-accent-tusk);
   background: transparent; color: var(--color-accent-tusk);
@@ -436,7 +439,12 @@
 }
 .m-note-foot { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs, 11px); color: var(--color-text-muted); }
 .m-note-author { font-weight: 600; color: var(--color-text-secondary); }
-.m-note-del { margin-left: auto; background: none; border: none; color: var(--color-negative); font-size: var(--text-xs, 12px); }
+.m-note-del {
+  margin-left: auto; background: none; border: none; color: var(--color-negative);
+  font-size: var(--text-xs, 12px);
+  min-height: 44px; min-width: 44px; /* WCAG 2.5.5 — destructive target */
+  display: inline-flex; align-items: center; justify-content: flex-end;
+}
 
 /* ── Note composer ──────────────────────────────────────────── */
 .m-composer {
