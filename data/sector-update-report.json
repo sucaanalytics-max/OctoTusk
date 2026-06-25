@@ -1,0 +1,3264 @@
+{
+  "ranAt": "2026-05-07T04:00:35.198Z",
+  "mode": "apply",
+  "backupTaken": true,
+  "jvbChanges": [
+    {
+      "source": "JVB",
+      "tikr": "Smartworks",
+      "cell": "AF2",
+      "field": "sector",
+      "oldValue": "",
+      "newValue": "Services",
+      "status": "error",
+      "error": "HTTP 403 PATCH AF2: {\"error\":{\"code\":\"EditModeAccessDenied\",\"message\":\"Contact the workbook owner to request edit access.\",\"innerError\":{\"code\":\"forbiddenUncategorized\",\"message\":\"The request is not allowed.\",\"innerError"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Smartworks",
+      "cell": "AG2",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Managed Workspaces",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MCX",
+      "cell": "AF3",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MCX",
+      "cell": "AG3",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Commodity Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ANNAPURNA",
+      "cell": "AF4",
+      "field": "sector",
+      "oldValue": "FMCG",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ANNAPURNA",
+      "cell": "AG4",
+      "field": "subsector",
+      "oldValue": "Consumer",
+      "newValue": "Food Products — Snacks",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XBOM:516003",
+      "cell": "AF5",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Construction Materials",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XBOM:516003",
+      "cell": "AG5",
+      "field": "subsector",
+      "oldValue": "Integrated",
+      "newValue": "Plywood & Allied",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "E2E",
+      "cell": "AF6",
+      "field": "sector",
+      "oldValue": "IT Services",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "E2E",
+      "cell": "AG6",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services (Cloud)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MOTILALOFS",
+      "cell": "AF7",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MOTILALOFS",
+      "cell": "AG7",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PARKHOTELS",
+      "cell": "AF8",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Consumer Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PARKHOTELS",
+      "cell": "AG8",
+      "field": "subsector",
+      "oldValue": "Hospitality",
+      "newValue": "Hotels & Resorts",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "JMFINANCIL",
+      "cell": "AF9",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "JMFINANCIL",
+      "cell": "AG9",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SPMLINFRA",
+      "cell": "AF10",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Construction",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SPMLINFRA",
+      "cell": "AG10",
+      "field": "subsector",
+      "oldValue": "Water",
+      "newValue": "Civil Construction (Water Infra)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GPTINFRA",
+      "cell": "AF11",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Construction",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GPTINFRA",
+      "cell": "AG11",
+      "field": "subsector",
+      "oldValue": "Integrated",
+      "newValue": "Civil Construction (Railways/Bridges)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "TIPSMUSIC",
+      "cell": "AF12",
+      "field": "sector",
+      "oldValue": "0",
+      "newValue": "Media Entertainment & Publication",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "TIPSMUSIC",
+      "cell": "AG12",
+      "field": "subsector",
+      "oldValue": "0",
+      "newValue": "Music Production & Publishing",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "VEDL",
+      "cell": "AG13",
+      "field": "subsector",
+      "oldValue": "Metals",
+      "newValue": "Diversified Metals",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CRAMC",
+      "cell": "AF14",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CRAMC",
+      "cell": "AG14",
+      "field": "subsector",
+      "oldValue": "0",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "INDIGO",
+      "cell": "AF15",
+      "field": "sector",
+      "oldValue": "Aviation",
+      "newValue": "Consumer Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "INDIGO",
+      "cell": "AG15",
+      "field": "subsector",
+      "oldValue": "Others",
+      "newValue": "Air Transport Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
+      "cell": "AF16",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
+      "cell": "AG16",
+      "field": "subsector",
+      "oldValue": "Retail",
+      "newValue": "Electronic Components (EMS)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "KFINTECH",
+      "cell": "AF17",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "KFINTECH",
+      "cell": "AG17",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Registrar & Transfer Agent",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PFC",
+      "cell": "AF19",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PFC",
+      "cell": "AG19",
+      "field": "subsector",
+      "oldValue": "Power Finance",
+      "newValue": "Specialised Finance — Power",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SURAKSHA",
+      "cell": "AF20",
+      "field": "sector",
+      "oldValue": "Health",
+      "newValue": "Healthcare",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SURAKSHA",
+      "cell": "AG20",
+      "field": "subsector",
+      "oldValue": "Diagnostics",
+      "newValue": "Healthcare Services — Diagnostic Centre",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "INTERARCH",
+      "cell": "AF21",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "INTERARCH",
+      "cell": "AG21",
+      "field": "subsector",
+      "oldValue": "Building Materials",
+      "newValue": "Industrial Products (Pre-Engineered Buildings)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BAJAJFINSV",
+      "cell": "AF22",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BAJAJFINSV",
+      "cell": "AG22",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "Holding Company (Diversified Financials)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MANAPPURAM",
+      "cell": "AF23",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MANAPPURAM",
+      "cell": "AG23",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC (Gold Loan)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "RECLTD",
+      "cell": "AF24",
+      "field": "sector",
+      "oldValue": "",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "RECLTD",
+      "cell": "AG24",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Specialised Finance — Power",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "INDIASHLTR",
+      "cell": "AF25",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "INDIASHLTR",
+      "cell": "AG25",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BSE",
+      "cell": "AF26",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BSE",
+      "cell": "AG26",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stock Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BAJFINANCE",
+      "cell": "AF27",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BAJFINANCE",
+      "cell": "AG27",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MANORAMA",
+      "cell": "AF28",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MANORAMA",
+      "cell": "AG28",
+      "field": "subsector",
+      "oldValue": "FMCG",
+      "newValue": "Food Products — Specialty Fats / Edible Oils",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "COFORGE",
+      "cell": "AF29",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "COFORGE",
+      "cell": "AG29",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "OIL",
+      "cell": "AF30",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "OIL",
+      "cell": "AG30",
+      "field": "subsector",
+      "oldValue": "Upstream",
+      "newValue": "Crude Oil & Natural Gas (E&P)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BANKINDIA",
+      "cell": "AF31",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BANKINDIA",
+      "cell": "AG31",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ACMESOLAR",
+      "cell": "AG32",
+      "field": "subsector",
+      "oldValue": "Reneawable",
+      "newValue": "Renewable Power Generation",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "EPACK DURABLE LIMITED (XNSE:EPACK)",
+      "cell": "AF33",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Consumer Durables",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "EPACK DURABLE LIMITED (XNSE:EPACK)",
+      "cell": "AG33",
+      "field": "subsector",
+      "oldValue": "Retail",
+      "newValue": "Household Appliances (RAC ODM)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ADANIGREEN",
+      "cell": "AG34",
+      "field": "subsector",
+      "oldValue": "Reneawable",
+      "newValue": "Renewable Power Generation",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FSL",
+      "cell": "AF35",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FSL",
+      "cell": "AG35",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services (BPO/KPO)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ADANIPORTS",
+      "cell": "AF36",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ADANIPORTS",
+      "cell": "AG36",
+      "field": "subsector",
+      "oldValue": "Other",
+      "newValue": "Marine Port & Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GPTHEALTH",
+      "cell": "AF37",
+      "field": "sector",
+      "oldValue": "Health",
+      "newValue": "Healthcare",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GPTHEALTH",
+      "cell": "AG37",
+      "field": "subsector",
+      "oldValue": "Hospitals",
+      "newValue": "Healthcare Services — Hospital",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Wework",
+      "cell": "AF38",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Wework",
+      "cell": "AG38",
+      "field": "subsector",
+      "oldValue": "Co-Working",
+      "newValue": "Managed Workspaces",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PNB",
+      "cell": "AF39",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PNB",
+      "cell": "AG39",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "TMB",
+      "cell": "AF40",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "TMB",
+      "cell": "AG40",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ABSLAMC",
+      "cell": "AF41",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ABSLAMC",
+      "cell": "AG41",
+      "field": "subsector",
+      "oldValue": "AMC",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BANKBARODA",
+      "cell": "AF42",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BANKBARODA",
+      "cell": "AG42",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BPCL",
+      "cell": "AF43",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BPCL",
+      "cell": "AG43",
+      "field": "subsector",
+      "oldValue": "OMCS",
+      "newValue": "Refineries & Marketing",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PNBHOUSING",
+      "cell": "AF44",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PNBHOUSING",
+      "cell": "AG44",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "HDFCBANK",
+      "cell": "AF45",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "HDFCBANK",
+      "cell": "AG45",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IIFLCAPS",
+      "cell": "AF46",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IIFLCAPS",
+      "cell": "AG46",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CDSL",
+      "cell": "AF47",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CDSL",
+      "cell": "AG47",
+      "field": "subsector",
+      "oldValue": "0",
+      "newValue": "Depository",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CESC",
+      "cell": "AG48",
+      "field": "subsector",
+      "oldValue": "Legacy",
+      "newValue": "Electric Utilities (Integrated)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CAMS",
+      "cell": "AF50",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CAMS",
+      "cell": "AG50",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Registrar & Transfer Agent",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XBOM:522101",
+      "cell": "AF51",
+      "field": "sector",
+      "oldValue": "Manufacturing",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XBOM:522101",
+      "cell": "AG51",
+      "field": "subsector",
+      "oldValue": "Capital Goods",
+      "newValue": "Industrial Manufacturing (Process Equipment)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CYIENT",
+      "cell": "AF52",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CYIENT",
+      "cell": "AG52",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "EDELWEISS",
+      "cell": "AF53",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "EDELWEISS",
+      "cell": "AG53",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Diversified Financials",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "VBL",
+      "cell": "AF54",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "VBL",
+      "cell": "AG54",
+      "field": "subsector",
+      "oldValue": "F&B Manufacturing",
+      "newValue": "Beverages — Soft Drinks",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "LICHSGFIN",
+      "cell": "AF55",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "LICHSGFIN",
+      "cell": "AG55",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "unionbank",
+      "cell": "AF56",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "unionbank",
+      "cell": "AG56",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FIVESTAR",
+      "cell": "AF57",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FIVESTAR",
+      "cell": "AG57",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "National Stock Exchange (NSE)",
+      "cell": "AF58",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "National Stock Exchange (NSE)",
+      "cell": "AG58",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stock Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GRASIM",
+      "cell": "AF59",
+      "field": "sector",
+      "oldValue": "Other",
+      "newValue": "Diversified",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GRASIM",
+      "cell": "AG59",
+      "field": "subsector",
+      "oldValue": "Other",
+      "newValue": "Holding Company (VSF / Chemicals / Cement / Paints)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "HDFCAMC",
+      "cell": "AF60",
+      "field": "sector",
+      "oldValue": "0",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "HDFCAMC",
+      "cell": "AG60",
+      "field": "subsector",
+      "oldValue": "0",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Hindpetro",
+      "cell": "AF61",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Hindpetro",
+      "cell": "AG61",
+      "field": "subsector",
+      "oldValue": "OMCS",
+      "newValue": "Refineries & Marketing",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SBIN",
+      "cell": "AF62",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SBIN",
+      "cell": "AG62",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "AXISBANK",
+      "cell": "AF63",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "AXISBANK",
+      "cell": "AG63",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "NXST",
+      "cell": "AF64",
+      "field": "sector",
+      "oldValue": "Hospitality & Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "NXST",
+      "cell": "AG64",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Retail)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IOC",
+      "cell": "AF65",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IOC",
+      "cell": "AG65",
+      "field": "subsector",
+      "oldValue": "OMCS",
+      "newValue": "Refineries & Marketing",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Inoxwind",
+      "cell": "AF66",
+      "field": "sector",
+      "oldValue": "Power",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Inoxwind",
+      "cell": "AG66",
+      "field": "subsector",
+      "oldValue": "Reneawable",
+      "newValue": "Heavy Electrical Equipment (Wind Turbines)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CANFINHOME",
+      "cell": "AF67",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CANFINHOME",
+      "cell": "AG67",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "NTPC",
+      "cell": "AG68",
+      "field": "subsector",
+      "oldValue": "Legacy",
+      "newValue": "Electric Utilities (Integrated)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CanBK",
+      "cell": "AF69",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CanBK",
+      "cell": "AG69",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BIRET",
+      "cell": "AF70",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "BIRET",
+      "cell": "AG70",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Office)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "GPIL",
+      "cell": "AG71",
+      "field": "subsector",
+      "oldValue": "Metals",
+      "newValue": "Iron & Steel (Integrated)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "HUDCO",
+      "cell": "AF72",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "HUDCO",
+      "cell": "AG72",
+      "field": "subsector",
+      "oldValue": "Infra Financing",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Embassy",
+      "cell": "AF73",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "Embassy",
+      "cell": "AG73",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Office)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "NAM-INDIA",
+      "cell": "AF74",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "NAM-INDIA",
+      "cell": "AG74",
+      "field": "subsector",
+      "oldValue": "AMC",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "OFSS",
+      "cell": "AF75",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "OFSS",
+      "cell": "AG75",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Software",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PCBL",
+      "cell": "AG76",
+      "field": "subsector",
+      "oldValue": "Chemcials",
+      "newValue": "Carbon Black",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IndianB",
+      "cell": "AF77",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IndianB",
+      "cell": "AG77",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SHRIRAMFIN",
+      "cell": "AF78",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SHRIRAMFIN",
+      "cell": "AG78",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ABCAPITAL",
+      "cell": "AF79",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ABCAPITAL",
+      "cell": "AG79",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "Holding Company (Diversified Financials)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ICICIBANK",
+      "cell": "AF80",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ICICIBANK",
+      "cell": "AG80",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CSBBANK",
+      "cell": "AF81",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "CSBBANK",
+      "cell": "AG81",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SBICARD",
+      "cell": "AF82",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "SBICARD",
+      "cell": "AG82",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC (Credit Card)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PHOENIXLTD",
+      "cell": "AF83",
+      "field": "sector",
+      "oldValue": "Hospitality & Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "PHOENIXLTD",
+      "cell": "AG83",
+      "field": "subsector",
+      "oldValue": "Retail",
+      "newValue": "Commercial (Retail Malls)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IIFL",
+      "cell": "AF84",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IIFL",
+      "cell": "AG84",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FEDFINA",
+      "cell": "AF85",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FEDFINA",
+      "cell": "AG85",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "TATAELXSI",
+      "cell": "AF86",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "TATAELXSI",
+      "cell": "AG86",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services (Engineering R&D)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MUTHOOTFIN",
+      "cell": "AF87",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MUTHOOTFIN",
+      "cell": "AG87",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC (Gold Loan)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IDFCFIRSTB",
+      "cell": "AF88",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IDFCFIRSTB",
+      "cell": "AG88",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FEDERALBNK",
+      "cell": "AF89",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "FEDERALBNK",
+      "cell": "AG89",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MINDSPACE",
+      "cell": "AF90",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "MINDSPACE",
+      "cell": "AG90",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Office)",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XNSE:TRIVENI",
+      "cell": "AF91",
+      "field": "sector",
+      "oldValue": "Industry",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XNSE:TRIVENI",
+      "cell": "AG91",
+      "field": "subsector",
+      "oldValue": "Ethanol/Sugar/Alcohol",
+      "newValue": "Food Products — Sugar & Ethanol",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IEX",
+      "cell": "AF92",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "IEX",
+      "cell": "AG92",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Power Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "LTF",
+      "cell": "AF93",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "LTF",
+      "cell": "AG93",
+      "field": "subsector",
+      "oldValue": "NBFCs",
+      "newValue": "NBFC",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ICICIAMC",
+      "cell": "AF95",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "ICICIAMC",
+      "cell": "AG95",
+      "field": "subsector",
+      "oldValue": "AMC",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XBOM:590108",
+      "cell": "AF96",
+      "field": "sector",
+      "oldValue": "",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "JVB",
+      "tikr": "XBOM:590108",
+      "cell": "AG96",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Exchange Traded Fund (Banking)",
+      "status": "queued"
+    }
+  ],
+  "vfChanges": [
+    {
+      "source": "vF",
+      "tikr": "VEDL",
+      "file": "01052026_Vedanta - RemainCo_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Metals",
+      "newValue": "Diversified Metals",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "COFORGE",
+      "file": "20250317_Coforge vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "COFORGE",
+      "file": "20250317_Coforge vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ABCAPITAL",
+      "file": "20250318_AB Capital vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "NBFC",
+      "newValue": "Holding Company (Diversified Financials)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GPIL",
+      "file": "20250320 GPIL Financial Model VF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Metals",
+      "newValue": "Iron & Steel (Integrated)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ADANIPORTS",
+      "file": "20250320_Adani Ports vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ADANIPORTS",
+      "file": "20250320_Adani Ports vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Other",
+      "newValue": "Marine Port & Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "538734",
+      "file": "20250320_Ceinsys vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "538734",
+      "file": "20250320_Ceinsys vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT Services (Defense & Geomatics)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "NXST",
+      "file": "20250320_Nexus Select Trust vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Hospitality & Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "NXST",
+      "file": "20250320_Nexus Select Trust vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Retail)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "OIL",
+      "file": "20250320_Oil India vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "OIL",
+      "file": "20250320_Oil India vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Upstream",
+      "newValue": "Crude Oil & Natural Gas (E&P)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "OFSS",
+      "file": "20250321_OFSS vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "OFSS",
+      "file": "20250321_OFSS vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Software",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "JMFINANCIL",
+      "file": "20250324_JM Financial vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "JMFINANCIL",
+      "file": "20250324_JM Financial vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "INTERARCH",
+      "file": "20250401_Interarch_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "INTERARCH",
+      "file": "20250401_Interarch_vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Building Materials",
+      "newValue": "Industrial Products (Pre-Engineered Buildings)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CYIENT",
+      "file": "20250402_Cyient.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CYIENT",
+      "file": "20250402_Cyient.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "FSL",
+      "file": "20250402_FSL vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "FSL",
+      "file": "20250402_FSL vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services (BPO/KPO)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "TATAELXSI",
+      "file": "20250402_Tata Elxsi.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "TATAELXSI",
+      "file": "20250402_Tata Elxsi.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services (Engineering R&D)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BAJFINANCE",
+      "file": "20250404_Bajaj Finance vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BAJAJFINSV",
+      "file": "20250404_Bajaj Finserv vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BAJAJFINSV",
+      "file": "20250404_Bajaj Finserv vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "NBFC",
+      "newValue": "Holding Company (Diversified Financials)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GPTINFRA",
+      "file": "20250408_GPTInfra_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Construction",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GPTINFRA",
+      "file": "20250408_GPTInfra_vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Integrated",
+      "newValue": "Civil Construction (Railways/Bridges)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PARKHOTELS",
+      "file": "20250415 Park Hotels_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Consumer Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PARKHOTELS",
+      "file": "20250415 Park Hotels_vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Hospitality",
+      "newValue": "Hotels & Resorts",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Hindpetro",
+      "file": "20250416 HPCL model v4.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Hindpetro",
+      "file": "20250416 HPCL model v4.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "OMCS",
+      "newValue": "Refineries & Marketing",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MANORAMA",
+      "file": "20250417 Manorama vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MANORAMA",
+      "file": "20250417 Manorama vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "FMCG",
+      "newValue": "Food Products — Specialty Fats / Edible Oils",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "EDELWEISS",
+      "file": "20250418_Edelweiss vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "EDELWEISS",
+      "file": "20250418_Edelweiss vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Diversified Financials",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GRASIM",
+      "file": "20250423_Grasim_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Other",
+      "newValue": "Diversified",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GRASIM",
+      "file": "20250423_Grasim_vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Other",
+      "newValue": "Holding Company (VSF / Chemicals / Cement / Paints)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "SHRIRAMFIN",
+      "file": "20250423_Shriram Fin_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BPCL",
+      "file": "20250430 BPCL main model vf3.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BPCL",
+      "file": "20250430 BPCL main model vf3.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "OMCS",
+      "newValue": "Refineries & Marketing",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IIFLCAPS",
+      "file": "20250430_IIFL Capital vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IIFLCAPS",
+      "file": "20250430_IIFL Capital vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IOC",
+      "file": "20250505 IOCL Model v3.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Oil & Gas",
+      "newValue": "Oil, Gas & Consumable Fuels",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IOC",
+      "file": "20250505 IOCL Model v3.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "OMCS",
+      "newValue": "Refineries & Marketing",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "E2E",
+      "file": "20250505_E2E Networks vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "IT Services",
+      "newValue": "Information Technology",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "E2E",
+      "file": "20250505_E2E Networks vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "IT Services",
+      "newValue": "IT - Services (Cloud)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IDFCFIRSTB",
+      "file": "20250605_IDFC First.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IDFCFIRSTB",
+      "file": "20250605_IDFC First.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Banks",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "XNSE:TRIVENI",
+      "file": "20250605_Triveni Eng_VF.xlsm",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Industry",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "XNSE:TRIVENI",
+      "file": "20250605_Triveni Eng_VF.xlsm",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Ethanol/Sugar/Alcohol",
+      "newValue": "Food Products — Sugar & Ethanol",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "FEDERALBNK",
+      "file": "20250625_FederalBank.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "FEDERALBNK",
+      "file": "20250625_FederalBank.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Private Bank",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "FIVESTAR",
+      "file": "20250630_Five Star Finance_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "EPACK DURABLE LIMITED (XNSE:EPACK)",
+      "file": "20260204 EPACK DURABLES V2.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Consumer Durables",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "EPACK DURABLE LIMITED (XNSE:EPACK)",
+      "file": "20260204 EPACK DURABLES V2.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Retail",
+      "newValue": "Household Appliances (RAC ODM)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Smartworks",
+      "file": "20250722_Smartworks vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Hospitality & Real Estate",
+      "newValue": "Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Smartworks",
+      "file": "20250722_Smartworks vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Managed Workspaces",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "AXISBANK",
+      "file": "20250723_AXIS Bank_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "AXISBANK",
+      "file": "20250723_AXIS Bank_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Private Bank",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IEX",
+      "file": "20250728_IEX vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IEX",
+      "file": "20250728_IEX vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Power Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MCX",
+      "file": "20250827_MCX vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MCX",
+      "file": "20250827_MCX vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Commodity Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "IIFL",
+      "file": "20251111_IIFL Finance_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HUDCO",
+      "file": "20250915_HUDCO Ltd.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HUDCO",
+      "file": "20250915_HUDCO Ltd.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "NBFC",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Wework",
+      "file": "20251006_WeWork India vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Wework",
+      "file": "20251006_WeWork India vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Co-Working",
+      "newValue": "Managed Workspaces",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PHOENIXLTD",
+      "file": "20251010_Phoenix Mills vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Hospitality & Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PHOENIXLTD",
+      "file": "20251010_Phoenix Mills vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Retail",
+      "newValue": "Commercial (Retail Malls)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BIRET",
+      "file": "20251027 Brookfield REIT vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BIRET",
+      "file": "20251027 Brookfield REIT vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Office)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Embassy",
+      "file": "20251027 Embassy REIT vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "Embassy",
+      "file": "20251027 Embassy REIT vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Office)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MINDSPACE",
+      "file": "20251027 Mindspace REIT vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MINDSPACE",
+      "file": "20251027 Mindspace REIT vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Office)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "SPMLINFRA",
+      "file": "20251030_SPML Infra_Vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Infrastructure",
+      "newValue": "Construction",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "SPMLINFRA",
+      "file": "20251030_SPML Infra_Vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Water",
+      "newValue": "Civil Construction (Water Infra)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "INDIGO",
+      "file": "20251101 Interglobe vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Aviation",
+      "newValue": "Consumer Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "INDIGO",
+      "file": "20251101 Interglobe vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Others",
+      "newValue": "Air Transport Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BSE",
+      "file": "20251110_BSE VF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BSE",
+      "file": "20251110_BSE VF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stock Exchange",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "LTF",
+      "file": "20251110_L&T Finance_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
+      "file": "20251117 VOEPL V3.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)",
+      "file": "20251117 VOEPL V3.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Retail",
+      "newValue": "Electronic Components (EMS)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "505192",
+      "file": "20251202_SML Mahindra.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Automotive",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "505192",
+      "file": "20251202_SML Mahindra.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "OEMs",
+      "newValue": "Commercial Vehicles",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "INDIASHLTR",
+      "file": "20251210_India Shelter_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "INDIASHLTR",
+      "file": "20251210_India Shelter_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PFC",
+      "file": "20251212_PFC Ltd.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PFC",
+      "file": "20251212_PFC Ltd.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "NBFC",
+      "newValue": "Specialised Finance — Power",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ACMESOLAR",
+      "file": "20260102 Acme Solar V2.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Reneawable",
+      "newValue": "Renewable Power Generation",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ABSLAMC",
+      "file": "20260119 ABSLAMC vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ABSLAMC",
+      "file": "20260119 ABSLAMC vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "AMC",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CRAMC",
+      "file": "20260119 CRAMC vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CRAMC",
+      "file": "20260119 CRAMC vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HDFCAMC",
+      "file": "20260119 HDFC AMC vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HDFCAMC",
+      "file": "20260119 HDFC AMC vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ICICIAMC",
+      "file": "20260119 IPRU AMC.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ICICIAMC",
+      "file": "20260119 IPRU AMC.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "AMC",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "NAM-INDIA",
+      "file": "20260119 Nippon Life AMC.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "NAM-INDIA",
+      "file": "20260119 Nippon Life AMC.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "AMC",
+      "newValue": "Asset Management Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "TIPSMUSIC",
+      "file": "20260119 Tips vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "",
+      "newValue": "Media Entertainment & Publication",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "TIPSMUSIC",
+      "file": "20260119 Tips vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "",
+      "newValue": "Music Production & Publishing",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "XBOM:522101",
+      "file": "20260120_Kilburn_VF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Manufacturing",
+      "newValue": "Capital Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "XBOM:522101",
+      "file": "20260120_Kilburn_VF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Capital Goods",
+      "newValue": "Industrial Manufacturing (Process Equipment)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ITCHOTELS",
+      "file": "20260129 ITC Hotels vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Consumer Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ITCHOTELS",
+      "file": "20260129 ITC Hotels vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Hospitality",
+      "newValue": "Hotels & Resorts",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CanBK",
+      "file": "20260204_Canara Bank Ltd.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CanBK",
+      "file": "20260204_Canara Bank Ltd.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "PSU Bank",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "XBOM:590108",
+      "file": "20260204_PSU Bank Index Analysis.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "XBOM:590108",
+      "file": "20260204_PSU Bank Index Analysis.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "PSU Banks",
+      "newValue": "Exchange Traded Fund (Banking)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GROWW",
+      "file": "20260217_Groww_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "GROWW",
+      "file": "20260217_Groww_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ICICIBANK",
+      "file": "20260218_ ICICI Bank_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ICICIBANK",
+      "file": "20260218_ ICICI Bank_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Private Bank",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BANKBARODA",
+      "file": "20260218_Bank of Baroda_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BANKBARODA",
+      "file": "20260218_Bank of Baroda_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "PSU Bank",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HDFCBANK",
+      "file": "20260218_HDFC Bank_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HDFCBANK",
+      "file": "20260218_HDFC Bank_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Private Bank",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "SBIN",
+      "file": "20260218_SBIN_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "SBIN",
+      "file": "20260218_SBIN_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "PSU Bank",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BANKINDIA",
+      "file": "20260310_BOI_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BANKINDIA",
+      "file": "20260310_BOI_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "PSU Bank",
+      "newValue": "Public Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PNBHOUSING",
+      "file": "20260310_PNB HF Ltd_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "PNBHOUSING",
+      "file": "20260310_PNB HF Ltd_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "APTUS",
+      "file": "20260317_Aptus_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "APTUS",
+      "file": "20260317_Aptus_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BAJAJHFL",
+      "file": "20260317_BAJAJ HousingFinance_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "BAJAJHFL",
+      "file": "20260317_BAJAJ HousingFinance_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CANFINHOME",
+      "file": "20260317_Can Fin Homes_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CANFINHOME",
+      "file": "20260317_Can Fin Homes_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HOMEFIRST",
+      "file": "20260317_HOME FIRST_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "HOMEFIRST",
+      "file": "20260317_HOME FIRST_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "LICHSGFIN",
+      "file": "20260317_LIC HOUSING_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "LICHSGFIN",
+      "file": "20260317_LIC HOUSING_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Housing Finance",
+      "newValue": "Housing Finance Company",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MANAPPURAM",
+      "file": "20260318_Manappuram Finance_vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MANAPPURAM",
+      "file": "20260318_Manappuram Finance_vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "NBFC",
+      "newValue": "NBFC (Gold Loan)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ANNAPURNA",
+      "file": "20260408 Annapurna Swadisht_vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "FMCG",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "ANNAPURNA",
+      "file": "20260408 Annapurna Swadisht_vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Consumer",
+      "newValue": "Food Products — Snacks",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "VBL",
+      "file": "20260407 VBL vf.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Consumer",
+      "newValue": "Fast Moving Consumer Goods",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "VBL",
+      "file": "20260407 VBL vf.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "F&B Manufacturing",
+      "newValue": "Beverages — Soft Drinks",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CLAIT",
+      "file": "20260408_Capitaland REIT vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Real Estate",
+      "newValue": "Realty",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "CLAIT",
+      "file": "20260408_Capitaland REIT vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "REITs",
+      "newValue": "REIT (Industrial)",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MOTILALOFS",
+      "file": "20260415_Motilal Oswal vF.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "BFSI",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "MOTILALOFS",
+      "file": "20260415_Motilal Oswal vF.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Exchanges & Capital Markets",
+      "newValue": "Stockbroking & Allied Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "KTKBANK",
+      "file": "20260428_Karnataka Bank.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "KTKBANK",
+      "file": "20260428_Karnataka Bank.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Private Bank",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "TMB",
+      "file": "20260428_Tamilnad Merchantile Bank.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "TMB",
+      "file": "20260428_Tamilnad Merchantile Bank.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Private Bank",
+      "newValue": "Private Sector Bank",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "FIVESTAR",
+      "file": "20260429_Piramal Finance.xlsx",
+      "cell": "F5",
+      "field": "sector",
+      "oldValue": "Banks & NBFC",
+      "newValue": "Financial Services",
+      "status": "queued"
+    },
+    {
+      "source": "vF",
+      "tikr": "VEDL",
+      "file": "30122025_Vedanta_V7.xlsx",
+      "cell": "G5",
+      "field": "subsector",
+      "oldValue": "Metals",
+      "newValue": "Diversified Metals",
+      "status": "queued"
+    }
+  ],
+  "skipped": [
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20240324_Angel One_vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20250319_NSDL.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20250728_AWFIS vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20250805_SBI Cards vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20250809_NSE vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20251024 PCBL V8.xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20251029 Adani Green Model V15.xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20251102 CESC V3.xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260115_Duroply_V6.xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260213 Inox_Wind_Model.xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260218 PNB.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260218 Suraksha  Diagnostics  VF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260311 NTPC V11 .xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260319_CSB Bank_vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260319_FedFina_vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260319_Muthoot_vF.xlsx",
+      "reason": "no Tusk - Summary sheet or read error"
+    },
+    {
+      "source": "vF",
+      "tikr": "?",
+      "file": "20260408 GPT Healthcare vF.xlsm",
+      "reason": "no Tusk - Summary sheet or read error"
+    }
+  ],
+  "errors": [
+    {
+      "source": "JVB",
+      "tikr": "Smartworks",
+      "detail": "HTTP 403 PATCH AF2: {\"error\":{\"code\":\"EditModeAccessDenied\",\"message\":\"Contact the workbook owner to request edit access.\",\"innerError\":{\"code\":\"forbiddenUncategorized\",\"message\":\"The request is not allowed.\",\"innerError"
+    }
+  ]
+}
