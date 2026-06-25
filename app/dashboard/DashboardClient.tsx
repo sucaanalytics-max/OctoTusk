@@ -663,9 +663,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [foPositions, setFoPositions] = useState<EnrichedFoPosition[]>([]);
   const [holdingsError, setHoldingsError] = useState("");
   const [holdingsLoading, setHoldingsLoading] = useState(false);
-  const [compareSearch, setCompareSearch] = useState("");
-  const [selectedCompare, setSelectedCompare] = useState<string[]>([]);
-  const [compareSectorFilter, setCompareSectorFilter] = useState<string>("all");
   const [detailStock, setDetailStock] = useState<EnrichedStock | null>(null);
 
   // Decision Support: configurable thresholds
@@ -1406,11 +1403,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     }
   }, [chartRange]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Prefetch enrichment for comparison stocks
-  useEffect(() => {
-    selectedCompare.forEach(tikr => fetchEnrichment(tikr));
-  }, [selectedCompare]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const filterOptions = useMemo(() => {
     const sectors = Array.from(new Set(liveStocks.map(s => s.sector).filter(Boolean))).sort() as string[];
     const vps = Array.from(new Set(liveStocks.map(s => s.vp).filter(Boolean))).sort() as string[];
@@ -1595,21 +1587,6 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     }
     return items;
   }, [holdingsData, initialHoldings, quotes, enrichedStocks]);
-
-  // Comparison
-  const comparedStocks = useMemo(() => selectedCompare.map(t => enrichedStocks.find(s => s.tikr === t)).filter(Boolean) as EnrichedStock[], [selectedCompare, enrichedStocks]);
-
-  const compareFilteredStocks = useMemo(() => {
-    return enrichedStocks.filter(s => {
-      if (selectedCompare.includes(s.tikr)) return false;
-      if (compareSectorFilter !== "all" && s.sector !== compareSectorFilter) return false;
-      if (compareSearch && compareSearch.length >= 2) {
-        const t = compareSearch.toLowerCase();
-        return s.displayTikr?.toLowerCase().includes(t) || s.companyShort?.toLowerCase().includes(t) || s.sector?.toLowerCase().includes(t);
-      }
-      return true;
-    });
-  }, [enrichedStocks, selectedCompare, compareSectorFilter, compareSearch]);
 
   // Decision data (uses configurable thresholds)
 
