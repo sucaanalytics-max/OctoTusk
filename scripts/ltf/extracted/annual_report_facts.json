@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "source": "ltf_integrated-annual-report-fy2025-26.pdf (377pp, audited Ind AS financial statements + notes)",
+    "verified_by": "orchestrator firsthand from pdftotext -layout, page-cited; INR crore",
+    "note": "Closes the gaps flagged in the results-pack-only analysis: full ECL Stage 1/2/3 movement, write-offs, overlay/macro-prudential movement, KAMs, related-party, contingent liabilities, segment, secured/unsecured split. CONSOLIDATED unless noted."
+  },
+  "kams": {
+    "page": "234-237 (standalone), 313-316 (consolidated)",
+    "count": 2,
+    "list": ["Impairment of loans / Expected Credit Loss (ECL)", "IT systems & controls"],
+    "ecl_kam_note": "Auditors flag ECL as a KAM for high estimation uncertainty and management judgement, EXPLICITLY naming 'management overlay, the measurement of which is inherently judgmental and subject to a high level of estimation uncertainty', plus PD/LGD, stage classification (Max DPD), and macroeconomic overlays.",
+    "opinion": "UNMODIFIED (both standalone & consolidated); no emphasis of matter"
+  },
+  "ecl_loans_consolidated": {
+    "page": "357-358 (Note 45)",
+    "gross_carrying_by_stage": {
+      "FY26": {"stage1": 114101.90, "stage2": 2377.79, "stage3": 3027.26, "total": 119506.95},
+      "FY25": {"stage1": 89618.70, "stage2": 2797.09, "stage3": 2763.32, "total": 95179.11}
+    },
+    "ecl_allowance_by_stage": {
+      "FY26": {"stage1": 880.80, "stage2": 515.17, "stage3": 2061.87, "total": 3457.84},
+      "FY25": {"stage1": 1051.42, "stage2": 468.84, "stage3": 2016.49, "total": 3536.75}
+    },
+    "derived": {
+      "stage3_PCR_FY26_pct": 68.1,
+      "stage3_PCR_FY25_pct": 72.97,
+      "total_ECL_coverage_FY26_pct": 2.89,
+      "total_ECL_coverage_FY25_pct": 3.72,
+      "gross_stage3_yoy_pct": 9.5,
+      "net_stage3_yoy_pct": 29.3,
+      "total_ecl_allowance_change": "3536.75 -> 3457.84 (FELL despite +25.6% gross loans)"
+    },
+    "macro_prudential_provision": {"FY26": 0, "FY25": 575, "_note": "ENTIRE Rs575cr macro-prudential buffer for Rural Group Loans & MFI unwound to NIL during FY26 (audited footnote). Bigger than the Rs125cr Q4 figure in the transcript - that was a slice; full-year audited release = Rs575cr."},
+    "write_off_FY26": 2413.41,
+    "write_off_FY25": 2382.15,
+    "provision_release_on_existing_assets_net_of_recovery_FY26": -959.60,
+    "business_combination_gold_added_to_stage1_gross": 1334.83,
+    "_read": "Audited movement confirms: GS3 held down by Rs2,413cr write-offs; absolute gross Stage-3 +9.5% and net Stage-3 +29%; total ECL allowance FELL; macro-prudential buffer zeroed; Rs960cr net provision release on existing assets - the earnings lever, now audited not inferred."
+  },
+  "related_party_LandT": {
+    "page": "349-350 (Note 37, Ind AS 24)",
+    "holding_company": "Larsen & Toubro Limited (promoter ~66%)",
+    "brand_license_fee_to_LT": {"FY26": 157.10, "FY25": 137.25, "_note": "recurring promoter charge ~5% of PAT, +14% YoY; brand-fee payable ~155.15cr"},
+    "professional_fees_to_LT": {"FY26": 11.44, "FY25": 6.97},
+    "read": "Related-party dealings are modest, recurring and transparently disclosed; the L&T brand-license fee (Rs157cr) is the main item - a cost of the AAA-parent umbrella, not abusive RPT. No red flag."
+  },
+  "contingent_liabilities_consolidated": {
+    "page": "360",
+    "contingent_liabilities": {"FY26": 307.66, "FY25": 326.15},
+    "other_commitments": {"FY26": 2581.18, "FY25": 2089.57},
+    "read": "Contingent liabilities small (~Rs308cr) and roughly flat - no hidden off-balance-sheet exposure. Closes the gap as a NON-issue."
+  },
+  "secured_unsecured_split": {
+    "page": "360",
+    "unsecured_retail_loans": {"FY26": 62012.51, "FY25": 51579.46},
+    "read": "Per the note, retail loans other than ~Rs62,013cr of unsecured loans are generally secured against property -> unsecured ~53% of the Rs1,16,049cr retail book, up ~+20% YoY. Audited confirmation of the rising unsecured mix into which coverage was cut."
+  },
+  "wholesale_FVTPL": {
+    "page": "358",
+    "note": "The Group is completely exiting the wholesale business by way of sell-down; the wholesale portfolio is classified at Fair Value through P&L (FVTPL) and is NOT in the ECL/Stage tables. Wholesale/SR markdowns flow through 'net gain/loss on fair value changes', explaining that line's volatility."
+  },
+  "segment": {"page": "349", "status": "Confirmed single reportable segment ('engaged primarily in the business of financing; no separate reportable segments per Ind AS 108') - no audited segment-level profitability/asset quality even in the full annual report."}
+}

@@ -1,0 +1,134 @@
+{
+  "_meta": {
+    "entity": "L&T Finance Limited (NSE: LTF, BSE: 533519, CIN L67120MH2008PLC181833)",
+    "source_primary": "march-31-2026--consolidated-results.pdf  (SEBI Reg 33/52 audited results pack, Board mtg 24-Apr-2026; contains BOTH consolidated [pp.1-12] and standalone [pp.13-22])",
+    "auditors": "Brahmayya & Co. + T R Chadha & Co LLP (joint statutory auditors)",
+    "audit_opinion": "UNMODIFIED on both consolidated and standalone (pp.7,11,15,19). No qualification, no emphasis of matter in this pack.",
+    "verified_by": "orchestrator firsthand from pdftotext -layout, page-cited; numbers in INR crore unless %",
+    "data_integrity_flags_at_source": [
+      "Two 27MB PDFs (consolidated-results.pdf / standalone-results.pdf) are BYTE-IDENTICAL (MD5 f941cf96...) - redundant download, the single file already contains both entity levels.",
+      "screener cons_6417.xlsx / stand_6417.xlsx use a generic MANUFACTURING template (Raw Material, Inventory Days, Power & Fuel, EV/EBITDA, OPM%) force-fit on an NBFC -> those ratios are analytically INVALID for a lender and are discarded; only mappable lines (PAT, equity, borrowings, total assets, dividend, share count) used for long-horizon trend.",
+      "Note 11/15: 'no separate reportable segments per Ind AS 108' -> NO audited segment-level profitability or asset quality; all segment/AUM-mix data is management-reported (unaudited).",
+      "GS3/NS3/CRAR are 'Not Applicable at consolidated level' (p.12); RBI asset-quality ratios are disclosed only at STANDALONE level (p.22).",
+      "Note 15/19: 'Previous period/year figures regrouped/reclassified' - comparability caveat."
+    ]
+  },
+  "consolidated_PL_INRcr": {
+    "page": 8,
+    "interest_income":      {"FY26": 16616.01, "FY25": 14663.29, "Q4FY26": 4424.03, "Q4FY25": 3749.88},
+    "fees_commission":      {"FY26": 1233.27,  "FY25": 1077.34},
+    "net_gain_fair_value":  {"FY26": 64.22,    "FY25": 182.64, "_note": "volatile treasury line, FELL YoY"},
+    "dividend_income":      {"FY26": 0.17,     "FY25": 0.97},
+    "total_revenue_ops":    {"FY26": 17913.67, "FY25": 15924.24},
+    "other_income":         {"FY26": 3.36,     "FY25": 16.74},
+    "total_income":         {"FY26": 17917.03, "FY25": 15940.98, "Q4FY26": 4771.10, "Q4FY25": 4027.22},
+    "finance_costs":        {"FY26": 6720.08,  "FY25": 5996.76},
+    "net_loss_derecognition_amortised_cost": {"FY26": 561.77, "FY25": 275.04, "_note": "DOUBLED YoY; this is the net write-off / sell-down loss, sits OUTSIDE the impairment line"},
+    "impairment_fin_instruments": {"FY26": 2184.10, "FY25": 2193.35, "_note": "FLAT YoY despite +25.6% loan growth - the headline 'credit cost' driver"},
+    "employee_benefits":    {"FY26": 2455.00,  "FY25": 2216.51},
+    "depreciation_amort":   {"FY26": 209.69,   "FY25": 138.90, "_note": "+51% YoY (gold/branch/tech buildout)"},
+    "other_expenses":       {"FY26": 1759.71,  "FY25": 1629.16},
+    "total_expenses":       {"FY26": 13890.35, "FY25": 12449.72},
+    "PBT_before_exceptional": {"FY26": 4026.68, "FY25": 3491.26},
+    "exceptional_items":    {"FY26": -28.51,   "FY25": 0, "_note": "New Labour Codes one-time past-service-cost provision; net of tax -21.33cr; a CONSERVATIVE charge, not a flattering gain (Note 7)"},
+    "PBT":                  {"FY26": 3998.17,  "FY25": 3491.26},
+    "tax_total":            {"FY26": 1015.30,  "FY25": 847.84, "_note": "effective rate ~25.4% vs ~24.3%"},
+    "PAT":                  {"FY26": 2982.87,  "FY25": 2643.42},
+    "PAT_owners":           {"FY26": 2981.18,  "FY25": 2643.66, "Q4FY26_owners": 806.63, "Q4FY25_owners": 636.17},
+    "PAT_before_exceptional_owners": {"FY26": 3002.51, "FY25": 2643.66, "_note": "clean PAT +13.6% YoY"},
+    "derived": {
+      "NII_proxy_intinc_less_financecost": {"FY26": 9895.93, "FY25": 8666.53, "yoy_pct": 14.2},
+      "PAT_owners_yoy_pct": 12.8,
+      "combined_credit_cost_impair_plus_derecog": {"FY26": 2745.87, "FY25": 2468.39, "yoy_pct": 11.2, "_note": "TRUE credit cost rose ~11%, NOT flat - the derecognition line is the missing half"}
+    }
+  },
+  "consolidated_balance_sheet_INRcr": {
+    "page": 9,
+    "loans":                {"FY26": 117821.03, "FY25": 93773.06, "yoy_pct": 25.6},
+    "cash_and_equivalents": {"FY26": 4488.94,   "FY25": 2896.22},
+    "bank_balance_other":   {"FY26": 3470.10,   "FY25": 7936.70},
+    "investments":          {"FY26": 10563.81,  "FY25": 11875.97},
+    "derivative_assets":    {"FY26": 875.85,    "FY25": 0.55, "_note": "huge jump - hedging book (ECB/forex?)"},
+    "goodwill":             {"FY26": 195.79,    "FY25": 13.40, "_note": "Paul Merchants gold-loan slump-sale"},
+    "other_intangibles":    {"FY26": 253.29,    "FY25": 113.82},
+    "total_assets":         {"FY26": 142205.31, "FY25": 120409.36, "yoy_pct": 18.1},
+    "debt_securities":      {"FY26": 32039.53,  "FY25": 28854.39},
+    "borrowings_other":     {"FY26": 77146.02,  "FY25": 61559.22},
+    "subordinated_liab":    {"FY26": 702.14,    "FY25": 1833.29, "_note": "Tier-2 fell sharply -> CRAR pressure"},
+    "total_debt":           {"FY26": 109887.69, "FY25": 92246.90},
+    "equity_share_capital": {"FY26": 2504.39,   "FY25": 2494.87},
+    "other_equity":         {"FY26": 25479.14,  "FY25": 23069.19},
+    "networth_consol":      {"FY26": 27983.53,  "FY25": 25564.06},
+    "non_controlling_int":  {"FY26": 50.50,     "FY25": 67.06}
+  },
+  "consolidated_cashflow_INRcr": {
+    "page": 10,
+    "op_profit_before_wc":  {"FY26": 6429.70, "FY25": 5635.42},
+    "net_cash_operating":   {"FY26": -14189.24, "FY25": -16587.47, "_note": "structurally negative (loans disbursed net -25,154.71); normal for growing NBFC"},
+    "loans_disbursed_net":  {"FY26": -25154.71, "FY25": -14596.27},
+    "net_cash_investing":   {"FY26": 366.90, "FY25": 471.83},
+    "gold_loan_acquisition":{"FY26": -709.52, "_note": "Paul Merchants Finance gold-loan business, net of cash acquired"},
+    "net_cash_financing":   {"FY26": 15415.06, "FY25": 15418.51},
+    "proceeds_borrowings":  {"FY26": 43747.98, "FY25": 40299.97},
+    "repayment_borrowings": {"FY26": -27676.83, "FY25": -24259.13},
+    "dividend_paid":        {"FY26": -686.77, "FY25": -622.46}
+  },
+  "standalone_PL_INRcr": {
+    "page": 16,
+    "interest_income":      {"FY26": 16615.65, "FY25": 14661.86},
+    "dividend_income":      {"FY26": 150.02,   "FY25": 0.50, "_note": "upstreamed from subsidiaries (standalone-only); explains standalone PAT > consol PAT"},
+    "total_income":         {"FY26": 18054.20, "FY25": 15930.12},
+    "PBT_before_exceptional":{"FY26": 4134.80, "FY25": 3454.93},
+    "exceptional_items":    {"FY26": -28.43,   "_note": "New Labour Codes; net of tax -21.27cr"},
+    "PBT":                  {"FY26": 4106.37,  "FY25": 3454.93},
+    "PAT":                  {"FY26": 3100.31,  "FY25": 2617.81},
+    "PAT_Q4FY26":           947.09
+  },
+  "standalone_asset_quality_and_ratios": {
+    "page": 22,
+    "gross_stage_3_pct":    2.88,
+    "net_stage_3_pct":      0.96,
+    "implied_stage3_PCR_pct": 66.7,
+    "CRAR_pct":             18.34,
+    "liquidity_coverage_ratio_pct": 342,
+    "debt_equity":          3.95,
+    "networth_standalone":  27833.28,
+    "PAT_standalone":       3100.31,
+    "EPS_basic":            12.40,
+    "EPS_diluted":          12.36,
+    "net_profit_margin_pct": 17.17,
+    "total_debt_to_total_assets": 0.77
+  },
+  "consolidated_ratios_annexure": {
+    "page": 12,
+    "debt_equity": 3.93,
+    "networth": 27983.53,
+    "EPS_basic": 11.92,
+    "EPS_diluted": 11.88,
+    "net_profit_margin_pct": 16.65
+  },
+  "asset_quality_movements_standalone": {
+    "npa_sold_to_ARCs": {"page": 20, "accounts": 5, "principal_outstanding": 127.52, "net_book_value": 146.99, "consideration": 155.87, "provision_reversed": 8.88, "_note": "SOLD ABOVE net book value -> small GAIN; ARC sales are NOT a material NPA-dumping channel (only ~128cr)"},
+    "loans_not_in_default_assigned_out": {"page": 20, "count": 1, "amount": 66.36},
+    "loans_acquired_via_assignment": {"page": 20, "count": 158, "amount": 48.92},
+    "stressed_loans_acquired": {"page": 20, "amount": 0, "_note": "none"},
+    "covid_restructured_resolution_framework": {"page": 19, "standard_at_start": 430.94, "slipped_to_NPA": 24.95, "written_off": 22.15, "remaining_standard": 384.16, "_note": "restructured book small and running off"},
+    "project_finance_under_implementation": {"page": 20, "accounts": 4, "outstanding": 1006.07, "resolution_invoked": 540.85, "resolution_plan_failed": 218.93, "resolution_under_implementation": 321.92, "_note": "residual legacy wholesale tail with stress; small vs total book"},
+    "co_lending": {"page": 21, "arrangements": 1, "gross_outstanding": 1994.17, "WAR_pct": 12.17, "npa": 16.14, "sector": "Personal Loan"}
+  },
+  "corporate_actions": {
+    "gold_loan_acquisition": {"page": 11, "target": "Paul Merchants Finance Pvt Ltd (PMFL) gold-loan business", "consideration": 711.93, "date": "2025-06-09", "structure": "slump sale / going concern", "portfolio_acquired": 1335, "_note": "INORGANIC component of FY26 growth - ~1,335cr gold AUM + 196cr goodwill created"},
+    "dividend": {"page": 11, "final_dividend_per_share": 2.75, "prev_year": 2.75, "_note": "FLAT despite PAT +13% -> payout shrinking, capital retained for growth"},
+    "esops_allotted_FY26": 9517915,
+    "managing_director_ceo": "Sudipta Roy (DIN 08069653)"
+  },
+  "valuation_anchors": {
+    "cmp_27apr2026": 288,
+    "emkay_TP": 330,
+    "emkay_rating": "BUY",
+    "book_value_per_share_consol": 111.7,
+    "implied_PB": 2.58,
+    "implied_PE_consol": 24.2,
+    "_note": "BVPS = consol networth 27983.53 / ~250.44cr shares; verify share count from EPS/PAT"
+  }
+}
