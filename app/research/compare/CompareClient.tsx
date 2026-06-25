@@ -20,9 +20,11 @@ const MAX_SELECTED = 4;
 
 interface Props {
   seed: CompareStock[];
+  /** When embedded inside another surface (e.g. the dashboard tab), suppress the page header. */
+  embedded?: boolean;
 }
 
-export default function CompareClient({ seed }: Props) {
+export default function CompareClient({ seed, embedded = false }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
 
   const { quotes } = useCompareQuotes(selected);
@@ -52,12 +54,14 @@ export default function CompareClient({ seed }: Props) {
 
   return (
     <div className="cmp-page">
-      <header>
-        <h1 className="cmp-page-title">Stock Comparison</h1>
-        <p className="cmp-page-subtitle">
-          Side-by-side risk-adjusted analysis — up to 4 stocks.
-        </p>
-      </header>
+      {!embedded && (
+        <header>
+          <h1 className="cmp-page-title">Stock Comparison</h1>
+          <p className="cmp-page-subtitle">
+            Side-by-side risk-adjusted analysis — up to 4 stocks.
+          </p>
+        </header>
+      )}
 
       <StockPicker
         stocks={seed}
