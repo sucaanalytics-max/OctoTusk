@@ -1,0 +1,337 @@
+/* OctoTusk /research/compare styles.
+   Scoped under [data-compare-root]; consumes shared design tokens from app/globals.css.
+   Zero hardcoded hex. No @media breakpoints — fluid layout via auto-fill / minmax / clamp. */
+
+/* ── Root ───────────────────────────────────────────────────── */
+[data-compare-root].cmp-root {
+  min-height: 100vh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.cmp-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.cmp-page-title { font-size: var(--text-xl); font-weight: 700; color: var(--color-text-primary); margin: 0; }
+.cmp-page-subtitle { font-size: var(--text-sm); color: var(--color-text-secondary); margin: var(--space-1) 0 0; }
+
+/* ── Picker panel ───────────────────────────────────────────── */
+.cmp-picker {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cmp-picker-controls { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+
+.cmp-search-wrap { position: relative; flex: 1; min-width: 180px; }
+.cmp-search-icon {
+  position: absolute; left: var(--space-3); top: 50%; transform: translateY(-50%);
+  color: var(--color-text-muted); pointer-events: none; font-size: var(--text-sm);
+}
+
+.cmp-search-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3) var(--space-2) calc(var(--space-3) + 20px);
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-bg-input); color: var(--color-text-primary);
+  font-size: var(--text-sm); transition: border-color var(--transition-fast); box-sizing: border-box;
+}
+.cmp-search-input:focus { outline: none; border-color: var(--color-accent-blue); }
+.cmp-search-input::placeholder { color: var(--color-text-muted); }
+
+.cmp-sector-select {
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); background: var(--color-bg-input);
+  color: var(--color-text-primary); font-size: var(--text-sm); cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+.cmp-sector-select:focus { outline: none; border-color: var(--color-accent-blue); }
+
+.cmp-clear-btn {
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary);
+  font-size: var(--text-sm); cursor: pointer; white-space: nowrap;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.cmp-clear-btn:hover { background: var(--color-bg-hover); border-color: var(--color-border-hover); }
+
+/* ── Selected chips ─────────────────────────────────────────── */
+.cmp-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); min-height: 32px; align-items: center; }
+.cmp-chip {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1) var(--space-2); background: var(--color-info-bg);
+  border: 1px solid var(--color-accent-blue); border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 600; color: var(--color-accent-blue);
+}
+.cmp-chip-remove {
+  background: none; border: none; cursor: pointer; color: var(--color-accent-blue);
+  padding: 0; font-size: 14px; line-height: 1; display: flex; align-items: center;
+  border-radius: var(--radius-full); transition: color var(--transition-fast);
+}
+.cmp-chip-remove:hover { color: var(--color-negative); }
+.cmp-chips-hint { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* ── Result grid ────────────────────────────────────────────── */
+.cmp-result-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-2); list-style: none; margin: 0; padding: 0;
+}
+.cmp-result-item {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm);
+  background: var(--color-bg-card-alt); cursor: pointer; text-align: left; width: 100%;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.cmp-result-item:hover:not(:disabled) { background: var(--color-bg-hover); border-color: var(--color-border-hover); }
+.cmp-result-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.cmp-result-tikr { font-size: var(--text-xs); font-weight: 700; color: var(--color-accent-blue); text-transform: uppercase; }
+.cmp-result-name { font-size: var(--text-xs); color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmp-result-sector { font-size: var(--text-xs); color: var(--color-text-muted); }
+.cmp-no-results { font-size: var(--text-sm); color: var(--color-text-muted); padding: var(--space-2); text-align: center; }
+
+/* ── Empty state ────────────────────────────────────────────── */
+.cmp-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-3); padding: var(--space-10) var(--space-4); text-align: center;
+}
+.cmp-empty-icon { font-size: 48px; opacity: 0.35; }
+.cmp-empty-title { font-size: var(--text-lg); font-weight: 600; color: var(--color-text-secondary); margin: 0; }
+.cmp-empty-hint { font-size: var(--text-sm); color: var(--color-text-muted); max-width: 320px; line-height: 1.5; margin: 0; }
+
+/* ── Verdict banner ─────────────────────────────────────────── */
+.cmp-verdict {
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: var(--space-4) var(--space-5);
+  box-shadow: var(--shadow-card); display: flex; align-items: flex-start; gap: var(--space-4);
+}
+.cmp-verdict-icon { font-size: 32px; flex-shrink: 0; margin-top: 2px; }
+.cmp-verdict-body { flex: 1; min-width: 0; }
+.cmp-verdict-label {
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0 0 var(--space-1);
+}
+.cmp-verdict-headline { font-size: var(--text-xl); font-weight: 700; color: var(--color-text-primary); margin: 0 0 var(--space-1); }
+.cmp-verdict-headline.is-leader { color: var(--color-positive); }
+.cmp-verdict-rationale { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
+.cmp-verdict-neutral { font-size: var(--text-base); color: var(--color-text-muted); font-style: italic; }
+
+/* ── Scorecard section + grid ───────────────────────────────── */
+.cmp-scorecard-section { display: flex; flex-direction: column; gap: var(--space-3); }
+.cmp-scorecard-heading {
+  font-size: var(--text-sm); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0;
+}
+.cmp-scorecard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+
+/* ── Scorecard card ─────────────────────────────────────────── */
+.cmp-sc-card {
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: var(--space-3);
+  transition: box-shadow var(--transition-fast);
+}
+.cmp-sc-card.is-leader {
+  border-color: var(--color-positive);
+  box-shadow: var(--shadow-glow-green, 0 0 0 2px var(--color-positive));
+}
+.cmp-sc-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.cmp-sc-card-name { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); line-height: 1.2; }
+.cmp-sc-card-tikr { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: 400; }
+
+.cmp-sc-leader-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px var(--space-2); background: var(--color-positive-bg);
+  border: 1px solid var(--color-positive); border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 700; color: var(--color-positive);
+  white-space: nowrap; flex-shrink: 0;
+}
+
+.cmp-sc-cmp-row { display: flex; align-items: baseline; gap: var(--space-2); }
+.cmp-sc-cmp-value { font-size: var(--text-lg); font-weight: 700; color: var(--color-text-primary); }
+.cmp-sc-cmp-live { font-size: var(--text-xs); color: var(--color-positive); font-weight: 600; }
+.cmp-sc-cmp-snapshot { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* ── Scorecard metrics ──────────────────────────────────────── */
+.cmp-sc-metrics {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  border-top: 1px solid var(--color-border-subtle); padding-top: var(--space-3);
+}
+.cmp-sc-metric { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.cmp-sc-metric-label { font-size: var(--text-xs); color: var(--color-text-secondary); flex-shrink: 0; }
+.cmp-sc-metric-value { font-size: var(--text-sm); font-weight: 600; color: var(--color-text-primary); text-align: right; }
+.cmp-sc-metric-value.is-pos { color: var(--color-positive); }
+.cmp-sc-metric-value.is-neg { color: var(--color-negative); }
+.cmp-sc-metric-value.is-muted { color: var(--color-text-muted); font-weight: 400; }
+.cmp-sc-metric-value.is-warn { color: var(--color-warning); }
+
+.cmp-sc-below-bear {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: var(--text-xs); font-weight: 700; color: var(--color-positive);
+  background: var(--color-positive-bg); border-radius: var(--radius-sm); padding: 1px var(--space-1);
+}
+
+/* ── Shared section chrome ──────────────────────────────────── */
+.cmp-section-heading {
+  font-size: var(--text-sm); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0 0 var(--space-3);
+}
+
+/* ── Football field ─────────────────────────────────────────── */
+.cmp-ff-wrap {
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+.cmp-ff-svg-wrap { overflow-x: auto; }
+.cmp-ff-empty {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  text-align: center; padding: var(--space-4) 0; margin: 0;
+}
+
+/* ── Valuation gauges ───────────────────────────────────────── */
+.cmp-gauges-section {
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-card);
+}
+.cmp-gauges-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4);
+}
+.cmp-gauges-stock-block {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); padding: var(--space-3);
+}
+.cmp-gauges-stock-name {
+  font-size: var(--text-sm); font-weight: 700; color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+}
+.cmp-gauges-metrics { display: flex; flex-direction: column; gap: var(--space-3); }
+
+/* Single gauge */
+.cmp-gauge-wrap { display: flex; flex-direction: column; gap: 2px; }
+.cmp-gauge-label { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-secondary); }
+.cmp-gauge-empty { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+/* ── Internal vs Street ─────────────────────────────────────── */
+.cmp-ivs-section {
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: var(--space-4); box-shadow: var(--shadow-card);
+}
+.cmp-ivs-list { display: flex; flex-direction: column; gap: var(--space-4); }
+.cmp-ivs-stock {
+  border: 1px solid var(--color-border-subtle); border-radius: var(--radius-sm); overflow: hidden;
+}
+.cmp-ivs-stock-header {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); background: var(--color-bg-card-alt);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.cmp-ivs-stock-name { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }
+.cmp-ivs-cmp { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.cmp-ivs-live { font-size: var(--text-xs); color: var(--color-positive); margin-left: 4px; }
+.cmp-ivs-snapshot { font-size: var(--text-xs); color: var(--color-text-muted); margin-left: 4px; }
+.cmp-ivs-cols {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  gap: 0; padding: var(--space-3) var(--space-4);
+}
+.cmp-ivs-col { display: flex; flex-direction: column; gap: var(--space-2); }
+.cmp-ivs-col-label {
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);
+}
+.cmp-ivs-divider { width: 1px; background: var(--color-border-subtle); margin: 0 var(--space-3); }
+.cmp-ivs-dl { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; }
+.cmp-ivs-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.cmp-ivs-row dt { font-size: var(--text-xs); color: var(--color-text-secondary); flex-shrink: 0; }
+.cmp-ivs-row dd { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-primary); text-align: right; margin: 0; }
+.cmp-ivs-upside { font-size: var(--text-xs); color: var(--color-text-muted); margin-left: 4px; }
+.cmp-ivs-dash { color: var(--color-text-muted); }
+.cmp-ivs-loading { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-2); }
+.cmp-ivs-skeleton {
+  height: 14px; background: var(--color-bg-card-alt); border-radius: var(--radius-sm);
+  animation: cmp-pulse 1.5s ease-in-out infinite;
+}
+
+/* Recommendation chip */
+.cmp-rec-chip {
+  display: inline-block; padding: 1px var(--space-2); border-radius: var(--radius-full);
+  font-size: var(--text-xs); font-weight: 700; border: 1px solid currentColor;
+}
+.cmp-rec-chip.is-buy { color: var(--color-positive); background: var(--color-positive-bg); }
+.cmp-rec-chip.is-sell { color: var(--color-negative); background: var(--color-negative-bg); }
+.cmp-rec-chip.is-hold { color: var(--color-warning); background: var(--color-warning-bg); }
+
+/* ── Detail table ───────────────────────────────────────────── */
+.cmp-dt-section {
+  background: var(--color-bg-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-card); overflow: hidden;
+}
+.cmp-dt-details { }
+.cmp-dt-summary {
+  padding: var(--space-4); font-size: var(--text-sm); font-weight: 600;
+  color: var(--color-text-secondary); cursor: pointer; user-select: none;
+  list-style: none;
+}
+.cmp-dt-summary::-webkit-details-marker { display: none; }
+.cmp-dt-summary:hover { color: var(--color-text-primary); background: var(--color-bg-hover); }
+.cmp-dt-scroll { overflow-x: auto; }
+
+.cmp-dt-table {
+  width: 100%; border-collapse: collapse;
+  font-size: var(--text-xs);
+}
+.cmp-dt-th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--color-bg-elevated);
+  border-bottom: 2px solid var(--color-border);
+  padding: var(--space-2) var(--space-3); text-align: right;
+  font-weight: 700; color: var(--color-text-secondary); white-space: nowrap;
+}
+.cmp-dt-metric-col {
+  position: sticky; left: 0; z-index: 3; text-align: left;
+  min-width: 160px; background: var(--color-bg-elevated);
+}
+.cmp-dt-stock-col { min-width: 120px; }
+.cmp-dt-th-name { font-weight: 700; color: var(--color-text-primary); }
+.cmp-dt-th-tikr { font-weight: 400; color: var(--color-text-muted); font-size: var(--text-xs); }
+.cmp-dt-th-cmp, .cmp-dt-th-cmp-live { font-weight: 600; font-size: var(--text-xs); margin-top: 2px; }
+.cmp-dt-th-cmp { color: var(--color-text-secondary); }
+.cmp-dt-th-cmp-live { color: var(--color-positive); }
+
+.cmp-dt-section-row td {
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--color-text-muted);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-card-alt);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.cmp-dt-section-label { text-align: left; }
+
+/* Zebra: nth-of-type within each section's <tbody> (section-row is tr #1, so the
+   first data row is even and striping stays consistent across every section). */
+.cmp-dt-row:nth-of-type(even) { background: var(--color-bg-card-alt); }
+.cmp-dt-td {
+  padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary); text-align: right; white-space: nowrap;
+}
+.cmp-dt-label-cell {
+  position: sticky; left: 0; text-align: left; font-weight: 500;
+  color: var(--color-text-secondary); background: inherit;
+  border-right: 1px solid var(--color-border-subtle);
+}
+.cmp-dt-value-cell { font-variant-numeric: tabular-nums; }
+.cmp-dt-value-cell.is-muted { color: var(--color-text-muted); }
