@@ -6,6 +6,9 @@
 /** Conviction filter default for the desktop Octopus table: show conviction >= 4 ("4+"). */
 export const DEFAULT_CONVICTION_FILTER = "4";
 
+/** Understanding filter default for the desktop Octopus table: show understanding >= 4 ("4+"). */
+export const DEFAULT_UNDERSTANDING_FILTER = "4";
+
 /**
  * Stocks hidden by default on the desktop Octopus table (reveal via the "Hidden (N)" view).
  * Keyed by EXACT, case-sensitive `tikr` — matches DashboardClient's `hiddenStocks.has(s.tikr)`.

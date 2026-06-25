@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useFocusTrap } from "@/lib/mobile/useFocusTrap";
 
 export type Conviction = "all" | "4plus" | "5";
+export type Understanding = "all" | "4plus" | "5";
 export type SortKey = "bear" | "base" | "bull" | "y1" | "y2" | "change" | "name";
 
 interface Props {
@@ -10,6 +11,8 @@ interface Props {
   onClose: () => void;
   conviction: Conviction;
   setConviction: (c: Conviction) => void;
+  understanding: Understanding;
+  setUnderstanding: (u: Understanding) => void;
   sort: SortKey;
   setSort: (s: SortKey) => void;
   allSectors: string[];
@@ -30,6 +33,11 @@ interface Props {
 }
 
 const CONVICTIONS: Array<[Conviction, string]> = [
+  ["4plus", "4+"],
+  ["5", "5 only"],
+  ["all", "All"],
+];
+const UNDERSTANDINGS: Array<[Understanding, string]> = [
   ["4plus", "4+"],
   ["5", "5 only"],
   ["all", "All"],
@@ -98,6 +106,22 @@ export default function FilterSheet(p: Props) {
                   className={`m-seg-btn${p.conviction === val ? " is-active" : ""}`}
                   aria-pressed={p.conviction === val}
                   onClick={() => p.setConviction(val)}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="m-fgroup">
+            <span className="m-flabel">Understanding</span>
+            <div className="m-seg">
+              {UNDERSTANDINGS.map(([val, lab]) => (
+                <button
+                  key={val}
+                  className={`m-seg-btn${p.understanding === val ? " is-active" : ""}`}
+                  aria-pressed={p.understanding === val}
+                  onClick={() => p.setUnderstanding(val)}
                 >
                   {lab}
                 </button>

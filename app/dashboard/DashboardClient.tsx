@@ -14,7 +14,7 @@ import StockNotesPanel from "./StockNotesPanel";
 import PushOptIn from "./PushOptIn";
 import { type Note, toStockKey } from "@/lib/noteTypes";
 import type { Role } from "@/lib/roles";
-import { DEFAULT_HIDDEN_TIKRS, DEFAULT_CONVICTION_FILTER } from "@/lib/dashboardDefaults";
+import { DEFAULT_HIDDEN_TIKRS, DEFAULT_CONVICTION_FILTER, DEFAULT_UNDERSTANDING_FILTER } from "@/lib/dashboardDefaults";
 
 const TechnicalChartDynamic = dynamic(() => import("./TechnicalChart"), { ssr: false, loading: () => <div className="skeleton" style={{ width: "100%", height: 280 }} /> });
 
@@ -644,6 +644,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   const [filterSubsector, setFilterSubsector] = useState<string>("all");
   const [filterVP, setFilterVP] = useState<string>("all");
   const [filterConviction, setFilterConviction] = useState<string>(DEFAULT_CONVICTION_FILTER);
+  const [filterUnderstanding, setFilterUnderstanding] = useState<string>(DEFAULT_UNDERSTANDING_FILTER);
   const [filterSegment, setFilterSegment] = useState<string>("all");
   const [filterHoldingsOnly, setFilterHoldingsOnly] = useState(false);
   const [filterUpside1Y, setFilterUpside1Y] = useState<number | null>(null);
@@ -1413,7 +1414,8 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
     const sectors = Array.from(new Set(liveStocks.map(s => s.sector).filter(Boolean))).sort() as string[];
     const vps = Array.from(new Set(liveStocks.map(s => s.vp).filter(Boolean))).sort() as string[];
     const convictions = Array.from(new Set(liveStocks.map(s => s.conviction).filter(c => c != null))).sort((a, b) => (b as number) - (a as number)) as number[];
-    return { sectors, vps, convictions };
+    const understandings = Array.from(new Set(liveStocks.map(s => s.understanding).filter(c => c != null))).sort((a, b) => (b as number) - (a as number)) as number[];
+    return { sectors, vps, convictions, understandings };
   }, [liveStocks]);
 
   // Cascading subsectors: scoped to whichever sector is currently selected.
@@ -1515,6 +1517,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       }
       if (filterVP !== "all" && s.vp !== filterVP) return false;
       if (filterConviction !== "all" && (s.conviction == null || (s.conviction as number) < Number(filterConviction))) return false;
+      if (filterUnderstanding !== "all" && (s.understanding == null || (s.understanding as number) < Number(filterUnderstanding))) return false;
       if (filterHoldingsOnly && !holdingTikrs.has(s.tikr)) return false;
       if (filterSegment !== "all") {
         if (filterSegment === "__null") { if (s.sebiSegment != null) return false; }
@@ -1531,7 +1534,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
       if (typeof av === "number" && typeof bv === "number") return sortDir === "asc" ? av - bv : bv - av;
       return sortDir === "asc" ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
     });
-  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterSubsector, filterVP, filterConviction, filterSegment, filterHoldingsOnly, filterUpside1Y, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
+  }, [enrichedStocks, searchTerm, sortCol, sortDir, filterSector, filterSubsector, filterVP, filterConviction, filterUnderstanding, filterSegment, filterHoldingsOnly, filterUpside1Y, holdingTikrs, hiddenStocks, showHidden, activeWatchlist, watchlists]);
 
   // Holdings — session + PIN gated
   const unlockHoldings = async () => {
@@ -1832,7 +1835,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
 
   // Th moved to module scope to avoid remount on every render
 
-  const activeFilters = [filterSector, filterSubsector, filterVP, filterSegment].filter(f => f !== "all").length + (filterConviction !== DEFAULT_CONVICTION_FILTER ? 1 : 0) + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
+  const activeFilters = [filterSector, filterSubsector, filterVP, filterSegment].filter(f => f !== "all").length + (filterConviction !== DEFAULT_CONVICTION_FILTER ? 1 : 0) + (filterUnderstanding !== DEFAULT_UNDERSTANDING_FILTER ? 1 : 0) + (filterHoldingsOnly ? 1 : 0) + (filterUpside1Y != null ? 1 : 0);
 
 
   // ── Pill toggle style helper ──
@@ -2365,6 +2368,10 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               <option value="all">All Conv</option>
               {filterOptions.convictions.map(c => <option key={c} value={String(c)}>{c}+</option>)}
             </select>
+            <select value={filterUnderstanding} onChange={e => setFilterUnderstanding(e.target.value)} className="select-dark" aria-label="Filter by understanding">
+              <option value="all">All Und</option>
+              {filterOptions.understandings.map(u => <option key={u} value={String(u)}>{u}+</option>)}
+            </select>
             <select
               value={filterUpside1Y == null ? "any" : String(filterUpside1Y)}
               onChange={e => setFilterUpside1Y(e.target.value === "any" ? null : Number(e.target.value))}
@@ -2391,7 +2398,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
             </span>
             {activeFilters > 0 && (
               <button
-                onClick={() => { setFilterSector("all"); setFilterSubsector("all"); setFilterVP("all"); setFilterConviction(DEFAULT_CONVICTION_FILTER); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
+                onClick={() => { setFilterSector("all"); setFilterSubsector("all"); setFilterVP("all"); setFilterConviction(DEFAULT_CONVICTION_FILTER); setFilterUnderstanding(DEFAULT_UNDERSTANDING_FILTER); setFilterSegment("all"); setFilterHoldingsOnly(false); setFilterUpside1Y(null); }}
                 className="btn btn-ghost btn-sm"
                 style={{ color: "var(--color-warning)", whiteSpace: "nowrap" }}
                 aria-label="Clear all filters"

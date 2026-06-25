@@ -5,7 +5,7 @@ import { useQuotes } from "@/lib/mobile/useQuotes";
 import { scenarioUpside } from "@/lib/scenarioUpside";
 import { isMobileHidden } from "@/lib/mobile/hiddenStocks";
 import StockCard from "../components/StockCard";
-import FilterSheet, { type Conviction, type SortKey } from "../components/FilterSheet";
+import FilterSheet, { type Conviction, type Understanding, type SortKey } from "../components/FilterSheet";
 
 const FRESH_LABEL: Record<string, string> = {
   LIVE: "● Live",
@@ -15,6 +15,7 @@ const FRESH_LABEL: Record<string, string> = {
   LOADING: "○ Loading…",
 };
 const CONV_LABEL: Record<Conviction, string> = { all: "All", "4plus": "4+", "5": "5 only" };
+const UND_LABEL: Record<Understanding, string> = { all: "All", "4plus": "4+", "5": "5 only" };
 const SORT_LABEL: Record<SortKey, string> = {
   bear: "Bear ↑",
   base: "Base ↑",
@@ -38,6 +39,7 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
 
   // Filter state — defaults per spec: Conviction 4+, the de-prioritized names hidden.
   const [conviction, setConviction] = useState<Conviction>("4plus");
+  const [understanding, setUnderstanding] = useState<Understanding>("4plus");
   const [sort, setSort] = useState<SortKey>("base");
   const [selectedSectors, setSelectedSectors] = useState<Set<string>>(new Set());
   const [selectedVps, setSelectedVps] = useState<Set<string>>(new Set());
@@ -62,6 +64,7 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
 
   const reset = () => {
     setConviction("4plus");
+    setUnderstanding("4plus");
     setSort("base");
     setSelectedSectors(new Set());
     setSelectedVps(new Set());
@@ -77,6 +80,8 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
       if (!showHidden && isMobileHidden(s.tikr)) return false;
       if (conviction === "4plus" && !(s.conviction != null && s.conviction >= 4)) return false;
       if (conviction === "5" && s.conviction !== 5) return false;
+      if (understanding === "4plus" && !(s.understanding != null && s.understanding >= 4)) return false;
+      if (understanding === "5" && s.understanding !== 5) return false;
       if (inFnoOnly && !s.inFno) return false;
       if (selectedSectors.size > 0 && !selectedSectors.has(s.sector)) return false;
       if (selectedVps.size > 0 && !(s.vp && selectedVps.has(s.vp))) return false;
@@ -116,10 +121,11 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
       list.sort((a, b) => val(b) - val(a));
     }
     return list;
-  }, [stocks, q, conviction, selectedSectors, selectedVps, selectedSas, inFnoOnly, showHidden, sort, quotes]);
+  }, [stocks, q, conviction, understanding, selectedSectors, selectedVps, selectedSas, inFnoOnly, showHidden, sort, quotes]);
 
   const activeCount =
     (conviction !== "4plus" ? 1 : 0) +
+    (understanding !== "4plus" ? 1 : 0) +
     (sort !== "base" ? 1 : 0) +
     (selectedSectors.size > 0 ? 1 : 0) +
     (selectedVps.size > 0 ? 1 : 0) +
@@ -160,6 +166,9 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
           </button>
           <button className="m-chip is-active" onClick={() => setSheetOpen(true)}>
             Conv {CONV_LABEL[conviction]}
+          </button>
+          <button className="m-chip is-active" onClick={() => setSheetOpen(true)}>
+            Und {UND_LABEL[understanding]}
           </button>
           {Array.from(selectedVps).map((v) => (
             <button key={`vp-${v}`} className="m-chip is-active" onClick={() => toggleVp(v)}>
@@ -206,6 +215,8 @@ export default function WatchlistClient({ stocks }: { stocks: MobileStock[] }) {
         onClose={() => setSheetOpen(false)}
         conviction={conviction}
         setConviction={setConviction}
+        understanding={understanding}
+        setUnderstanding={setUnderstanding}
         sort={sort}
         setSort={setSort}
         allSectors={allSectors}
