@@ -37,8 +37,8 @@ export default function BreakdownView({ items }: { items: BreakdownInput[] }) {
                     <span className="m-bd-sub-name">{sub.subsector || "Other"}</span>
                     <span className="m-bd-sub-val">{fmtMoney(sub.value)} · {sub.weightPct.toFixed(1)}%</span>
                   </div>
-                  {sub.lines.map((ln) => (
-                    <div key={ln.assetName} className="m-bd-line">
+                  {sub.lines.map((ln, i) => (
+                    <div key={(ln.tikr ?? ln.assetName) + "|" + i} className="m-bd-line">
                       <span className="m-bd-line-name">{ln.assetName}</span>
                       <span className="m-bd-line-val">{fmtMoney(ln.value)}</span>
                       <span className={`m-bd-line-pnl ${ln.gain >= 0 ? "is-up" : "is-down"}`}>{fmtPctRaw(ln.gainPct ?? null)}</span>

@@ -100,14 +100,19 @@ export default function PortfolioClient({ stocks }: { stocks: MobileStock[] }) {
 
   const breakdownItems = useMemo<BreakdownInput[]>(
     () =>
-      enriched.map((h) => ({
-        assetName: h.name,
-        tikr: h.tikr,
-        value: h.liveValue,
-        invested: h.amt_invested,
-        gain: h.liveGain,
-      })),
-    [enriched],
+      enriched.map((h) => {
+        const sd = h.tikr ? stockByTikr.get(h.tikr.toLowerCase()) : undefined;
+        return {
+          assetName: h.name,
+          tikr: h.tikr,
+          fallbackSector: sd?.sector ?? null,
+          fallbackSubsector: sd?.subsector ?? null,
+          value: h.liveValue,
+          invested: h.amt_invested,
+          gain: h.liveGain,
+        };
+      }),
+    [enriched, stockByTikr],
   );
 
   if (!unlocked) {
