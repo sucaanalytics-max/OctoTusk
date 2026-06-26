@@ -35,7 +35,7 @@ export default function BreakdownView({ items }: { items: BreakdownInput[] }) {
   const legend = other ? [...colored.slice(0, 3), other] : colored.slice(0, 3);
   const a11yLabel =
     "Sector allocation: " +
-    colored.slice(0, 4).map((s) => `${s.key} ${s.weightPct.toFixed(0)}%`).join(", ");
+    legend.map((s) => `${s.key} ${s.weightPct.toFixed(0)}%`).join(", ");
 
   return (
     <div className="m-bd">
@@ -67,12 +67,7 @@ export default function BreakdownView({ items }: { items: BreakdownInput[] }) {
           </div>
           <div className="m-metric">
             <span className="m-metric-label">Top 3</span>
-            <span
-              className="m-metric-val"
-              style={summary.top3WeightPct >= 60 ? { color: "var(--color-warning)" } : undefined}
-            >
-              {fmtPctRaw(summary.top3WeightPct)}
-            </span>
+            <span className="m-metric-val">{fmtPctRaw(summary.top3WeightPct)}</span>
           </div>
         </div>
       </div>
