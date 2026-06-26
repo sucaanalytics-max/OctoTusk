@@ -7,6 +7,8 @@ import { computeLivePnl, portfolioTotals, type RawHolding } from "@/lib/holdings
 import { resolveHoldingTikr } from "@/lib/holdings-match";
 import { fmtMoney, fmtPctRaw, fmtRupee } from "@/lib/format";
 import { getCompanyShort } from "@/lib/companyName";
+import BreakdownView from "./BreakdownView";
+import type { BreakdownInput } from "@/lib/holdingsBreakdown";
 
 type SortKey = "value" | "day" | "gain";
 
@@ -64,6 +66,7 @@ export default function PortfolioClient({ stocks }: { stocks: MobileStock[] }) {
     useHoldings();
   const { quotes, state } = useQuotes();
   const [sort, setSort] = useState<SortKey>("value");
+  const [view, setView] = useState<"holdings" | "breakdown">("holdings");
 
   const matchable = useMemo(() => stocks.map((s) => ({ tikr: s.tikr, official_name: s.name })), [stocks]);
   const stockByTikr = useMemo(() => {
@@ -94,6 +97,18 @@ export default function PortfolioClient({ stocks }: { stocks: MobileStock[] }) {
   }, [enriched, sort]);
 
   const totals = useMemo(() => portfolioTotals(enriched), [enriched]);
+
+  const breakdownItems = useMemo<BreakdownInput[]>(
+    () =>
+      enriched.map((h) => ({
+        assetName: h.name,
+        tikr: h.tikr,
+        value: h.liveValue,
+        invested: h.amt_invested,
+        gain: h.liveGain,
+      })),
+    [enriched],
+  );
 
   if (!unlocked) {
     return (
@@ -153,6 +168,21 @@ export default function PortfolioClient({ stocks }: { stocks: MobileStock[] }) {
         {dateLabel && <span className="m-count" style={{ textAlign: "left" }}>As of {dateLabel}</span>}
       </div>
 
+      {/* View toggle */}
+      <div className="m-chips">
+        {(["holdings", "breakdown"] as const).map((v) => (
+          <button
+            key={v}
+            className={`m-chip${view === v ? " is-active" : ""}`}
+            aria-pressed={view === v}
+            onClick={() => setView(v)}
+          >
+            {v === "holdings" ? "Holdings" : "Sectors"}
+          </button>
+        ))}
+      </div>
+
+      {view === "holdings" && (<>
       {/* Sort */}
       <div className="m-chips">
         {(["value", "day", "gain"] as SortKey[]).map((k) => (
@@ -203,6 +233,9 @@ export default function PortfolioClient({ stocks }: { stocks: MobileStock[] }) {
           </div>
         ))}
       </div>
+      </>)}
+
+      {view === "breakdown" && <BreakdownView items={breakdownItems} />}
 
       {/* F&O */}
       {foPositions.length > 0 && (
