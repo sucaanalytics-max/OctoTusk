@@ -20,7 +20,31 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu("Octopus")
     .addItem("Push current stock to Octopus", "pushCurrentToOctopus")
+    .addItem("Test connection", "testOctopusConnection")
     .addToUi();
+}
+
+/**
+ * Pings the ingest route with no data — confirms INGEST_URL + INGEST_SECRET are correct without
+ * writing anything. A correct secret + reachable route returns 400 "no_valid_items" (it got past
+ * the auth + db checks but had nothing to write), which we treat as success.
+ */
+function testOctopusConnection() {
+  var ui = SpreadsheetApp.getUi();
+  if (!INGEST_URL || INGEST_URL.indexOf("YOUR-OCTOPUS-DOMAIN") !== -1) { ui.alert("Set INGEST_URL at the top of the script first."); return; }
+  if (!INGEST_SECRET || INGEST_SECRET.indexOf("PASTE-") === 0) { ui.alert("Set INGEST_SECRET at the top of the script first."); return; }
+  var res = UrlFetchApp.fetch(INGEST_URL, {
+    method: "post", contentType: "application/json", muteHttpExceptions: true,
+    payload: JSON.stringify({ secret: INGEST_SECRET, items: [] }),
+  });
+  var code = res.getResponseCode();
+  var body = res.getContentText() || "";
+  if (code === 400 && body.indexOf("no_valid_items") !== -1) ui.alert("✅ Connection OK — URL and secret are valid. You can push stocks now.");
+  else if (code === 200) ui.alert("✅ Connection OK.");
+  else if (code === 401) ui.alert("❌ Secret mismatch.\nINGEST_SECRET here must equal FINANCIALS_INGEST_SECRET in Vercel — and redeploy Vercel after setting it.");
+  else if (code === 404) ui.alert("❌ URL not found (404).\nCheck INGEST_URL — it should end in /api/financials/ingest and use your app's domain.");
+  else if (code === 503) ui.alert("⚠️ Reached Octopus and the secret is OK, but Supabase isn't configured on that deployment.");
+  else ui.alert("Unexpected response (HTTP " + code + "):\n" + body.slice(0, 300));
 }
 
 function pushCurrentToOctopus() {
