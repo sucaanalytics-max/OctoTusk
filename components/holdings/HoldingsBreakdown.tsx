@@ -8,6 +8,7 @@ import {
   type BreakdownInput,
   type CompositionSlice,
 } from "@/lib/holdingsBreakdown";
+import { UNCLASSIFIED } from "@/lib/sectors";
 
 // ── Prop types ────────────────────────────────────────────────────────────────
 
@@ -75,8 +76,8 @@ function buildPaths(slices: CompositionSlice[]) {
   });
 }
 
-function sliceColor(i: number, isOther: boolean): string {
-  if (isOther) return "var(--color-segment-unclassified)";
+function sliceColor(i: number, isOther: boolean, key?: string): string {
+  if (isOther || key === UNCLASSIFIED) return "var(--color-segment-unclassified)";
   return `var(--color-chart-${i + 1})`;
 }
 
@@ -104,7 +105,7 @@ function DonutChart({ slices }: { slices: CompositionSlice[] }) {
         aria-label={ariaLabel}
       >
         {paths.map((p, i) => (
-          <path key={p.key} d={p.path} fill={sliceColor(i, p.isOther)} />
+          <path key={p.key} d={p.path} fill={sliceColor(i, p.isOther, p.key)} />
         ))}
         {slices.length === 0 && (
           <circle cx={CX} cy={CY} r={R} fill="var(--color-bg-elevated)" />
@@ -123,7 +124,7 @@ function DonutChart({ slices }: { slices: CompositionSlice[] }) {
                 width: 10,
                 height: 10,
                 borderRadius: "50%",
-                background: sliceColor(i, p.isOther),
+                background: sliceColor(i, p.isOther, p.key),
                 display: "inline-block",
                 flexShrink: 0,
               }}
@@ -348,12 +349,13 @@ export function HoldingsBreakdown({ enrichedHoldings }: { enrichedHoldings: Brea
             <tbody>
               {result.sectors.map((sec) => {
                 const open = !collapsed[sec.sector];
-                // Identity accent: top-6 palette color, else neutral border
-                const colorIdx = sectorColorIndex.get(sec.sector);
+                // Identity accent: grey for Unclassified, top-6 palette color, else neutral border
                 const accentColor =
-                  colorIdx !== undefined
-                    ? `var(--color-chart-${colorIdx + 1})`
-                    : "var(--color-border)";
+                  sec.sector === UNCLASSIFIED
+                    ? "var(--color-segment-unclassified)"
+                    : sectorColorIndex.has(sec.sector)
+                      ? `var(--color-chart-${(sectorColorIndex.get(sec.sector) ?? 0) + 1})`
+                      : "var(--color-border)";
 
                 return (
                   <Fragment key={sec.sector}>
