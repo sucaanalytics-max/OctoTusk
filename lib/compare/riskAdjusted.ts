@@ -90,10 +90,11 @@ export function convictionWeightedReturn(
 }
 
 /**
- * Downside cushion to the bear case: (cmp − bear) / cmp.
- * > 0 = room to fall before hitting bear (more downside risk);
- * < 0 = CMP already below bear (deep value, limited further downside).
- * NOT "margin of safety" in the discount-to-fair-value sense — labeled "Cushion to bear" in the UI.
+ * Downside to the bear case: (cmp − bear) / cmp.
+ * > 0 = room to fall before hitting bear (this much potential downside — RISK);
+ * < 0 = CMP already below bear (deep value, no further downside to bear).
+ * Surfaced in the UI as "Downside to bear" (risk; lower is safer), colour + rank agree: the rank
+ * rewards LOW downside (minMax(−cushion) below), so a smaller value reads as safer everywhere.
  */
 export function cushionToBear(cmp: number | null, bear: number | null): number | null {
   if (cmp == null || cmp <= 0 || bear == null) return null;
