@@ -87,6 +87,12 @@
     "HOMEFIRST":   { "sector": "Financial Services", "subsector": "Housing Finance Company" },
 
     "GROWW":       { "sector": "Financial Services", "subsector": "Stockbroking & Allied Services" },
+    "DAMCAPITAL":  { "sector": "Financial Services", "subsector": "Stockbroking & Allied Services" },
+    "MONARCH":     { "sector": "Financial Services", "subsector": "Stockbroking & Allied Services" },
+
+    "PIRAMALFIN":  { "sector": "Financial Services", "subsector": "NBFC" },
+
+    "J&KBANK":     { "sector": "Financial Services", "subsector": "Public Sector Bank" },
 
     "OFSS":        { "sector": "Information Technology", "subsector": "IT - Software" },
     "COFORGE":     { "sector": "Information Technology", "subsector": "IT - Services" },
@@ -99,9 +105,12 @@
     "Hindpetro":   { "sector": "Oil, Gas & Consumable Fuels", "subsector": "Refineries & Marketing" },
     "IOC":         { "sector": "Oil, Gas & Consumable Fuels", "subsector": "Refineries & Marketing" },
     "OIL":         { "sector": "Oil, Gas & Consumable Fuels", "subsector": "Crude Oil & Natural Gas (E&P)" },
+    "533278":      { "sector": "Oil, Gas & Consumable Fuels", "subsector": "Coal Mining" },
+    "VOGL":        { "sector": "Oil, Gas & Consumable Fuels", "subsector": "Crude Oil & Natural Gas (E&P)" },
 
     "NTPC":        { "sector": "Power", "subsector": "Electric Utilities (Integrated)" },
     "CESC":        { "sector": "Power", "subsector": "Electric Utilities (Integrated)" },
+    "VEDPOWER":    { "sector": "Power", "subsector": "Electric Utilities (Integrated)" },
     "ACMESOLAR":   { "sector": "Power", "subsector": "Renewable Power Generation" },
     "ADANIGREEN":  { "sector": "Power", "subsector": "Renewable Power Generation" },
     "IEX":         { "sector": "Financial Services", "subsector": "Power Exchange" },
@@ -109,6 +118,9 @@
     "Inoxwind":    { "sector": "Capital Goods", "subsector": "Heavy Electrical Equipment (Wind Turbines)" },
     "INTERARCH":   { "sector": "Capital Goods", "subsector": "Industrial Products (Pre-Engineered Buildings)" },
     "XBOM:522101": { "sector": "Capital Goods", "subsector": "Industrial Manufacturing (Process Equipment)" },
+    "517417":      { "sector": "Capital Goods", "subsector": "Industrial Manufacturing (Process Equipment)" },
+    "500068":      { "sector": "Capital Goods", "subsector": "Industrial Machinery (Foundry Equipment)" },
+    "ELECON ENGINEERING COMPANY LIMITED (XNSE:ELECON)": { "sector": "Capital Goods", "subsector": "Industrial Products (Gears & Material Handling)" },
     "538734":      { "sector": "Capital Goods", "subsector": "IT Services (Defense & Geomatics)" },
     "505192":      { "sector": "Capital Goods", "subsector": "Commercial Vehicles" },
 
@@ -118,10 +130,12 @@
     "GPTINFRA":    { "sector": "Construction", "subsector": "Civil Construction (Railways/Bridges)" },
 
     "XBOM:516003": { "sector": "Construction Materials", "subsector": "Plywood & Allied" },
+    "somanycera":  { "sector": "Construction Materials", "subsector": "Tiles & Sanitaryware" },
 
     "PHOENIXLTD":  { "sector": "Realty", "subsector": "Commercial (Retail Malls)" },
     "PRESTIGE":    { "sector": "Realty", "subsector": "Developers" },
     "Brigade":     { "sector": "Realty", "subsector": "Developers" },
+    "ABREL":       { "sector": "Realty", "subsector": "Developers" },
     "Smartworks":  { "sector": "Services", "subsector": "Managed Workspaces" },
     "Wework":      { "sector": "Services", "subsector": "Managed Workspaces" },
     "NXST":        { "sector": "Realty", "subsector": "REIT (Retail)" },
@@ -147,6 +161,8 @@
 
     "VEDL":        { "sector": "Metals & Mining", "subsector": "Diversified Metals" },
     "GPIL":        { "sector": "Metals & Mining", "subsector": "Iron & Steel (Integrated)" },
+    "VAML":        { "sector": "Metals & Mining", "subsector": "Aluminium" },
+    "VISL":        { "sector": "Metals & Mining", "subsector": "Iron & Steel (Integrated)" },
 
     "PCBL":        { "sector": "Chemicals", "subsector": "Carbon Black" },
 
@@ -156,7 +172,8 @@
 
     "ADANIPORTS":  { "sector": "Services", "subsector": "Marine Port & Services" },
 
-    "GRASIM":      { "sector": "Diversified", "subsector": "Holding Company (VSF / Chemicals / Cement / Paints)" }
+    "GRASIM":      { "sector": "Diversified", "subsector": "Holding Company (VSF / Chemicals / Cement / Paints)" },
+    "RPSGVENT":    { "sector": "Diversified", "subsector": "Holding Company (FMCG / IT-Enabled Services / Sports)" }
   },
   "tikrAlias": {
     "SMARTWORKS": "Smartworks",
@@ -198,6 +215,21 @@
     "HUDCO": "was Infra Finance — keeping as HFC; alternative is Specialised Finance (Infra)",
     "PHOENIXLTD": "was Real Estate/Retail → Realty/Commercial (Retail Malls) — Phoenix is a mall developer, not a retailer",
     "ANGELONE": "NOT YET IN DASHBOARD — vF exists in OneDrive but no JVB row; ensure ANGELONE row added to JVB Output, current vF F5/G5 are 'BFSI'/'Exchanges & Capital Markets' (Angel One is a broker, not an exchange)",
-    "XBOM:590108": "PSU Bank BeES ETF — row 96 in live JVB but sector/subsector cells are empty (slipped through prior audits)"
+    "XBOM:590108": "PSU Bank BeES ETF — row 96 in live JVB but sector/subsector cells are empty (slipped through prior audits)",
+    "DAMCAPITAL": "BFSI/Exchanges in db — DAM Capital is an investment bank/broker → Stockbroking & Allied Services",
+    "MONARCH": "BFSI/Exchanges in db — Monarch Networth is a broker → Stockbroking & Allied Services",
+    "PIRAMALFIN": "Banks & NBFC in db — Piramal Finance is an NBFC",
+    "J&KBANK": "user classifies J&K Bank as PSU (J&K govt majority owner) → Public Sector Bank",
+    "517417": "Manufacturing in db — Patels Airtemp makes heat exchangers/pressure vessels → Capital Goods / Process Equipment",
+    "500068": "Manufacturing in db — Disa India makes foundry/moulding machinery → Capital Goods",
+    "ELECON ENGINEERING COMPANY LIMITED (XNSE:ELECON)": "Manufacturing in db — Elecon makes gears & material-handling equipment → Capital Goods",
+    "somanycera": "Building Materials in db — Somany Ceramics (tiles/sanitaryware) → Construction Materials",
+    "533278": "empty in db — Coal India; NSE places it in Oil, Gas & Consumable Fuels, not Metals",
+    "ABREL": "Real Estate/Developers in db — Aditya Birla Real Estate (ex-Century Textiles) → Realty / Developers (user-confirmed)",
+    "VAML": "Vedanta Aluminium — pre-demerger entity, classify now per user → Metals & Mining / Aluminium",
+    "VISL": "Vedanta Iron & Steel — pre-demerger entity, classify now per user → Metals & Mining",
+    "VOGL": "Vedanta Oil & Gas — pre-demerger entity, classify now per user → Oil, Gas & Consumable Fuels (E&P)",
+    "VEDPOWER": "Vedanta Power — pre-demerger entity, classify now per user → Power",
+    "RPSGVENT": "Other in db — RPSG Ventures holds FMCG (Too Yumm) + BPO + sports → Diversified holding co (user-confirmed)"
   }
 }
