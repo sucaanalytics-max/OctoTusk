@@ -10,6 +10,7 @@ import type { CompareStock } from "@/lib/compare/types";
 import StockPicker from "./StockPicker";
 import VerdictBanner from "./VerdictBanner";
 import ScorecardGrid from "./ScorecardGrid";
+import KeyMetrics from "./KeyMetrics";
 import FootballField from "./FootballField";
 import ValuationGauges from "./ValuationGauges";
 import InternalVsStreet from "./InternalVsStreet";
@@ -77,6 +78,8 @@ export default function CompareClient({ seed, embedded = false }: Props) {
           <VerdictBanner rows={rows} stocks={selectedStocks} />
 
           <ScorecardGrid rows={rows} stocks={selectedStocks} />
+
+          <KeyMetrics stocks={selectedStocks} quotes={quotes} enrichment={enrichment} />
 
           <FootballField stocks={selectedStocks} quotes={quotes} />
 

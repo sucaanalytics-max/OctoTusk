@@ -55,7 +55,7 @@ export default function DetailTable({ stocks, quotes, enrichment, enrichmentLoad
     <section className="cmp-dt-section" aria-label="Full metric detail table">
       <details className="cmp-dt-details">
         <summary className="cmp-dt-summary">
-          ▸ Full metric detail ({totalRows} rows)
+          ▸ Financials &amp; full metric detail ({totalRows} rows)
         </summary>
 
         <div className="cmp-dt-scroll">

@@ -125,13 +125,14 @@ Custom agents in `.claude/agents/*.md` specialize the built-in Explore/Plan/gene
 |---|---|---|
 | `architect` | opus | planning any 3+-step task, a new route/screen, or an architecture decision (read-only) |
 | `red-teamer` | opus | before executing a non-trivial plan or merging — adversarial review |
+| `loop-engineer` | opus | composing/auditing the agent loop itself for a non-trivial task — orchestration consultant, read-only |
 | `code-reviewer` | opus | after a unit of work — correctness + guideline-conformance gate |
-| `security-reviewer` | opus | any diff under `app/m/**`, `lib/mobile/**`, `app/api/holdings`, `public/sw.js`, `next.config.js` |
+| `security-reviewer` | opus | any diff under `app/m/**`, `lib/mobile/**`, `app/api/holdings`, `app/api/snapshot`, `public/sw.js`, `next.config.js` |
 | `frontend-builder` | sonnet | implementing `app/m/**` + shared `lib/` UI from an approved plan |
 | `data-guardian` | sonnet | pipeline-adjacent work, or auditing a diff for boundary violations |
 | `explorer` | haiku | mechanical "where is X / what imports Y" search + file mapping |
 
-Model tiering is declared in each agent's frontmatter (`model:`). Slash commands orchestrate them: `/mobile-feature`, `/red-team`, `/boundary-check`, `/sync-check`, `/security-check`. A `PreToolUse` hook (`.claude/hooks/boundary-guard.sh`) blocks edits to frozen files unless `OCTOTUSK_ALLOW_PIPELINE_EDIT=1` is set.
+Model tiering is declared in each agent's frontmatter (`model:`). Slash commands orchestrate them: `/feature-loop`, `/mobile-feature`, `/red-team`, `/boundary-check`, `/sync-check`, `/security-check`. A `PreToolUse` hook (`.claude/hooks/boundary-guard.sh`) blocks edits to frozen files unless `OCTOTUSK_ALLOW_PIPELINE_EDIT=1` is set.
 
 ---
 
