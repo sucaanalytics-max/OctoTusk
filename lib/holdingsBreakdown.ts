@@ -4,6 +4,12 @@
 // fetching — feed it already-valued holdings.
 import { getSectorInfo, SECTOR_ORDER, UNCLASSIFIED } from "@/lib/sectors";
 
+// ── Concentration thresholds ──────────────────────────────────────────────────
+/** Single sector ≥ 25% of portfolio → amber ⚠ */
+export const SECTOR_CONCENTRATED_PCT = 25;
+/** Single sector ≥ 40% of portfolio → red ⚠ Dom. */
+export const SECTOR_DOMINANT_PCT = 40;
+
 export interface BreakdownInput {
   assetName: string;
   tikr?: string | null;
@@ -33,10 +39,24 @@ export interface SectorGroup {
   value: number; invested: number; gain: number; gainPct: number | null; weightPct: number;
   subsectors: SubSectorGroup[];
 }
+export interface BreakdownSummary {
+  /** Number of sectors whose value > 0 */
+  sectorCount: number;
+  /** The highest-value sector (sectors[0] after sort), or null if portfolio is empty */
+  largestSector: { name: string; weightPct: number } | null;
+  /** Sum of weightPct for the first 3 sectors (value-desc, Unclassified last) */
+  top3WeightPct: number;
+  /** largestSector.weightPct, or 0 when portfolio is empty */
+  maxSectorPct: number;
+  /** true when maxSectorPct ≥ SECTOR_CONCENTRATED_PCT */
+  isConcentrated: boolean;
+}
+
 export interface BreakdownResult {
   sectors: SectorGroup[];
   total: { value: number; invested: number; gain: number; gainPct: number | null };
   unclassifiedCount: number;
+  summary: BreakdownSummary;
 }
 
 const CANONICAL = new Set(SECTOR_ORDER); // SECTOR_ORDER already includes UNCLASSIFIED
@@ -103,9 +123,59 @@ export function buildHoldingsBreakdown(items: BreakdownInput[]): BreakdownResult
     return b.value - a.value || a.sector.localeCompare(b.sector);
   });
 
+  // ── Summary — computed from already-sorted sectors ──────────────────────────
+  const positiveSectors = sectors.filter((s) => s.value > 0);
+  const sectorCount = positiveSectors.length;
+  const top = sectors.length > 0 && sectors[0].value > 0 ? sectors[0] : null;
+  const largestSector = top ? { name: top.sector, weightPct: top.weightPct } : null;
+  const maxSectorPct = largestSector ? largestSector.weightPct : 0;
+  const top3WeightPct = sectors.slice(0, 3).reduce((s, x) => s + x.weightPct, 0);
+  const summary: BreakdownSummary = {
+    sectorCount,
+    largestSector,
+    top3WeightPct,
+    maxSectorPct,
+    isConcentrated: maxSectorPct >= SECTOR_CONCENTRATED_PCT,
+  };
+
   return {
     sectors,
     total: { value: totalValue, invested: totalInvested, gain: totalGain, gainPct: gainPctOf(totalGain, totalInvested) },
     unclassifiedCount,
+    summary,
   };
+}
+
+// ── Composition grouping ──────────────────────────────────────────────────────
+
+export interface CompositionSlice {
+  key: string;
+  value: number;
+  weightPct: number;
+  isOther: boolean;
+}
+
+/**
+ * Returns the top-N sectors as composition slices, plus (if any tail exists with
+ * summed value > 0) a single synthesised "Other" slice. Used by the donut (desktop)
+ * and stacked bar (mobile) charts. Color assignment is left to each renderer.
+ */
+export function topSectorsWithOther(sectors: SectorGroup[], n = 6): CompositionSlice[] {
+  const head = sectors.slice(0, n);
+  const tail = sectors.slice(n);
+
+  const slices: CompositionSlice[] = head.map((s) => ({
+    key: s.sector,
+    value: s.value,
+    weightPct: s.weightPct,
+    isOther: false,
+  }));
+
+  const tailValue = tail.reduce((s, x) => s + x.value, 0);
+  if (tailValue > 0) {
+    const tailWeightPct = tail.reduce((s, x) => s + x.weightPct, 0);
+    slices.push({ key: "Other", value: tailValue, weightPct: tailWeightPct, isOther: true });
+  }
+
+  return slices;
 }
