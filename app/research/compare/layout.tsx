@@ -17,11 +17,11 @@ export default async function CompareLayout({ children }: { children: React.Reac
   }
   if (!session?.user) redirect("/");
 
-  // SSR default = light (flash-free, matches today). ThemeController flips to the system/stored
-  // theme AFTER mount (hydration-safe). data-compare-root is the CSS scope anchor; #cmp-root is
-  // the element ThemeController retargets.
+  // SSR default = dark (the premium liquid-glass mode). ThemeController applies a stored "light"
+  // preference AFTER mount (hydration-safe). data-compare-root is the CSS scope anchor; #cmp-root
+  // is the element ThemeController retargets.
   return (
-    <div id="cmp-root" data-compare-root data-theme="light" className="cmp-root">
+    <div id="cmp-root" data-compare-root data-theme="dark" className="cmp-root">
       <ThemeController />
       {children}
     </div>

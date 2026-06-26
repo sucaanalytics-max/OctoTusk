@@ -1,9 +1,9 @@
 "use client";
-// Standalone-only theme controller for /research/compare. Follows the system preference
-// (or a stored choice) and offers a manual toggle. HYDRATION-SAFE: initial state is "light"
-// — identical to the SSR `data-theme="light"` on #cmp-root — and the theme is only changed
-// AFTER mount via useEffect (never read localStorage / set the attr during render). Light
-// users see no flash; dark-preference users get a single post-mount repaint (accepted).
+// Standalone-only theme controller for /research/compare. Defaults to DARK (the premium
+// liquid-glass mode) and offers a manual toggle; a stored choice always wins. HYDRATION-SAFE:
+// initial state is "dark" — identical to the SSR `data-theme="dark"` on #cmp-root — and the
+// theme is only changed AFTER mount via useEffect (never read localStorage / set the attr during
+// render). Dark-default users see no flash; a stored "light" pref repaints once (accepted).
 // Not rendered in the embedded dashboard tab — that inherits the dashboard's own theme.
 
 import { useCallback, useEffect, useState } from "react";
@@ -12,17 +12,16 @@ type Theme = "light" | "dark";
 const KEY = "cmp-theme";
 
 export default function ThemeController() {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
-  // Resolve stored pref → system pref, once, after mount.
+  // Apply a stored preference (else keep the dark default), once, after mount.
   useEffect(() => {
-    let resolved: Theme = "light";
+    let resolved: Theme = "dark";
     try {
       const stored = localStorage.getItem(KEY);
       if (stored === "light" || stored === "dark") resolved = stored;
-      else if (window.matchMedia?.("(prefers-color-scheme: dark)").matches) resolved = "dark";
     } catch {
-      /* localStorage/matchMedia unavailable — stay on the light default */
+      /* localStorage unavailable — stay on the dark default */
     }
     setTheme(resolved);
   }, []);

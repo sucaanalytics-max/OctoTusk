@@ -42,6 +42,26 @@
   background: transparent;
 }
 
+/* Richer LIGHT-mode glass (standalone only): plain frosted glass washes out on a light ground, so
+   here we crisp the frosted edge, add a bright top sheen, a layered tinted shadow, and a more
+   colourful ground for the blur to refract — so light reads premium too, not flat. */
+[data-compare-root][data-theme="light"]:not(.cmp-embed) {
+  --cmp-glass: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+  --cmp-edge: color-mix(in srgb, var(--color-text-primary) 15%, transparent);
+  --cmp-spec: color-mix(in srgb, white 78%, transparent);
+  --cmp-blur: 18px;
+  --cmp-shadow:
+    0 14px 34px color-mix(in srgb, var(--color-accent-blue) 13%, transparent),
+    0 3px 10px color-mix(in srgb, black 7%, transparent);
+}
+[data-compare-root].cmp-root[data-theme="light"]:not(.cmp-embed) {
+  background:
+    radial-gradient(130% 95% at 6% -14%, color-mix(in srgb, var(--color-accent-blue) 17%, transparent), transparent 55%),
+    radial-gradient(120% 90% at 102% -4%, color-mix(in srgb, var(--color-positive) 13%, transparent), transparent 52%),
+    var(--color-bg-primary);
+  background-attachment: fixed;
+}
+
 .cmp-page {
   max-width: 1200px;
   margin: 0 auto;
