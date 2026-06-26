@@ -80,8 +80,8 @@ export function HoldingsBreakdown({ enrichedHoldings }: { enrichedHoldings: Brea
                         <td style={RIGHT}>{cr(sub.invested)}</td>
                         <td style={{ ...RIGHT, color: ud(sub.gain) }}>{cr(sub.gain)} ({pctTxt(sub.gainPct)})</td>
                       </tr>
-                      {sub.lines.map((ln) => (
-                        <tr key={sec.sector + "|" + sub.subsector + "|" + ln.assetName} style={{ fontSize: "var(--text-xs)" }}>
+                      {sub.lines.map((ln, i) => (
+                        <tr key={sec.sector + "|" + sub.subsector + "|" + (ln.tikr ?? ln.assetName) + "|" + i} style={{ fontSize: "var(--text-xs)" }}>
                           <td style={{ textAlign: "left", padding: "3px 8px 3px 40px", color: "var(--color-text-primary)" }}>{ln.assetName}</td>
                           <td style={RIGHT}>{cr(ln.value)}</td>
                           <td style={{ ...RIGHT, color: "var(--color-text-muted)" }}>{ln.weightPct.toFixed(1)}%</td>
