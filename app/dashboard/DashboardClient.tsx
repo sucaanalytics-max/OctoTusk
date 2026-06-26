@@ -9,6 +9,7 @@ import { isRemovedStock } from "@/lib/removedStocks";
 import { cleanTikr, getCompanyShort } from "@/lib/companyName";
 import { resolveHoldingTikr } from "@/lib/holdings-match";
 import { SegmentsTab } from "./SegmentsTab";
+import { HoldingsBreakdown } from "@/components/holdings/HoldingsBreakdown";
 import NotesTab, { type NewNoteInput, type EditNoteInput } from "./NotesTab";
 import StockNotesPanel from "./StockNotesPanel";
 import PushOptIn from "./PushOptIn";
@@ -767,7 +768,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
   // Holdings table sort
   const [holdSortCol, setHoldSortCol] = useState<string>("value");
   const [holdSortDir, setHoldSortDir] = useState<"asc" | "desc">("desc");
-  const [holdingsSubTab, setHoldingsSubTab] = useState<"portfolio" | "segments" | "fo">("portfolio");
+  const [holdingsSubTab, setHoldingsSubTab] = useState<"portfolio" | "segments" | "breakdown" | "fo">("portfolio");
 
   // Treemap heatmap
   const [hmColorMode, setHmColorMode] = useState<"dayChange" | "upsideBase" | "upsideBear" | "upsideBull" | "pnl" | "conviction">("dayChange");
@@ -2825,7 +2826,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
               </div>
               {/* Sub-tab nav: Portfolio | Segments */}
               <div className="flex gap-1 mb-3" style={{ borderBottom: "1px solid var(--color-border)", paddingBottom: 2 }}>
-                {(["portfolio", "segments", "fo"] as const).map(st => (
+                {(["portfolio", "segments", "breakdown", "fo"] as const).map(st => (
                   <button
                     key={st}
                     onClick={() => setHoldingsSubTab(st)}
@@ -2833,7 +2834,7 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                     role="tab"
                     aria-selected={holdingsSubTab === st}
                   >
-                    {st === "portfolio" ? "Portfolio" : st === "segments" ? "Segments" : "F&O"}
+                    {st === "portfolio" ? "Portfolio" : st === "segments" ? "Segments" : st === "breakdown" ? "Sectors" : "F&O"}
                   </button>
                 ))}
               </div>
@@ -3200,6 +3201,9 @@ export default function DashboardClient({ stocks, tickerMap, metadata, initialHo
                   enrichedHoldings={enrichedHoldings}
                   quotes={quotes}
                 />
+              )}
+              {holdingsSubTab === "breakdown" && (
+                <HoldingsBreakdown enrichedHoldings={enrichedHoldings} />
               )}
 
               {holdingsSubTab === "fo" && (
