@@ -10,6 +10,7 @@ import DeltaPill from "../../components/DeltaPill";
 import ScenarioBand from "../../components/ScenarioBand";
 import RangeBar from "../../components/RangeBar";
 import StockNotes from "./StockNotes";
+import ChatThread from "../../chat/ChatThread";
 
 function Metric({ label, value, suffix }: { label: string; value: number | null; suffix?: string }) {
   return (
@@ -97,6 +98,11 @@ export default function StockDetailClient({ stock, userEmail }: { stock: MobileS
       </Link>
 
       <StockNotes tikr={stock.tikr} stockName={name} userEmail={userEmail} />
+
+      <section className="m-section">
+        <h2 className="m-section-title">Discussion</h2>
+        <ChatThread scope="stock" tikr={stock.tikr} stockName={name} userEmail={userEmail} />
+      </section>
     </div>
   );
 }

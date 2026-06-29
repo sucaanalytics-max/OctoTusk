@@ -35,6 +35,9 @@ export default function SettingsClient() {
 
       <div className="m-fgroup">
         <span className="m-flabel">Team</span>
+        <Link href="/m/chat" className="m-row-link">
+          Team channel ›
+        </Link>
         <Link href="/m/marketplace" className="m-row-link">
           Browse team alerts ›
         </Link>

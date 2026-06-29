@@ -803,6 +803,145 @@
 .m-bd-line-pnl.is-up { color: var(--color-positive); }
 .m-bd-line-pnl.is-down { color: var(--color-negative); }
 
+/* ── Chat thread ─────────────────────────────────────────────── */
+/* Outer wrapper: thread + composer stacked, last item (composer) stays near bottom. */
+[data-mroot] .m-chatthread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+/* Scrollable list of messages. max-height keeps composer always visible. */
+[data-mroot] .m-chatlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  max-height: 60dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: y proximity;
+}
+
+/* Individual message bubble */
+[data-mroot] .m-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--color-border-subtle, var(--color-border));
+  background: var(--color-bg-primary);
+  align-self: flex-start;
+  max-width: 90%;
+  word-break: break-word;
+}
+
+/* Caller's own messages: right-aligned, tinted with card bg */
+[data-mroot] .m-msg-self {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--color-accent-tusk) 8%, var(--color-bg-card));
+  border-color: color-mix(in srgb, var(--color-accent-tusk) 22%, var(--color-border));
+}
+
+/* Optimistic (pending) message: slightly faded */
+[data-mroot] .m-msg-pending {
+  opacity: 0.6;
+}
+
+/* Meta row: author + time + edited badge */
+[data-mroot] .m-msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+[data-mroot] .m-msg-author {
+  font-size: var(--text-xs, 11px);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+
+[data-mroot] .m-msg-time {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-text-muted);
+}
+
+/* Body text — white-space pre-wrap to preserve newlines */
+[data-mroot] .m-msg-body {
+  font-size: var(--text-sm, 14px);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+/* @mention highlight — accent-blue tint, no background-clip tricks */
+[data-mroot] .m-mention {
+  color: var(--color-accent-blue);
+  font-weight: 600;
+}
+
+/* Action row: Edit + Delete affordances */
+[data-mroot] .m-msg-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+/* Edit action — secondary style */
+[data-mroot] .m-msg-edit {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs, 12px);
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+/* Delete action — mirrors .m-note-del */
+[data-mroot] .m-msg-del {
+  background: none;
+  border: none;
+  color: var(--color-negative);
+  font-size: var(--text-xs, 12px);
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  margin-left: auto;
+}
+
+/* Edit inline textarea wrapper */
+[data-mroot] .m-msg-editwrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+/* Character countdown when near limit */
+[data-mroot] .m-msg-charcount {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-warning);
+  text-align: right;
+  margin: 0;
+}
+
+/* Chat-specific composer adjustments (reuses .m-composer base) */
+[data-mroot] .m-chatcomposer {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3, 12px);
+  margin-top: var(--space-1, 4px);
+}
+
 /* Elevated total card */
 .m-bd-total {
   display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-1) var(--space-2);
