@@ -1,13 +1,27 @@
-/* OctoTusk service worker — hand-rolled (no build step).
- * Phase 1: web push + notification click handling. NO fetch caching yet — a trading
- * dashboard must never serve stale prices. Offline read caching arrives in Phase 2,
- * gated to slow-changing snapshot data with a staleness banner.
- * Bump SW_VERSION on changes so `activate` purges old caches.
+import { NextResponse } from "next/server";
+
+// The service worker is served from a ROUTE (not public/) on purpose: its bytes must
+// change every deploy so an installed standalone PWA can detect a new version. We stamp
+// the build's commit SHA into SW_VERSION; on the next foreground, RegisterSW's reg.update()
+// sees new bytes -> the new worker installs, skipWaiting()s, claims clients, fires
+// 'controllerchange' -> RegisterSW reloads once -> fresh document + JS chunks. Without this,
+// iOS keeps running the old in-memory bundle until a true cold launch.
+//
+// SECURITY INVARIANT: this SW has NO `fetch` handler, so it NEVER caches anything — including
+// /api/* (which must never be cached). Do not add a fetch handler without a hard early-return
+// for /api/* and non-GET requests.
+export const dynamic = "force-dynamic";
+
+const BUILD = process.env.VERCEL_GIT_COMMIT_SHA || "dev";
+
+const SW_SOURCE = `/* OctoTusk service worker — served dynamically; bytes change per deploy.
+ * Web push + notification click only. NO fetch caching — a trading dashboard must never
+ * serve stale prices, and /api/* must never be cached. 'activate' purges old caches.
  */
-const SW_VERSION = "octotusk-v1";
+const SW_VERSION = "octotusk-${BUILD}";
 
 self.addEventListener("install", () => {
-  // Activate this SW immediately so push payload-format changes take effect on next load.
+  // Activate a new deploy's SW immediately so it takes control and fires controllerchange.
   self.skipWaiting();
 });
 
@@ -67,3 +81,16 @@ self.addEventListener("notificationclick", (event) => {
     })()
   );
 });
+`;
+
+export async function GET() {
+  return new NextResponse(SW_SOURCE, {
+    headers: {
+      "Content-Type": "application/javascript; charset=utf-8",
+      // Broaden scope to the whole origin even though served from /sw.js.
+      "Service-Worker-Allowed": "/",
+      // Always revalidate the worker script so a new deploy is picked up promptly.
+      "Cache-Control": "no-cache, must-revalidate",
+    },
+  });
+}
