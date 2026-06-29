@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useTheme } from "@/lib/mobile/useTheme";
 import PushOptInM from "../alerts/PushOptInM";
 
@@ -30,6 +31,13 @@ export default function SettingsClient() {
       <div className="m-fgroup">
         <span className="m-flabel">Notifications</span>
         <PushOptInM />
+      </div>
+
+      <div className="m-fgroup">
+        <span className="m-flabel">Team</span>
+        <Link href="/m/marketplace" className="m-row-link">
+          Browse team alerts ›
+        </Link>
       </div>
     </>
   );

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import type { MobileStock } from "@/lib/mobile/types";
 import { useUserAlerts } from "@/lib/mobile/useUserAlerts";
 import { ALERT_METRIC_LABELS, ALERT_TARGET_LABELS, metricUnit, type UserAlert } from "@/lib/userAlerts";
@@ -35,9 +36,14 @@ export default function AlertsClient({ stocks }: { stocks: MobileStock[] }) {
     <div className="m-page">
       <header className="m-pagehead">
         <h1 className="m-title">Alerts</h1>
-        <button className="m-note-add" onClick={() => setCreating(true)}>
-          + New
-        </button>
+        <div style={{ display: "flex", gap: "var(--space-2, 8px)", alignItems: "center" }}>
+          <Link href="/m/marketplace" className="m-note-add" aria-label="Browse team alerts">
+            Team alerts
+          </Link>
+          <button className="m-note-add" onClick={() => setCreating(true)}>
+            + New
+          </button>
+        </div>
       </header>
 
       <PushOptInM onSubscribedChange={setPushOn} />
