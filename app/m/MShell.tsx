@@ -2,9 +2,11 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import TabBar from "./components/TabBar";
+import { NotificationsCountProvider, useNotificationsCount } from "./NotificationsCountContext";
 
-export default function MShell({ children }: { children: React.ReactNode }) {
+function ShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { unreadCount } = useNotificationsCount();
 
   // Re-apply a stored theme preference over the server-rendered dark default
   // (the Settings toggle writes octotusk-theme; default stays OLED-dark).
@@ -22,7 +24,15 @@ export default function MShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="m-shell">
       <main className="m-main">{children}</main>
-      <TabBar pathname={pathname} />
+      <TabBar pathname={pathname} unreadCount={unreadCount} />
     </div>
+  );
+}
+
+export default function MShell({ children }: { children: React.ReactNode }) {
+  return (
+    <NotificationsCountProvider>
+      <ShellInner>{children}</ShellInner>
+    </NotificationsCountProvider>
   );
 }

@@ -35,6 +35,8 @@
   border-top: 1px solid var(--color-border);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+/* 5-tab variant used when the notifications tab is present */
+.m-tabbar--5 { grid-template-columns: repeat(5, 1fr); }
 .m-tab {
   display: flex;
   flex-direction: column;
@@ -110,6 +112,7 @@
   border-color: var(--color-accent-tusk);
   color: #fff;
 }
+.m-chip:disabled { opacity: 0.6; cursor: default; }
 
 /* ── Card list ──────────────────────────────────────────────── */
 .m-cardlist { display: flex; flex-direction: column; gap: var(--space-2, 10px); }
@@ -546,6 +549,85 @@
 .m-alert-state.is-on { color: var(--color-positive); border: 1px solid var(--color-positive); }
 .m-alert-state.is-off { color: var(--color-text-muted); border: 1px solid var(--color-border); }
 .m-alert-actions { display: flex; gap: 6px; }
+
+/* ── Tab badge (unread count bubble) ────────────────────────── */
+.m-tab-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.m-tabbadge {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-accent-tusk);
+  color: #fff; /* white on tusk-red in BOTH themes (--color-text-inverse flips to near-black in dark) */
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ── Notification inbox cards ────────────────────────────────── */
+.m-notif-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  padding: var(--space-3, 14px);
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  text-align: left;
+  width: 100%;
+  color: inherit;
+  box-shadow: var(--shadow-card, none);
+  /* WCAG 2.5.5: minimum 44px tap target */
+  min-height: 44px;
+  cursor: pointer;
+  transition: background var(--transition-fast, 150ms);
+}
+.m-notif-card:active { background: var(--color-bg-hover); }
+
+/* Unread: left-border accent + subtle tinted background */
+.m-notif--unread {
+  border-left: 3px solid var(--color-accent-tusk);
+  background: color-mix(in srgb, var(--color-accent-tusk) 6%, var(--color-bg-card));
+}
+
+.m-notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+.m-notif-kind {
+  font-size: var(--text-xs, 11px);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-accent-blue);
+}
+.m-notif-title {
+  font-size: var(--text-base, 15px);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+.m-notif-body {
+  font-size: var(--text-sm, 13px);
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 /* ── Polish: skeletons + a11y focus ─────────────────────────── */
 .m-skeleton {

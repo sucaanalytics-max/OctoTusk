@@ -129,14 +129,30 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      if (shouldFire && pushable) {
+      if (shouldFire) {
         fired++;
-        await sendPushToUsers([a.user_email], {
-          title: `${a.stock_name || a.original_tikr} — alert`,
-          body: `CMP ${fmtRupee(q.price)} · ${humanMetric(a)}`,
-          url: `/m/stock/${encodeURIComponent(a.original_tikr)}`,
-          tag: `ua-${a.id}`,
+        const title = `${a.stock_name || a.original_tikr} — alert`;
+        const body = `CMP ${fmtRupee(q.price)} · ${humanMetric(a)}`;
+        const url = `/m/stock/${encodeURIComponent(a.original_tikr)}`;
+        // Inbox row AFTER the latch write above and DECOUPLED from push config, so the fire is
+        // logged even when web-push is unconfigured. Non-fatal: the latch is already persisted,
+        // so a failed insert can never cause a double-fire on the next tick. Payload carries only
+        // market data + a deep link — never holdings/PII.
+        const { error: notifErr } = await supabase.from("notifications").insert({
+          user_email: a.user_email,
+          kind: "alert_fire",
+          title,
+          body,
+          url,
+          stock_key: a.stock_key ?? null,
+          ref_id: a.id,
         });
+        if (notifErr) {
+          console.error("[/api/user-alerts/check] notification insert failed", a.id, notifErr.message);
+        }
+        if (pushable) {
+          await sendPushToUsers([a.user_email], { title, body, url, tag: `ua-${a.id}` });
+        }
       }
     }
 
