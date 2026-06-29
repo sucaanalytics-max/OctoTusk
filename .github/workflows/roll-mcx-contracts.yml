@@ -1,0 +1,47 @@
+name: Roll MCX Commodity Contracts
+
+# The front-month MCX security IDs in data/mcx-commodities.json are STATIC and go stale
+# the moment a contract expires (e.g. ALUMINIUM JUN -> 2026-06-30, SILVER JUL -> 2026-07-03).
+# A stale/expired id silently freezes or blanks that commodity's INR on the /octopus strip
+# even when the Dhan token is perfectly valid. This job rolls them forward automatically:
+# scripts/build-mcx-commodities.ts reads Dhan's PUBLIC scrip-master CSV (no credentials) and
+# keeps the nearest non-expired FUTCOM per metal. It runs daily but commits ONLY when an id /
+# expiry actually changes, so normal days are a no-op (the _generatedAt timestamp churn is
+# discarded). A real roll pushes to main -> Vercel redeploys -> prod picks up the new ids.
+on:
+  schedule:
+    - cron: '30 1 * * *'   # 07:00 AM IST (01:30 UTC), daily
+  workflow_dispatch: {}      # Manual trigger via the GitHub Actions UI
+
+permissions:
+  contents: write            # required to commit the rolled JSON back to main
+
+jobs:
+  roll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci --ignore-scripts
+      - name: Roll front-month MCX contracts
+        run: npx tsx scripts/build-mcx-commodities.ts
+      - name: Commit only when a contract actually rolled
+        run: |
+          if git diff --quiet -- data/mcx-commodities.json; then
+            echo "No change."; exit 0
+          fi
+          # _generatedAt updates on every run; only a real id/expiry/name change is worth a commit.
+          if ! git diff -- data/mcx-commodities.json | grep -qE '^[+-][[:space:]]*"(securityId|displayName|expiry)"'; then
+            echo "Only _generatedAt changed -- discarding timestamp-only churn."
+            git checkout -- data/mcx-commodities.json
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/mcx-commodities.json
+          git commit -m "chore(mcx): roll front-month commodity contracts"
+          git push
+          echo "Rolled forward and pushed."
