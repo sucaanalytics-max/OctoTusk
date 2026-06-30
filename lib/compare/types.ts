@@ -93,5 +93,10 @@ export interface ScorecardRow {
   expectedReturn: number | null; // conviction-weighted (model), fraction
   cushionToBear: number | null;  // (cmp − bear)/cmp; >0 = room to fall to bear, <0 = below bear (deep value)
   rankScore: number | null;      // composite [0,1], highlight only — never shown as a number
+  rankParts: {
+    upDown: number | null;    // post-minMax normalized Up/Down dimension [0,1] — never coerce null → 0
+    expected: number | null;  // post-minMax normalized Exp. return dimension [0,1]
+    cushion: number | null;   // post-minMax normalized low-downside dimension [0,1]
+  };
   isLeader: boolean;
 }

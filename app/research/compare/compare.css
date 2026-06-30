@@ -89,7 +89,7 @@
 .cmp-embed .cmp-theme-toggle { display: none; }
 
 /* ── Glass panels (TOP-LEVEL ONLY — sub-cards never get backdrop-filter) ──────── */
-.cmp-picker, .cmp-verdict, .cmp-ff-wrap, .cmp-gauges-section, .cmp-ivs-section, .cmp-dt-section, .cmp-km-section {
+.cmp-picker, .cmp-verdict, .cmp-ff-wrap, .cmp-dt-section {
   background: var(--color-bg-card);   /* solid fallback first: unsupported color-mix → readable card */
   background: var(--cmp-glass);
   border: 1px solid var(--color-border);   /* fallback edge if color-mix unsupported */
@@ -102,7 +102,7 @@
 }
 /* Embed: drop the blur + GPU layer entirely (nothing to refract over the flat dashboard). */
 .cmp-embed .cmp-picker, .cmp-embed .cmp-verdict, .cmp-embed .cmp-ff-wrap,
-.cmp-embed .cmp-gauges-section, .cmp-embed .cmp-ivs-section, .cmp-embed .cmp-dt-section, .cmp-embed .cmp-km-section {
+.cmp-embed .cmp-dt-section {
   -webkit-backdrop-filter: none; backdrop-filter: none; transform: none;
 }
 
@@ -295,75 +295,8 @@
 .cmp-ff-key-base { background: var(--color-warning); }
 .cmp-ff-key-ev { background: var(--color-accent-blue); }
 
-/* ── Valuation gauges ───────────────────────────────────────── */
-.cmp-gauges-section { padding: var(--space-4); }
-.cmp-gauges-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-4);
-}
-.cmp-gauges-stock-block {
-  display: flex; flex-direction: column; gap: var(--space-2);
-  border: 1px solid var(--cmp-edge-soft); border-radius: var(--radius-sm); padding: var(--space-3);
-}
-.cmp-gauges-stock-name {
-  font-size: var(--text-sm); font-weight: 700; color: var(--color-text-primary);
-  margin-bottom: var(--space-2);
-}
-.cmp-gauges-metrics { display: flex; flex-direction: column; gap: var(--space-3); }
-
-/* ── Key metrics (always-visible valuation table) ───────────── */
-.cmp-km-section { padding: var(--space-4); }
-.cmp-km-scroll { overflow-x: auto; margin-top: var(--space-2); }
-/* Short, always-visible table: no sticky header (it'd stick on page scroll). */
-.cmp-km-section .cmp-dt-th { position: static; }
-.cmp-km-up { font-size: var(--text-xs); margin-left: var(--space-2); font-weight: 600; }
-.cmp-km-section .is-pos, .cmp-km-up.is-pos { color: var(--color-positive); }
-.cmp-km-section .is-neg, .cmp-km-up.is-neg { color: var(--color-negative); }
-.cmp-km-cur { font-size: var(--text-xs); color: var(--color-text-muted); margin-left: 4px; font-family: var(--font-sans); }
-.cmp-km-live { font-size: var(--text-xs); color: var(--color-positive); margin-left: 4px; font-weight: 600; font-family: var(--font-sans); }
-.cmp-km-dash { color: var(--color-text-muted); }
+/* ── Kept: note style reused by ComparisonTable ─────────────── */
 .cmp-km-note { font-size: var(--text-xs); color: var(--color-text-muted); margin: var(--space-3) 0 0; line-height: 1.5; }
-
-/* Single gauge */
-.cmp-gauge-wrap { display: flex; flex-direction: column; gap: 2px; }
-.cmp-gauge-label { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-secondary); }
-.cmp-gauge-empty { font-size: var(--text-xs); color: var(--color-text-muted); }
-
-/* ── Internal vs Street ─────────────────────────────────────── */
-.cmp-ivs-section { padding: var(--space-4); }
-.cmp-ivs-list { display: flex; flex-direction: column; gap: var(--space-4); }
-.cmp-ivs-stock {
-  border: 1px solid var(--cmp-edge-soft); border-radius: var(--radius-sm); overflow: hidden;
-}
-.cmp-ivs-stock-header {
-  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2);
-  padding: var(--space-3) var(--space-4); background: var(--color-bg-card-alt);
-  border-bottom: 1px solid var(--cmp-edge-soft);
-}
-.cmp-ivs-stock-name { font-size: var(--text-base); font-weight: 700; color: var(--color-text-primary); }
-.cmp-ivs-cmp { font-size: var(--text-sm); color: var(--color-text-secondary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.cmp-ivs-live { font-size: var(--text-xs); color: var(--color-positive); margin-left: 4px; }
-.cmp-ivs-snapshot { font-size: var(--text-xs); color: var(--color-text-muted); margin-left: 4px; }
-.cmp-ivs-cols {
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  gap: 0; padding: var(--space-3) var(--space-4);
-}
-.cmp-ivs-col { display: flex; flex-direction: column; gap: var(--space-2); }
-.cmp-ivs-col-label {
-  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: var(--space-1);
-}
-.cmp-ivs-divider { width: 1px; background: var(--cmp-edge-soft); margin: 0 var(--space-3); }
-.cmp-ivs-dl { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; }
-.cmp-ivs-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
-.cmp-ivs-row dt { font-size: var(--text-xs); color: var(--color-text-secondary); flex-shrink: 0; }
-.cmp-ivs-row dd { font-size: var(--text-xs); font-weight: 600; color: var(--color-text-primary); text-align: right; margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.cmp-ivs-upside { font-size: var(--text-xs); color: var(--color-text-muted); margin-left: 4px; }
-.cmp-ivs-dash { color: var(--color-text-muted); }
-.cmp-ivs-loading { display: flex; flex-direction: column; gap: var(--space-2); padding-top: var(--space-2); }
-.cmp-ivs-skeleton {
-  height: 14px; background: var(--color-bg-card-alt); border-radius: var(--radius-sm);
-  animation: cmp-pulse 1.5s ease-in-out infinite;
-}
 
 /* Recommendation chip */
 .cmp-rec-chip {

@@ -183,6 +183,7 @@ export function computeScorecard(
     expectedReturn: r.er,
     cushionToBear: r.cushion,
     rankScore: rankScores[i],
+    rankParts: { upDown: nUd[i], expected: nEr[i], cushion: nCu[i] },
     isLeader: i === leaderIdx,
   }));
 }

@@ -1,10 +1,13 @@
 "use client";
-// Stock search + sector filter + selected chips.
-// Reuses searchStocks(); requires ≥2 chars before showing results.
+// Stock search + sector filter + browse-to-select grid.
+// Always-visible scrollable grid (sector-filtered). Search (≥2 chars) narrows it further.
+// Click toggles selection; selected cards stay clickable (to deselect). At MAX_SELECTED,
+// unselected cards are disabled with a hint; selected cards remain enabled.
 
 import { useState, useId } from "react";
 import { searchStocks, type SearchableStock } from "@/lib/searchStocks";
 import { getCompanyShort } from "@/lib/companyName";
+import { fmtRupee } from "@/lib/format";
 import { SECTOR_ORDER } from "@/lib/sectors";
 import type { CompareStock } from "@/lib/compare/types";
 
@@ -32,18 +35,22 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
     cmp: s.cmp,
   }));
 
+  // Sector filter first.
   const sectorFiltered =
     sector === "All" ? searchable : searchable.filter((s) => s.sector === sector);
 
-  // Show results when ≥2 chars typed; otherwise show nothing (or selected chips only).
+  // When ≥2 chars: run search on the sector-filtered list. Otherwise show all sector-filtered.
   const trimmed = query.trim();
   const hasQuery = trimmed.length >= 2;
-  const results = hasQuery
-    ? searchStocks(trimmed, sectorFiltered, 24)
-    : [];
 
-  // Exclude already-selected stocks from results.
-  const unselectedResults = results.filter((r) => !selected.includes(r.tikr));
+  // browseList is the full sector-filtered set sorted by name (for always-visible mode).
+  const browseList = [...sectorFiltered].sort((a, b) => a.name.localeCompare(b.name));
+
+  // displayList: search results when querying, else the browse list.
+  const displayList: SearchableStock[] = hasQuery
+    ? searchStocks(trimmed, sectorFiltered, sectorFiltered.length) // no cap — scroll handles it
+    : browseList;
+
   const isAtMax = selected.length >= MAX_SELECTED;
 
   // Find stock objects for selected chips.
@@ -119,36 +126,43 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
         </div>
       )}
 
-      {/* Search results grid */}
-      {hasQuery && (
-        <div role="region" aria-label="Search results">
-          {unselectedResults.length === 0 ? (
-            <p className="cmp-no-results">No results for &ldquo;{trimmed}&rdquo;</p>
-          ) : (
-            <ul className="cmp-result-grid" role="list">
-              {unselectedResults.map((r) => {
-                const disabled = isAtMax;
-                const shortName = getCompanyShort({ official_name: r.name, tikr: r.tikr });
-                return (
-                  <li key={r.tikr} role="listitem">
-                    <button
-                      type="button"
-                      className="cmp-result-item"
-                      onClick={() => !disabled && onToggle(r.tikr)}
-                      disabled={disabled}
-                      aria-label={`Add ${r.tikr} — ${shortName}${disabled ? " (maximum 4 reached)" : ""}`}
-                    >
-                      <span className="cmp-result-tikr">{r.tikr}</span>
-                      <span className="cmp-result-name">{shortName}</span>
-                      <span className="cmp-result-sector">{r.sector}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      )}
+      {/* Always-visible scrollable browse grid */}
+      <div className="cmp-browse-scroll" role="region" aria-label="Browse stocks">
+        {displayList.length === 0 ? (
+          <p className="cmp-no-results">
+            {hasQuery
+              ? `No results for “${trimmed}”`
+              : "No stocks in this sector."}
+          </p>
+        ) : (
+          <ul className="cmp-result-grid" role="list">
+            {displayList.map((r) => {
+              const isSelected = selected.includes(r.tikr);
+              // Unselected at max → disabled. Selected always clickable (to deselect).
+              const isDisabled = !isSelected && isAtMax;
+              const shortName = getCompanyShort({ official_name: r.name, tikr: r.tikr });
+              const cmpDisplay = r.cmp != null && r.cmp > 0 ? fmtRupee(r.cmp) : "—";
+              return (
+                <li key={r.tikr} role="listitem">
+                  <button
+                    type="button"
+                    className={`cmp-result-item${isSelected ? " is-selected" : ""}`}
+                    onClick={() => !isDisabled && onToggle(r.tikr)}
+                    disabled={isDisabled}
+                    aria-pressed={isSelected}
+                    aria-label={`${isSelected ? "Remove" : "Add"} ${r.tikr} — ${shortName}${isDisabled ? " (maximum 4 reached)" : ""}`}
+                  >
+                    <span className="cmp-result-tikr">{r.tikr}</span>
+                    <span className="cmp-result-name">{shortName}</span>
+                    <span className="cmp-result-sector">{r.sector}</span>
+                    <span className="cmp-result-cmp">{cmpDisplay}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import ThemeController from "./ThemeController";
 import "./compare.css";
+import "./compare-additions.css";
 
 export const dynamic = "force-dynamic";
 

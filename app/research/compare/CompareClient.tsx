@@ -1,6 +1,8 @@
 "use client";
 // Composition root for /research/compare.
 // Owns selection state; composes all presentational components.
+// Render order: VerdictBanner → ScorecardGrid → FootballField → ComparisonTable → DetailTable.
+// computeScorecard called ONCE; rows passed to VerdictBanner, ScorecardGrid, and ComparisonTable.
 
 import { useState } from "react";
 import { computeScorecard } from "@/lib/compare/riskAdjusted";
@@ -10,10 +12,8 @@ import type { CompareStock } from "@/lib/compare/types";
 import StockPicker from "./StockPicker";
 import VerdictBanner from "./VerdictBanner";
 import ScorecardGrid from "./ScorecardGrid";
-import KeyMetrics from "./KeyMetrics";
 import FootballField from "./FootballField";
-import ValuationGauges from "./ValuationGauges";
-import InternalVsStreet from "./InternalVsStreet";
+import ComparisonTable from "./ComparisonTable";
 import DetailTable from "./DetailTable";
 import EmptyState from "./EmptyState";
 
@@ -79,17 +79,10 @@ export default function CompareClient({ seed, embedded = false }: Props) {
 
           <ScorecardGrid rows={rows} stocks={selectedStocks} />
 
-          <KeyMetrics stocks={selectedStocks} quotes={quotes} enrichment={enrichment} />
-
           <FootballField stocks={selectedStocks} quotes={quotes} />
 
-          <ValuationGauges
-            stocks={selectedStocks}
-            quotes={quotes}
-            enrichment={enrichment}
-          />
-
-          <InternalVsStreet
+          <ComparisonTable
+            rows={rows}
             stocks={selectedStocks}
             quotes={quotes}
             enrichment={enrichment}

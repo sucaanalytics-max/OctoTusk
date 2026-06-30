@@ -1,10 +1,12 @@
 // Scorecard grid: one card per stock, sorted by rankScore DESC (nulls last).
-// isLeader card gets accent border + "★ Best risk-adj" badge. Each quantitative metric carries an
-// inline micro-bar scaled across the compared set, so the head-to-head reads at a glance.
+// isLeader card gets accent border + "★ Best risk-adj" badge. Each metric carries
+// a micro-bar + a muted one-line formula. Upside-vs-CMP strip above metrics.
 // Renders 0 values explicitly — only null → "—". No `value && fmt()` truthiness.
 
-import { fmtRupee, fmtPct } from "@/lib/format";
+import { fmtRupee, fmtPct, fmtNum } from "@/lib/format";
+import { scenarioUpside } from "@/lib/scenarioUpside";
 import { getCompanyShort } from "@/lib/companyName";
+import { scenarioWeights } from "@/lib/compare/riskAdjusted";
 import type { ScorecardRow, UpDownNote, CompareStock } from "@/lib/compare/types";
 
 interface Props {
@@ -13,7 +15,12 @@ interface Props {
 }
 
 /** Cross-set maxima used to scale the micro-bars. */
-interface Scale { maxUD: number; maxER: number; maxDown: number; showConviction: boolean; }
+interface Scale {
+  maxUD: number;
+  maxER: number;
+  maxDown: number;
+  showConviction: boolean;
+}
 
 function Bar({ frac, color }: { frac: number | null; color: string }) {
   if (frac == null) return null;
@@ -36,8 +43,11 @@ function UpDownCell({ value, note }: { value: number | null; note: UpDownNote })
   }
   if (note === "missing") return <span className="cmp-sc-metric-value is-muted">&#x2014;</span>;
   // "normal" or "no-base-upside" — value is a number (0 for no-base-upside). 0 renders explicitly.
-  const display = value != null ? value.toFixed(1) + "×" : "—";
-  const cls = value != null && value > 0 ? "cmp-sc-metric-value is-pos" : "cmp-sc-metric-value is-muted";
+  const display = value != null ? fmtNum(value, 1) + "×" : "—";
+  const cls =
+    value != null && value > 0
+      ? "cmp-sc-metric-value is-pos"
+      : "cmp-sc-metric-value is-muted";
   return <span className={cls}>{display}</span>;
 }
 
@@ -48,32 +58,83 @@ function fracClass(v: number | null): string {
   return "cmp-sc-metric-value";
 }
 
-/** Downside-to-bear: the loss to the bear case (risk; lower is safer). Aligns label, colour, and the
- *  rank direction (which rewards low downside). >0 cushion → a potential loss; ≤0 → at/below bear. */
 function downsideCell(cushion: number | null): { text: string; cls: string } {
   if (cushion == null) return { text: "—", cls: "cmp-sc-metric-value is-muted" };
   if (cushion <= 0) return { text: "below bear", cls: "cmp-sc-metric-value is-pos" };
   return { text: fmtPct(-cushion), cls: "cmp-sc-metric-value is-warn" };
 }
 
-interface CardProps { row: ScorecardRow; stock: CompareStock | undefined; scale: Scale; }
+/** Single upside-vs-CMP cell for the strip: Bear/Base/Bull/1Y/2Y */
+function UpsideCell({
+  price,
+  cmp,
+  label,
+}: {
+  price: number | null;
+  cmp: number | null;
+  label: string;
+}) {
+  const up = scenarioUpside(price, cmp);
+  const text = up != null ? fmtPct(up) : "—";
+  const cls =
+    up == null
+      ? "cmp-sc-upside-cell is-muted"
+      : up > 0
+      ? "cmp-sc-upside-cell is-pos"
+      : "cmp-sc-upside-cell is-neg";
+  return (
+    <div className={cls} title={`${label}: ${text}`}>
+      <span className="cmp-sc-upside-label">{label}</span>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+interface CardProps {
+  row: ScorecardRow;
+  stock: CompareStock | undefined;
+  scale: Scale;
+}
 
 function ScorecardCard({ row, stock, scale }: CardProps) {
-  const displayName = stock ? getCompanyShort({ official_name: stock.name, tikr: stock.tikr }) : row.tikr;
+  const displayName = stock
+    ? getCompanyShort({ official_name: stock.name, tikr: stock.tikr })
+    : row.tikr;
   const conviction = stock?.conviction;
-  const convictionDisplay = conviction != null && Number.isFinite(conviction) ? String(Math.round(conviction)) : "—";
+  const convictionDisplay =
+    conviction != null && Number.isFinite(conviction)
+      ? String(Math.round(conviction))
+      : "—";
   const cmpDisplay = row.cmp != null ? fmtRupee(row.cmp) : "—";
+
+  // Conviction formula label for Exp. return.
+  const weights = scenarioWeights(conviction ?? null);
+  const pBear = Math.round(weights.pBear * 100);
+  const pBull = Math.round(weights.pBull * 100);
+  const convN = conviction != null && Number.isFinite(conviction) ? Math.round(conviction) : "?";
+  const expFormula = `conviction ${convN}/5 → ${pBear}% bear · 50% base · ${pBull}% bull`;
 
   // Micro-bar fractions.
   const udFrac =
-    row.upDownNote === "below-bear" ? 1
-    : row.upDownNote === "normal" && row.upDownRatio != null ? row.upDownRatio / scale.maxUD
-    : row.upDownNote === "no-base-upside" ? 0
-    : null;
-  // Bar LENGTH encodes |magnitude| across the set; the colour (green/red) carries the sign.
-  const erFrac = row.expectedReturn != null ? Math.abs(row.expectedReturn) / scale.maxER : null;
-  const erColor = row.expectedReturn != null && row.expectedReturn < 0 ? "var(--color-negative)" : "var(--color-positive)";
-  const downFrac = row.cushionToBear != null ? Math.max(0, row.cushionToBear) / scale.maxDown : null;
+    row.upDownNote === "below-bear"
+      ? 1
+      : row.upDownNote === "normal" && row.upDownRatio != null
+      ? row.upDownRatio / scale.maxUD
+      : row.upDownNote === "no-base-upside"
+      ? 0
+      : null;
+  const erFrac =
+    row.expectedReturn != null
+      ? Math.abs(row.expectedReturn) / scale.maxER
+      : null;
+  const erColor =
+    row.expectedReturn != null && row.expectedReturn < 0
+      ? "var(--color-negative)"
+      : "var(--color-positive)";
+  const downFrac =
+    row.cushionToBear != null
+      ? Math.max(0, row.cushionToBear) / scale.maxDown
+      : null;
   const down = downsideCell(row.cushionToBear);
 
   return (
@@ -87,45 +148,80 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
           <div className="cmp-sc-card-tikr">{row.tikr}</div>
         </div>
         {row.isLeader && (
-          <span className="cmp-sc-leader-badge" aria-label="Best risk-adjusted">&#x2605; Best risk-adj</span>
+          <span className="cmp-sc-leader-badge" aria-label="Best risk-adjusted">
+            &#x2605; Best risk-adj
+          </span>
         )}
       </div>
 
       <div className="cmp-sc-cmp-row">
         <span className="cmp-sc-cmp-value">{cmpDisplay}</span>
-        {row.cmpIsLive ? <span className="cmp-sc-cmp-live">live</span> : <span className="cmp-sc-cmp-snapshot">snapshot</span>}
+        {row.cmpIsLive ? (
+          <span className="cmp-sc-cmp-live">live</span>
+        ) : (
+          <span className="cmp-sc-cmp-snapshot">snapshot</span>
+        )}
+      </div>
+
+      {/* Upside-vs-CMP strip: Bear / Base / Bull / 1Y / 2Y */}
+      <div className="cmp-sc-upside-strip" aria-label="Upside vs CMP">
+        <UpsideCell price={stock?.bear ?? null} cmp={row.cmp} label="Bear" />
+        <UpsideCell price={stock?.base ?? null} cmp={row.cmp} label="Base" />
+        <UpsideCell price={stock?.bull ?? null} cmp={row.cmp} label="Bull" />
+        <UpsideCell price={stock?.target1y ?? null} cmp={row.cmp} label="1Y" />
+        <UpsideCell price={stock?.target2y ?? null} cmp={row.cmp} label="2Y" />
       </div>
 
       <dl className="cmp-sc-metrics">
-        <div className="cmp-sc-metric">
-          <div className="cmp-sc-metric-head">
-            <dt className="cmp-sc-metric-label">Up / Down</dt>
-            <dd><UpDownCell value={row.upDownRatio} note={row.upDownNote} /></dd>
-          </div>
-          <Bar frac={udFrac} color="var(--color-accent-blue)" />
-        </div>
-
+        {/* Exp. return (model) */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
             <dt className="cmp-sc-metric-label">Exp. return (model)</dt>
-            <dd><span className={fracClass(row.expectedReturn)}>{row.expectedReturn != null ? fmtPct(row.expectedReturn) : "—"}</span></dd>
+            <dd>
+              <span className={fracClass(row.expectedReturn)}>
+                {row.expectedReturn != null ? fmtPct(row.expectedReturn) : "—"}
+              </span>
+            </dd>
           </div>
           <Bar frac={erFrac} color={erColor} />
+          <p className="cmp-sc-formula">{expFormula}</p>
         </div>
 
+        {/* Up / Down ratio */}
+        <div className="cmp-sc-metric">
+          <div className="cmp-sc-metric-head">
+            <dt className="cmp-sc-metric-label">Up / Down</dt>
+            <dd>
+              <UpDownCell value={row.upDownRatio} note={row.upDownNote} />
+            </dd>
+          </div>
+          <Bar frac={udFrac} color="var(--color-accent-blue)" />
+          <p className="cmp-sc-formula">
+            base upside ÷ downside to bear — reward per unit of risk
+          </p>
+        </div>
+
+        {/* Downside to bear */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
             <dt className="cmp-sc-metric-label">Downside to bear</dt>
-            <dd><span className={down.cls}>{down.text}</span></dd>
+            <dd>
+              <span className={down.cls}>{down.text}</span>
+            </dd>
           </div>
           <Bar frac={downFrac} color="var(--color-warning)" />
+          <p className="cmp-sc-formula">
+            how far CMP can fall to the bear case — lower is safer
+          </p>
         </div>
 
         {scale.showConviction && (
           <div className="cmp-sc-metric">
             <div className="cmp-sc-metric-head">
               <dt className="cmp-sc-metric-label">Conviction</dt>
-              <dd><span className="cmp-sc-metric-value">{convictionDisplay}</span></dd>
+              <dd>
+                <span className="cmp-sc-metric-value">{convictionDisplay}</span>
+              </dd>
             </div>
           </div>
         )}
@@ -143,8 +239,10 @@ export default function ScorecardGrid({ rows, stocks }: Props) {
   const scale: Scale = {
     maxUD: normalRatios.length ? Math.max(...normalRatios) : 1,
     maxER: Math.max(1e-9, ...rows.map((r) => Math.abs(r.expectedReturn ?? 0))),
-    maxDown: Math.max(1e-9, ...rows.map((r) => Math.max(0, r.cushionToBear ?? 0))),
-    // Only show conviction when it actually varies across the set (otherwise it's noise in a tie).
+    maxDown: Math.max(
+      1e-9,
+      ...rows.map((r) => Math.max(0, r.cushionToBear ?? 0))
+    ),
     showConviction: new Set(stocks.map((s) => s.conviction ?? null)).size > 1,
   };
 
@@ -160,7 +258,12 @@ export default function ScorecardGrid({ rows, stocks }: Props) {
       <h3 className="cmp-scorecard-heading">Risk-adjusted scorecard</h3>
       <div className="cmp-scorecard-grid">
         {sorted.map((row) => (
-          <ScorecardCard key={row.tikr} row={row} stock={stocks.find((s) => s.tikr === row.tikr)} scale={scale} />
+          <ScorecardCard
+            key={row.tikr}
+            row={row}
+            stock={stocks.find((s) => s.tikr === row.tikr)}
+            scale={scale}
+          />
         ))}
       </div>
     </section>
