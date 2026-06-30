@@ -212,7 +212,7 @@
   font-size: var(--text-sm); font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0;
 }
-.cmp-scorecard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+.cmp-scorecard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
 
 /* ── Scorecard card (sub-card — no backdrop-filter; gentle hover-lift) ────────── */
 .cmp-sc-card {

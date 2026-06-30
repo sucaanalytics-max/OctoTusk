@@ -10,6 +10,10 @@ import { isRemovedStock } from "@/lib/removedStocks";
 import { buildCompareStock, type RawSnapshotRow } from "@/lib/compare/buildCompareStock";
 import CompareClient from "./CompareClient";
 import "./compare.css";
+// NOTE: the dashboard Comparison tab mounts this embed (not the standalone route's
+// layout.tsx), so the redesign's stylesheet MUST be imported here too — otherwise the
+// new picker/scorecard/verdict styles render unstyled on the tab.
+import "./compare-additions.css";
 
 interface Props {
   /** Raw snapshot stock rows from the host (e.g. the dashboard's `stocks` prop). */
