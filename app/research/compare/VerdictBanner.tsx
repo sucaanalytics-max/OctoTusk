@@ -214,7 +214,34 @@ export default function VerdictBanner({ rows, stocks }: Props) {
               })}
             </div>
 
-            {/* 4. Score ≠ rank note */}
+            {/* 4. What each metric means */}
+            <p className="cmp-verdict-how-section-label">What each metric means</p>
+            <dl className="cmp-verdict-how-defs">
+              <div className="cmp-verdict-how-def">
+                <dt className="cmp-verdict-how-def-term">Up / Down ratio</dt>
+                <dd className="cmp-verdict-how-text">
+                  Base-case upside ÷ downside to the bear case — reward per unit of risk.
+                  A ratio of 2× means the base upside is twice the bear downside.
+                </dd>
+              </div>
+              <div className="cmp-verdict-how-def">
+                <dt className="cmp-verdict-how-def-term">Exp. return (model)</dt>
+                <dd className="cmp-verdict-how-text">
+                  Conviction-weighted blend of bear, base, and bull upsides. Base is anchored
+                  at 50%; conviction tilts the tails — for {displayName}: conviction {convN}/5
+                  gives <strong>{pBear}% bear · 50% base · {pBull}% bull</strong>.
+                </dd>
+              </div>
+              <div className="cmp-verdict-how-def">
+                <dt className="cmp-verdict-how-def-term">Downside to bear</dt>
+                <dd className="cmp-verdict-how-text">
+                  How far CMP can fall before hitting the bear-case target. Lower is safer;
+                  a stock already below its bear case shows &ldquo;below bear&rdquo;.
+                </dd>
+              </div>
+            </dl>
+
+            {/* 5. Score ≠ rank note */}
             <p className="cmp-verdict-how-note">
               The &#x2605; rank is <strong>not</strong> the analyst{" "}
               <strong>Score (1–5)</strong> shown in the comparison table.

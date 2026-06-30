@@ -1,7 +1,7 @@
 "use client";
 // Stock search + sector filter + peer-recommendation grid.
 // After the first pick, suggests PEERS of the first selected stock (same subsector, then
-// sector), capped to ~2 rows with "View more". Search (≥2 chars) or an explicit sector
+// sector), capped to ~2 rows with "View more". Search (>=2 chars) or an explicit sector
 // dropdown override the suggestions. Before any pick: a short prompt (never the full universe).
 // Click toggles selection; at MAX_SELECTED unselected cards disable; selected stay clickable.
 
@@ -14,7 +14,7 @@ import { peerStocks } from "@/lib/compare/peerStocks";
 import type { CompareStock } from "@/lib/compare/types";
 
 const MAX_SELECTED = 4;
-const PREVIEW_COUNT = 12; // ≈ 2 rows on a 6-column desktop grid
+const PREVIEW_COUNT = 12; // ~2 rows on a 6-column desktop grid
 
 interface Props {
   stocks: CompareStock[];
@@ -40,9 +40,10 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
 
   const searchable: SearchableStock[] = stocks.map(toSearchable);
 
-  // Decide what to show. Priority: search → explicit sector → peers-of-first → prompt.
+  // Decide what to show. Priority: search -> explicit sector -> peers-of-first -> prompt.
   let mode: "search" | "sector" | "peers" | "empty" = "empty";
   let candidates: SearchableStock[] = [];
+  let peersResolvedSector = "";
   if (hasQuery) {
     mode = "search";
     candidates = searchStocks(trimmed, searchable, searchable.length);
@@ -53,11 +54,14 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
       .sort((a, b) => a.name.localeCompare(b.name));
   } else if (anchorTikr) {
     mode = "peers";
-    candidates = peerStocks(anchorTikr, stocks, selected).peers.map(toSearchable);
+    const peerResult = peerStocks(anchorTikr, stocks, selected);
+    candidates = peerResult.peers.map(toSearchable);
+    // Capture sector name for the sparse-peers helper message.
+    peersResolvedSector = peerResult.sector;
   }
 
   // Reset the 2-row cap whenever the basis (query / sector / anchor) changes.
-  // Set-state-during-render (React's recommended pattern) — no effect, no flash.
+  // Set-state-during-render (React's recommended pattern) -- no effect, no flash.
   const modeKey = `${hasQuery ? trimmed : ""}|${sector}|${anchorTikr ?? ""}`;
   const [prevModeKey, setPrevModeKey] = useState(modeKey);
   if (modeKey !== prevModeKey) {
@@ -75,14 +79,10 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
 
   const sectors = ["All", ...SECTOR_ORDER.filter((s) => s !== "Unclassified")];
 
-  const anchorName = anchorStock
-    ? getCompanyShort({ official_name: anchorStock.name, tikr: anchorStock.tikr })
-    : "";
-
   let heading = "";
-  if (mode === "search") heading = `Results for “${trimmed}”`;
+  if (mode === "search") heading = `Results for "${trimmed}"`;
   else if (mode === "sector") heading = sector;
-  else if (mode === "peers") heading = anchorName ? `Suggested peers of ${anchorName}` : "Suggested peers";
+  else if (mode === "peers") heading = "Suggested peers";
 
   return (
     <section className="cmp-picker" aria-label="Stock picker">
@@ -94,7 +94,7 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
             id={inputId}
             type="search"
             className="cmp-search-input"
-            placeholder="Search ticker or company…"
+            placeholder="Search ticker or company..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoComplete="off"
@@ -153,24 +153,36 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
       {/* Heading: what the grid is showing */}
       {mode !== "empty" && candidates.length > 0 && (
         <div className="cmp-browse-head">
-          <span className="cmp-browse-head-label">{heading}</span>
+          <span className="cmp-browse-head-label">
+            {heading}
+            {mode === "peers" && peersResolvedSector && (
+              <span className="cmp-browse-sector-tag">{peersResolvedSector}</span>
+            )}
+          </span>
           <span className="cmp-browse-head-count">{candidates.length}</span>
         </div>
+      )}
+
+      {/* Sparse peers helper: shown when <=1 peer in resolved sector */}
+      {mode === "peers" && candidates.length <= 1 && candidates.length > 0 && (
+        <p className="cmp-peers-sparse-hint">
+          Few direct peers in {peersResolvedSector || "this sector"} &mdash; search or pick a sector to add any stock.
+        </p>
       )}
 
       {/* Grid / prompt */}
       <div className="cmp-browse-scroll" role="region" aria-label="Stocks to add">
         {mode === "empty" ? (
           <p className="cmp-picker-prompt">
-            Pick a stock to see suggested peers for comparison — or search by ticker or company.
+            Pick a stock to see suggested peers for comparison &mdash; or search by ticker or company.
           </p>
         ) : candidates.length === 0 ? (
           <p className="cmp-no-results">
             {mode === "search"
-              ? `No results for “${trimmed}”`
+              ? `No results for "${trimmed}"`
               : mode === "peers"
-                ? "No clear peers — search or pick a sector to add any stock."
-                : "No stocks in this sector."}
+              ? `Few direct peers in ${peersResolvedSector || "this sector"} — search or pick a sector to add any stock.`
+              : "No stocks in this sector."}
           </p>
         ) : (
           <ul className="cmp-result-grid" role="list">
@@ -184,7 +196,12 @@ export default function StockPicker({ stocks, selected, onToggle, onClear }: Pro
                   <button
                     type="button"
                     className={`cmp-result-item${isSelected ? " is-selected" : ""}`}
-                    onClick={() => !isDisabled && onToggle(r.tikr)}
+                    onClick={() => {
+                      if (isDisabled) return;
+                      onToggle(r.tikr);
+                      // Adding a stock from search → clear the box so its peers surface immediately.
+                      if (!isSelected && query) setQuery("");
+                    }}
                     disabled={isDisabled}
                     aria-pressed={isSelected}
                     aria-label={`${isSelected ? "Remove" : "Add"} ${r.tikr} — ${shortName}${isDisabled ? " (maximum 4 reached)" : ""}`}

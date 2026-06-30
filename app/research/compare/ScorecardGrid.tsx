@@ -1,12 +1,12 @@
 // Scorecard grid: one card per stock, sorted by rankScore DESC (nulls last).
 // isLeader card gets accent border + "★ Best risk-adj" badge. Each metric carries
-// a micro-bar + a muted one-line formula. Upside-vs-CMP strip above metrics.
+// a micro-bar; definitions live as native title tooltips on the metric label (hover),
+// not as permanent prose under every card. Upside-vs-CMP strip above metrics.
 // Renders 0 values explicitly — only null → "—". No `value && fmt()` truthiness.
 
 import { fmtRupee, fmtPct, fmtNum } from "@/lib/format";
 import { scenarioUpside } from "@/lib/scenarioUpside";
 import { getCompanyShort } from "@/lib/companyName";
-import { scenarioWeights } from "@/lib/compare/riskAdjusted";
 import type { ScorecardRow, UpDownNote, CompareStock } from "@/lib/compare/types";
 
 interface Props {
@@ -107,13 +107,6 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
       : "—";
   const cmpDisplay = row.cmp != null ? fmtRupee(row.cmp) : "—";
 
-  // Conviction formula label for Exp. return.
-  const weights = scenarioWeights(conviction ?? null);
-  const pBear = Math.round(weights.pBear * 100);
-  const pBull = Math.round(weights.pBull * 100);
-  const convN = conviction != null && Number.isFinite(conviction) ? Math.round(conviction) : "?";
-  const expFormula = `conviction ${convN}/5 → ${pBear}% bear · 50% base · ${pBull}% bull`;
-
   // Micro-bar fractions.
   const udFrac =
     row.upDownNote === "below-bear"
@@ -176,7 +169,12 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
         {/* Exp. return (model) */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
-            <dt className="cmp-sc-metric-label">Exp. return (model)</dt>
+            <dt
+              className="cmp-sc-metric-label"
+              title="Conviction-weighted blend of bear / base / bull upsides. Base anchored at 50%; conviction tilts the tails."
+            >
+              Exp. return (model)
+            </dt>
             <dd>
               <span className={fracClass(row.expectedReturn)}>
                 {row.expectedReturn != null ? fmtPct(row.expectedReturn) : "—"}
@@ -184,41 +182,49 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
             </dd>
           </div>
           <Bar frac={erFrac} color={erColor} />
-          <p className="cmp-sc-formula">{expFormula}</p>
         </div>
 
         {/* Up / Down ratio */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
-            <dt className="cmp-sc-metric-label">Up / Down</dt>
+            <dt
+              className="cmp-sc-metric-label"
+              title="Base-case upside ÷ downside to the bear case — reward per unit of risk. Higher is better."
+            >
+              Up / Down
+            </dt>
             <dd>
               <UpDownCell value={row.upDownRatio} note={row.upDownNote} />
             </dd>
           </div>
           <Bar frac={udFrac} color="var(--color-accent-blue)" />
-          <p className="cmp-sc-formula">
-            base upside ÷ downside to bear — reward per unit of risk
-          </p>
         </div>
 
         {/* Downside to bear */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
-            <dt className="cmp-sc-metric-label">Downside to bear</dt>
+            <dt
+              className="cmp-sc-metric-label"
+              title="How far CMP can fall before hitting the bear-case target. Lower is safer."
+            >
+              Downside to bear
+            </dt>
             <dd>
               <span className={down.cls}>{down.text}</span>
             </dd>
           </div>
           <Bar frac={downFrac} color="var(--color-warning)" />
-          <p className="cmp-sc-formula">
-            how far CMP can fall to the bear case — lower is safer
-          </p>
         </div>
 
         {scale.showConviction && (
           <div className="cmp-sc-metric">
             <div className="cmp-sc-metric-head">
-              <dt className="cmp-sc-metric-label">Conviction</dt>
+              <dt
+                className="cmp-sc-metric-label"
+                title="Analyst conviction on a 1–5 scale; tilts the scenario probability weights."
+              >
+                Conviction
+              </dt>
               <dd>
                 <span className="cmp-sc-metric-value">{convictionDisplay}</span>
               </dd>
