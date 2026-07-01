@@ -8,17 +8,24 @@ import type { CompareStock, CompareQuote, CompareEnrichment } from "@/lib/compar
 
 export interface DetailRow {
   label: string;
+  /** Uniform unit suffix for this row's values, rendered in the frozen rail. e.g. "·₹", "·%", "·×" */
+  unit?: string;
   getValue: (s: CompareStock, q: CompareQuote | null, e: CompareEnrichment | null, cmp: number | null) => string;
 }
 
 export interface DetailSection {
   title: string;
+  /** Uniform unit that applies to all rows in this section (overridden by row.unit if set). */
+  sectionUnit?: string;
+  /** Muted note shown beside the section title — e.g. "not ranked" for multiples. */
+  note?: string;
   rows: DetailRow[];
 }
 
 export const DETAIL_SECTIONS: DetailSection[] = [
   {
     title: "Price & Valuation",
+    sectionUnit: "·₹",
     rows: [
       { label: "CMP", getValue: (_, q, __, cmp) => cmp != null ? fmtRupee(cmp) : "—" },
       { label: "Bear", getValue: (s) => s.bear != null ? fmtRupee(s.bear) : "—" },
@@ -33,6 +40,7 @@ export const DETAIL_SECTIONS: DetailSection[] = [
     rows: [
       {
         label: "Bear upside (snap)",
+        unit: "·%",
         getValue: (s, _, __, cmp) => {
           const u = s.upsideBear ?? scenarioUpside(s.bear, cmp);
           return u != null ? fmtPct(u) : "—";
@@ -40,6 +48,7 @@ export const DETAIL_SECTIONS: DetailSection[] = [
       },
       {
         label: "Base upside (snap)",
+        unit: "·%",
         getValue: (s, _, __, cmp) => {
           const u = s.upsideBase ?? scenarioUpside(s.base, cmp);
           return u != null ? fmtPct(u) : "—";
@@ -47,6 +56,7 @@ export const DETAIL_SECTIONS: DetailSection[] = [
       },
       {
         label: "Bull upside (snap)",
+        unit: "·%",
         getValue: (s, _, __, cmp) => {
           const u = s.upsideBull ?? scenarioUpside(s.bull, cmp);
           return u != null ? fmtPct(u) : "—";
@@ -54,6 +64,7 @@ export const DETAIL_SECTIONS: DetailSection[] = [
       },
       {
         label: "1Y upside (snap)",
+        unit: "·%",
         getValue: (s, _, __, cmp) => {
           const u = s.upside1y ?? scenarioUpside(s.target1y, cmp);
           return u != null ? fmtPct(u) : "—";
@@ -61,19 +72,22 @@ export const DETAIL_SECTIONS: DetailSection[] = [
       },
       {
         label: "2Y upside (snap)",
+        unit: "·%",
         getValue: (s, _, __, cmp) => {
           const u = s.upside2y ?? scenarioUpside(s.target2y, cmp);
           return u != null ? fmtPct(u) : "—";
         },
       },
-      { label: "Conviction", getValue: (s) => s.conviction != null ? fmtNum(s.conviction, 0) : "—" },
-      { label: "Understanding", getValue: (s) => s.understanding != null ? fmtNum(s.understanding, 0) : "—" },
+      { label: "Conviction", unit: "·/5", getValue: (s) => s.conviction != null ? fmtNum(s.conviction, 0) : "—" },
+      { label: "Understanding", unit: "·/5", getValue: (s) => s.understanding != null ? fmtNum(s.understanding, 0) : "—" },
       { label: "VP", getValue: (s) => s.vp ?? "—" },
       { label: "SA", getValue: (s) => s.sa ?? "—" },
     ],
   },
   {
     title: "Valuation Multiples",
+    sectionUnit: "·×",
+    note: "not ranked",
     rows: [
       { label: "Bear P/E", getValue: (s) => s.bearPe != null ? fmtNum(s.bearPe, 1) : "—" },
       { label: "Base P/E", getValue: (s) => s.basePe != null ? fmtNum(s.basePe, 1) : "—" },
