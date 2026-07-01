@@ -148,14 +148,14 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
     title: "Model",
     rows: [
       {
-        label: "Exp. return (model)",
+        label: "Exp. return p.a.",
         render: ({ row }) => {
-          const er = row.expectedReturn;
+          const er = row.expReturnAnn;
           if (er == null) return <span className="is-muted">{EMPTY}</span>;
           const cls = er > 0 ? "is-pos" : er < 0 ? "is-neg" : "";
           return <span className={cls}>{fmtPct(er)}</span>;
         },
-        metric: ({ row }) => row.expectedReturn,
+        metric: ({ row }) => row.expReturnAnn,
         goal: "max",
         bar: "signed",
       },
@@ -183,6 +183,29 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
         },
         goal: "max",
         bar: false, // ratios don't bar well — highlight winner only
+      },
+      {
+        label: "Position in range",
+        render: ({ row }) => {
+          const zone = row.scenarioZone;
+          if (zone == null) return <span className="is-muted">{EMPTY}</span>;
+          const bp = row.bandPos;
+          const bpText = bp != null ? ` (${Math.round(bp * 100)}%)` : "";
+          const cls =
+            zone === "cheap"
+              ? "is-pos"
+              : zone === "rich"
+              ? "is-neg"
+              : "is-muted";
+          const label =
+            zone === "cheap" ? "Cheap" : zone === "rich" ? "Rich" : "Fair";
+          return (
+            <span className={cls}>
+              {label}{bpText}
+            </span>
+          );
+        },
+        // Categorical — no metric/goal/bar; no winner highlight.
       },
       {
         label: "Downside to bear",

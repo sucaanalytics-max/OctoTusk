@@ -1,6 +1,8 @@
 // Types for the /research/compare analytical comparison route.
 // Deliberately decoupled from the frozen DashboardClient monolith; mirrors lib/mobile/types.ts.
 
+import type { ScenarioZone } from "@/lib/scenarioUpside";
+
 /** A stock shaped for the comparison surface (subset of the snapshot, null-normalized). */
 export interface CompareStock {
   tikr: string;
@@ -90,13 +92,22 @@ export interface ScorecardRow {
   cmpIsLive: boolean;
   upDownRatio: number | null;  // base upside ÷ bear downside; null unless note is normal/no-base-upside
   upDownNote: UpDownNote;
-  expectedReturn: number | null; // conviction-weighted (model), fraction
+  expectedReturn: number | null; // conviction-weighted (model), fraction — kept for table compat
   cushionToBear: number | null;  // (cmp − bear)/cmp; >0 = room to fall to bear, <0 = below bear (deep value)
   rankScore: number | null;      // composite [0,1], highlight only — never shown as a number
+  // v2 annualized return fields
+  expReturnAnn: number | null;   // annualized blend of 1Y/2Y/scenario EV — headline rank dimension
+  ann1: number | null;           // 1Y annualized (== u1, already 1Y)
+  ann2: number | null;           // 2Y annualized: (1+u2)^(1/2) − 1
+  // Positioning
+  bandPos: number | null;        // bandPosition(cmp, bear, bull), clamped [0,1]
+  scenarioZone: ScenarioZone | null; // cheap | fair | rich
+  dispersion: number | null;     // (bull-bear)/cmp — uncertainty width
   rankParts: {
-    upDown: number | null;    // post-minMax normalized Up/Down dimension [0,1] — never coerce null → 0
-    expected: number | null;  // post-minMax normalized Exp. return dimension [0,1]
-    cushion: number | null;   // post-minMax normalized low-downside dimension [0,1]
+    ret: number | null;          // post-minMax normalized annualized return [0,1]
+    margin: number | null;       // post-minMax normalized margin-of-safety [0,1]
+    safety: number | null;       // post-minMax normalized safety (neg risk) [0,1]
+    conviction: number | null;   // post-minMax normalized conviction [0,1]
   };
   isLeader: boolean;
 }

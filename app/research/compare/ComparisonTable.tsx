@@ -121,7 +121,13 @@ export default function ComparisonTable({
       expectedReturn: null,
       cushionToBear: null,
       rankScore: null,
-      rankParts: { upDown: null, expected: null, cushion: null },
+      expReturnAnn: null,
+      ann1: null,
+      ann2: null,
+      bandPos: null,
+      scenarioZone: null,
+      dispersion: null,
+      rankParts: { ret: null, margin: null, safety: null, conviction: null },
       isLeader: false,
     };
     return {

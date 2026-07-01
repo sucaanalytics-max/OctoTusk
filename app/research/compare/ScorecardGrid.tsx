@@ -1,13 +1,14 @@
 // Scorecard grid: one card per stock, sorted by rankScore DESC (nulls last).
-// isLeader card gets accent border + "★ Best risk-adj" badge. Each metric carries
-// a micro-bar; definitions live as native title tooltips on the metric label (hover),
-// not as permanent prose under every card. Upside-vs-CMP strip above metrics.
+// v2 (2026-06-30): headline metric → Exp. return p.a. (expReturnAnn); adds "Position in
+// range" element (scenarioZone label + bandPos dot track); drops standalone Up/Down ratio
+// tile (positioning subsumes it); keeps Bear/Base/Bull/1Y/2Y upside strip, Downside to bear,
+// and Conviction. isLeader card gets accent border + "★ Best risk-adj" badge.
 // Renders 0 values explicitly — only null → "—". No `value && fmt()` truthiness.
 
-import { fmtRupee, fmtPct, fmtNum } from "@/lib/format";
+import { fmtRupee, fmtPct } from "@/lib/format";
 import { scenarioUpside } from "@/lib/scenarioUpside";
 import { getCompanyShort } from "@/lib/companyName";
-import type { ScorecardRow, UpDownNote, CompareStock } from "@/lib/compare/types";
+import type { ScorecardRow, CompareStock } from "@/lib/compare/types";
 
 interface Props {
   rows: ScorecardRow[];
@@ -16,11 +17,12 @@ interface Props {
 
 /** Cross-set maxima used to scale the micro-bars. */
 interface Scale {
-  maxUD: number;
-  maxER: number;
-  maxDown: number;
+  maxER: number;   // max |expReturnAnn| across the set
+  maxDown: number; // max cushionToBear (downside) across the set
   showConviction: boolean;
 }
+
+const EM_DASH = "—";
 
 function Bar({ frac, color }: { frac: number | null; color: string }) {
   if (frac == null) return null;
@@ -32,25 +34,6 @@ function Bar({ frac, color }: { frac: number | null; color: string }) {
   );
 }
 
-/** Up/down ratio cell — all four note states handled explicitly. */
-function UpDownCell({ value, note }: { value: number | null; note: UpDownNote }) {
-  if (note === "below-bear") {
-    return (
-      <span className="cmp-sc-below-bear" title="CMP is below bear case — entire band is upside">
-        &#x25B2; below bear
-      </span>
-    );
-  }
-  if (note === "missing") return <span className="cmp-sc-metric-value is-muted">&#x2014;</span>;
-  // "normal" or "no-base-upside" — value is a number (0 for no-base-upside). 0 renders explicitly.
-  const display = value != null ? fmtNum(value, 1) + "×" : "—";
-  const cls =
-    value != null && value > 0
-      ? "cmp-sc-metric-value is-pos"
-      : "cmp-sc-metric-value is-muted";
-  return <span className={cls}>{display}</span>;
-}
-
 function fracClass(v: number | null): string {
   if (v == null) return "cmp-sc-metric-value is-muted";
   if (v > 0) return "cmp-sc-metric-value is-pos";
@@ -59,7 +42,7 @@ function fracClass(v: number | null): string {
 }
 
 function downsideCell(cushion: number | null): { text: string; cls: string } {
-  if (cushion == null) return { text: "—", cls: "cmp-sc-metric-value is-muted" };
+  if (cushion == null) return { text: EM_DASH, cls: "cmp-sc-metric-value is-muted" };
   if (cushion <= 0) return { text: "below bear", cls: "cmp-sc-metric-value is-pos" };
   return { text: fmtPct(-cushion), cls: "cmp-sc-metric-value is-warn" };
 }
@@ -75,7 +58,7 @@ function UpsideCell({
   label: string;
 }) {
   const up = scenarioUpside(price, cmp);
-  const text = up != null ? fmtPct(up) : "—";
+  const text = up != null ? fmtPct(up) : EM_DASH;
   const cls =
     up == null
       ? "cmp-sc-upside-cell is-muted"
@@ -86,6 +69,17 @@ function UpsideCell({
     <div className={cls} title={`${label}: ${text}`}>
       <span className="cmp-sc-upside-label">{label}</span>
       <span>{text}</span>
+    </div>
+  );
+}
+
+/** Thin range track with a dot at bandPos position. */
+function RangeTrack({ bandPos }: { bandPos: number | null }) {
+  if (bandPos == null) return null;
+  const pct = Math.max(0, Math.min(1, bandPos)) * 100;
+  return (
+    <div className="cmp-sc-range-track" aria-hidden="true">
+      <div className="cmp-sc-range-dot" style={{ left: `${pct}%` }} />
     </div>
   );
 }
@@ -104,31 +98,38 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
   const convictionDisplay =
     conviction != null && Number.isFinite(conviction)
       ? String(Math.round(conviction))
-      : "—";
-  const cmpDisplay = row.cmp != null ? fmtRupee(row.cmp) : "—";
+      : EM_DASH;
+  const cmpDisplay = row.cmp != null ? fmtRupee(row.cmp) : EM_DASH;
 
-  // Micro-bar fractions.
-  const udFrac =
-    row.upDownNote === "below-bear"
-      ? 1
-      : row.upDownNote === "normal" && row.upDownRatio != null
-      ? row.upDownRatio / scale.maxUD
-      : row.upDownNote === "no-base-upside"
-      ? 0
-      : null;
+  // Exp. return p.a. bar fraction.
   const erFrac =
-    row.expectedReturn != null
-      ? Math.abs(row.expectedReturn) / scale.maxER
+    row.expReturnAnn != null
+      ? Math.abs(row.expReturnAnn) / scale.maxER
       : null;
   const erColor =
-    row.expectedReturn != null && row.expectedReturn < 0
+    row.expReturnAnn != null && row.expReturnAnn < 0
       ? "var(--color-negative)"
       : "var(--color-positive)";
+
+  // Downside bar fraction.
   const downFrac =
     row.cushionToBear != null
       ? Math.max(0, row.cushionToBear) / scale.maxDown
       : null;
   const down = downsideCell(row.cushionToBear);
+
+  // Zone label + class.
+  const zone = row.scenarioZone;
+  const zoneLabel =
+    zone === "cheap" ? "Cheap" : zone === "rich" ? "Rich" : zone === "fair" ? "Fair" : null;
+  const zoneCls =
+    zone === "cheap"
+      ? "cmp-sc-zone-label is-pos"
+      : zone === "rich"
+      ? "cmp-sc-zone-label is-neg"
+      : "cmp-sc-zone-label is-muted";
+  const bpText =
+    row.bandPos != null ? ` ${Math.round(row.bandPos * 100)}%` : "";
 
   return (
     <article
@@ -166,38 +167,44 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
       </div>
 
       <dl className="cmp-sc-metrics">
-        {/* Exp. return (model) */}
+        {/* Headline: Exp. return p.a. */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
             <dt
               className="cmp-sc-metric-label"
-              title="Conviction-weighted blend of bear / base / bull upsides. Base anchored at 50%; conviction tilts the tails."
+              title="Annualized blend of 1Y/2Y targets + conviction-weighted scenario EV."
             >
-              Exp. return (model)
+              Exp. return p.a.
             </dt>
             <dd>
-              <span className={fracClass(row.expectedReturn)}>
-                {row.expectedReturn != null ? fmtPct(row.expectedReturn) : "—"}
+              <span className={fracClass(row.expReturnAnn)}>
+                {row.expReturnAnn != null ? fmtPct(row.expReturnAnn) : EM_DASH}
               </span>
             </dd>
           </div>
           <Bar frac={erFrac} color={erColor} />
         </div>
 
-        {/* Up / Down ratio */}
+        {/* Position in range */}
         <div className="cmp-sc-metric">
           <div className="cmp-sc-metric-head">
             <dt
               className="cmp-sc-metric-label"
-              title="Base-case upside ÷ downside to the bear case — reward per unit of risk. Higher is better."
+              title="Where CMP sits in the bear–bull range. Cheap = at or below bear; Rich = at or above bull."
             >
-              Up / Down
+              Position in range
             </dt>
             <dd>
-              <UpDownCell value={row.upDownRatio} note={row.upDownNote} />
+              {zoneLabel != null ? (
+                <span className={zoneCls}>
+                  {zoneLabel}{bpText}
+                </span>
+              ) : (
+                <span className="cmp-sc-metric-value is-muted">{EM_DASH}</span>
+              )}
             </dd>
           </div>
-          <Bar frac={udFrac} color="var(--color-accent-blue)" />
+          <RangeTrack bandPos={row.bandPos} />
         </div>
 
         {/* Downside to bear */}
@@ -239,12 +246,8 @@ function ScorecardCard({ row, stock, scale }: CardProps) {
 export default function ScorecardGrid({ rows, stocks }: Props) {
   if (rows.length === 0) return null;
 
-  const normalRatios = rows
-    .filter((r) => r.upDownNote === "normal" && r.upDownRatio != null)
-    .map((r) => r.upDownRatio as number);
   const scale: Scale = {
-    maxUD: normalRatios.length ? Math.max(...normalRatios) : 1,
-    maxER: Math.max(1e-9, ...rows.map((r) => Math.abs(r.expectedReturn ?? 0))),
+    maxER: Math.max(1e-9, ...rows.map((r) => Math.abs(r.expReturnAnn ?? 0))),
     maxDown: Math.max(
       1e-9,
       ...rows.map((r) => Math.max(0, r.cushionToBear ?? 0))

@@ -88,12 +88,12 @@
 /* ── Rank matrix ────────────────────────────────────────────── */
 .cmp-rank-matrix { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-xs); }
 .cmp-rank-matrix-head {
-  display: grid; grid-template-columns: 100px 1fr 1fr 1fr;
+  display: grid; grid-template-columns: 100px repeat(4, 1fr);
   gap: var(--space-2); font-weight: 700; color: var(--color-text-muted);
   padding-bottom: var(--space-1); border-bottom: 1px solid var(--color-border-subtle);
 }
 .cmp-rank-matrix-row {
-  display: grid; grid-template-columns: 100px 1fr 1fr 1fr;
+  display: grid; grid-template-columns: 100px repeat(4, 1fr);
   gap: var(--space-2); align-items: center; padding: 2px 0;
 }
 .cmp-rank-matrix-row.is-leader { color: var(--color-positive); }
@@ -239,6 +239,30 @@
 .cmp-ct-bar-fill.is-pos { background: var(--color-positive); }
 .cmp-ct-bar-fill.is-neg { background: var(--color-negative); }
 .cmp-ct-bar-fill.is-risk { background: var(--color-warning); }
+
+/* ── Scorecard: position-in-range track (v2) ────────────────── */
+.cmp-sc-range-track {
+  position: relative;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  margin-top: 4px;
+}
+.cmp-sc-range-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-blue);
+  border: 2px solid var(--color-bg-card);
+}
+.cmp-sc-zone-label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── Spacing / typography pass (Elevation 5) ────────────────── */
 /* Consistent section eyebrow across scorecard + FF + verdict */
