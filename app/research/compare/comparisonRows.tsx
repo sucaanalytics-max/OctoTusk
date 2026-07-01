@@ -215,11 +215,11 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
         bar: false,
       },
       {
-        label: "Analyst Score",
+        label: "Understanding",
         unit: "·/5",
         render: ({ stock }) =>
-          stock.score != null ? fmtNum(stock.score, 0) : EMPTY,
-        metric: ({ stock }) => stock.score,
+          stock.understanding != null ? String(Math.round(stock.understanding)) : EMPTY,
+        metric: ({ stock }) => (stock.understanding != null ? stock.understanding : null),
         goal: "max",
         bar: false,
       },
