@@ -1,17 +1,22 @@
-// Merged comparison table: stock = column, metric = row.
-// Groups: Price · Our Research · Model · Quality · Multiples · Street.
-// Sticky header + sticky first column via existing cmp-dt-* classes.
-// Enrichment-dependent cells show per-cell "…" while loading (not a whole-column skeleton).
-// Row defs in comparisonRows.tsx. Single math source: reads ScorecardRow, never re-computes.
+"use client";
+// Verdict Table — two-tier sticky header, leader-column tint, frozen metric rail,
+// center-zero magnitude bars, 5-pip meters, per-row winner mark.
 //
-// Change 2 (2026-06-30): per-row winner highlight + inline magnitude bars.
-//   For rows with metric + goal: compute winning column (strictly unique, ≥2 finite values).
-//   For rows with bar: render a thin coloured bar under the value cell.
+// Change 3 (2026-07-01): full visual port of the Verdict Table mockup.
+//   - Two-tier thead: row 1 = identity (sticky top:0); row 2 = CMP strip (sticky top:--hdr-1-h).
+//   - useRef + useEffect: measures row-1 height → sets --hdr-1-h CSS var on scroll container.
+//   - Scroll listener: adds scrolled-x / scrolled-y classes for rail + freeze shadow CSS hooks.
+//   - SSR-safe: all DOM work inside useEffect; CSS fallback --hdr-1-h:66px holds without JS.
+//   - Sub-components (MagBar, PipMeter, RangeTrack) + winner helpers in comparisonCells.tsx.
+//   - Cell helpers (priceWithUpside, multipleCell, RecChip) in comparisonHelpers.tsx.
 
+import { useRef, useEffect, useCallback } from "react";
+import type { CSSProperties } from "react";
 import { resolveCmp } from "@/lib/compare/riskAdjusted";
 import { getCompanyShort } from "@/lib/companyName";
 import { fmtRupee } from "@/lib/format";
-import { COMPARISON_GROUPS, type Col, type ComparisonRow } from "./comparisonRows";
+import { COMPARISON_GROUPS, type Col } from "./comparisonRows";
+import { findWinner, computeRowMaxAbs, MagBar, PipMeter, RangeTrack } from "./comparisonCells";
 import type {
   CompareStock,
   CompareQuotesMap,
@@ -29,76 +34,6 @@ interface Props {
   enrichmentLoading: Record<string, boolean>;
 }
 
-/** Determine which column index wins for a given row, or -1 if no unique winner. */
-function findWinner(
-  groupRow: ComparisonRow,
-  cols: Col[]
-): number {
-  if (!groupRow.metric || !groupRow.goal) return -1;
-  const values = cols.map((col) => groupRow.metric!(col));
-  const finite = values.filter((v) => v != null && Number.isFinite(v));
-  if (finite.length < 2) return -1; // need ≥2 finite values to crown a winner
-
-  // POSITIVE_INFINITY from "below-bear" is valid — treat as the maximum.
-  const allVals = values.map((v) =>
-    v === Number.POSITIVE_INFINITY ? Number.POSITIVE_INFINITY : v
-  );
-
-  let bestIdx = -1;
-  let bestVal = groupRow.goal === "max" ? -Infinity : Infinity;
-  let bestCount = 0;
-
-  for (let i = 0; i < allVals.length; i++) {
-    const v = allVals[i];
-    if (v == null || !Number.isFinite(v) && v !== Number.POSITIVE_INFINITY) continue;
-    const better =
-      groupRow.goal === "max" ? v > bestVal : Math.abs(v) < Math.abs(bestVal);
-    const tied =
-      groupRow.goal === "max" ? v === bestVal : Math.abs(v) === Math.abs(bestVal);
-    if (better) {
-      bestVal = v;
-      bestIdx = i;
-      bestCount = 1;
-    } else if (tied) {
-      bestCount += 1;
-    }
-  }
-
-  return bestCount === 1 ? bestIdx : -1;
-}
-
-/** Bar width fraction [0,1] for each column, or null when no bar should render. */
-function computeBars(
-  groupRow: ComparisonRow,
-  cols: Col[]
-): Array<number | null> {
-  if (!groupRow.bar || !groupRow.metric) return cols.map(() => null);
-
-  const values = cols.map((col) => groupRow.metric!(col));
-  const mags = values.map((v) =>
-    v != null && Number.isFinite(v) ? Math.abs(v) : null
-  );
-  const finite = mags.filter((m): m is number => m != null);
-  const rowMaxAbs = finite.length > 0 ? Math.max(...finite) : null;
-  if (rowMaxAbs == null || rowMaxAbs === 0) return cols.map(() => null);
-
-  return values.map((v, i) => {
-    // For "risk" bars: ≤0 cushion means no downside — render no bar.
-    if (groupRow.bar === "risk" && (v == null || v <= 0)) return null;
-    const mag = mags[i];
-    if (mag == null) return null;
-    // Enforce a 4% minimum so tiny bars are still visible.
-    return Math.max(0.04, mag / rowMaxAbs);
-  });
-}
-
-/** Bar fill class from bar style + metric value sign. */
-function barFillClass(bar: "signed" | "risk", value: number | null): string {
-  if (bar === "risk") return "is-risk";
-  if (value == null) return "is-pos";
-  return value >= 0 ? "is-pos" : "is-neg";
-}
-
 export default function ComparisonTable({
   rows,
   stocks,
@@ -108,7 +43,39 @@ export default function ComparisonTable({
 }: Props) {
   if (stocks.length === 0) return null;
 
-  // Build per-stock Col context — resolve CMP once.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const hdr1Ref = useRef<HTMLTableRowElement>(null);
+
+  // Measure row-1 header height → --hdr-1-h (CSS fallback 66px covers SSR/no-JS).
+  const measureHdr = useCallback(() => {
+    if (!hdr1Ref.current || !scrollRef.current) return;
+    const h = hdr1Ref.current.getBoundingClientRect().height;
+    scrollRef.current.style.setProperty("--hdr-1-h", `${h}px`);
+  }, []);
+
+  // scrolled-x / scrolled-y classes activate rail + freeze box-shadows in CSS.
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.classList.toggle("scrolled-x", el.scrollLeft > 0);
+    el.classList.toggle("scrolled-y", el.scrollTop > 0);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    measureHdr();
+    onScroll();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const ro = new ResizeObserver(measureHdr);
+    if (hdr1Ref.current) ro.observe(hdr1Ref.current);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, [measureHdr, onScroll]);
+
+  // Build per-stock column contexts — resolve CMP once.
   const cols: Col[] = stocks.map((stock) => {
     const { cmp, isLive } = resolveCmp(stock, quotes[stock.tikr]);
     const scoreRow = rows.find((r) => r.tikr === stock.tikr);
@@ -141,21 +108,28 @@ export default function ComparisonTable({
     };
   });
 
-  const totalRows = COMPARISON_GROUPS.reduce((s, g) => s + g.rows.length, 0);
-
   return (
     <section className="cmp-dt-section" aria-label="Comparison table">
-      <h3 className="cmp-section-heading" style={{ padding: "var(--space-4) var(--space-4) 0" }}>
-        Side-by-side ({totalRows} metrics)
-      </h3>
-      <div className="cmp-dt-scroll">
-        <table className="cmp-dt-table">
+      <div
+        className="cmp-vt-scroll"
+        ref={scrollRef}
+        tabIndex={0}
+        role="region"
+        aria-label="Stock comparison table; scroll horizontally to see all columns"
+        style={{ "--hdr-1-h": "66px" } as CSSProperties}
+      >
+        <table className="cmp-vt-table">
+          {/* ── Two-tier sticky header ── */}
           <thead>
-            <tr>
-              <th className="cmp-dt-th cmp-dt-metric-col" scope="col">
-                Metric
+            {/* Row 1: identity — TIKR, company name, ★ leader chip */}
+            <tr className="cmp-vt-r-identity" ref={hdr1Ref}>
+              <th scope="col" className="cmp-vt-rail cmp-vt-corner">
+                <span className="cmp-vt-corner-cap">
+                  <span className="cmp-vt-corner-eyebrow">Compare</span>
+                  <span className="cmp-vt-corner-hint">upside vs CMP</span>
+                </span>
               </th>
-              {cols.map(({ stock, cmp, isLive }) => {
+              {cols.map(({ stock, row }) => {
                 const shortName = getCompanyShort({
                   official_name: stock.name,
                   tikr: stock.tikr,
@@ -163,70 +137,137 @@ export default function ComparisonTable({
                 return (
                   <th
                     key={stock.tikr}
-                    className="cmp-dt-th cmp-dt-stock-col"
                     scope="col"
+                    className={row.isLeader ? "cmp-vt-leader" : ""}
                   >
-                    <div className="cmp-dt-th-name">{shortName}</div>
-                    <div className="cmp-dt-th-tikr">{stock.tikr}</div>
-                    {cmp != null && (
-                      <div className={isLive ? "cmp-dt-th-cmp-live" : "cmp-dt-th-cmp"}>
-                        {fmtRupee(cmp)}
-                      </div>
-                    )}
+                    <span className="cmp-vt-id-block">
+                      <span className="cmp-vt-id-tikr">
+                        {row.isLeader && (
+                          <span className="cmp-vt-star" aria-hidden="true">★</span>
+                        )}
+                        {stock.tikr}
+                      </span>
+                      <span className="cmp-vt-id-name" title={stock.name}>
+                        {shortName}
+                      </span>
+                      {row.isLeader && (
+                        <span className="cmp-vt-leader-chip" role="note" aria-label="Risk-adjusted leader">
+                          <span aria-hidden="true">★</span>Best risk-adj
+                        </span>
+                      )}
+                    </span>
                   </th>
                 );
               })}
             </tr>
+            {/* Row 2: CMP sub-strip — pinned below row 1 via top:--hdr-1-h */}
+            <tr className="cmp-vt-r-cmp">
+              <th scope="col" className="cmp-vt-rail cmp-vt-corner">
+                <span className="cmp-vt-cmp-corner">CMP · live</span>
+              </th>
+              {cols.map(({ stock, cmp, row }) => (
+                <th key={stock.tikr} scope="col" className={row.isLeader ? "cmp-vt-leader" : ""}>
+                  <span className="cmp-vt-cmp-cell">
+                    <span className="cmp-vt-live">
+                      <span className="cmp-vt-live-dot" aria-hidden="true" />
+                      LIVE
+                    </span>
+                    <span className="cmp-vt-cmp-val">
+                      {cmp != null ? fmtRupee(cmp) : "—"}
+                    </span>
+                  </span>
+                </th>
+              ))}
+            </tr>
           </thead>
-          {/* One <tbody> per group for consistent zebra striping */}
+
+          {/* ── One tbody per group ── */}
           {COMPARISON_GROUPS.map((group) => (
-            <tbody key={group.title} className="cmp-dt-tbody">
-              <tr className="cmp-dt-section-row">
-                <td
-                  className="cmp-dt-section-label"
-                  colSpan={stocks.length + 1}
-                >
-                  {group.title}
-                </td>
+            <tbody key={group.title}>
+              {/* Group band row */}
+              <tr className="cmp-vt-group">
+                <th scope="colgroup" className="cmp-vt-rail">
+                  <span className="cmp-vt-group-label">
+                    {group.title}
+                    {group.note && (
+                      <span className="cmp-vt-group-note">{group.note}</span>
+                    )}
+                  </span>
+                </th>
+                <td colSpan={stocks.length} />
               </tr>
+
+              {/* Data rows */}
               {group.rows.map((groupRow) => {
-                // Compute winner index and bar widths for this row.
                 const winnerIdx = findWinner(groupRow, cols);
-                const bars = computeBars(groupRow, cols);
+                const rowMaxAbs = computeRowMaxAbs(groupRow, cols);
+                const isConviction = groupRow.label === "Conviction";
+                const isAnalystScore = groupRow.label === "Analyst Score";
+                const isRange = groupRow.label === "Position in range";
+                const isDirectional = !!groupRow.metric && !!groupRow.goal;
+                const barStyle =
+                  groupRow.bar === "signed" || groupRow.bar === "risk"
+                    ? groupRow.bar
+                    : null;
 
                 return (
-                  <tr key={groupRow.label} className="cmp-dt-row">
-                    <td className="cmp-dt-td cmp-dt-label-cell">
+                  <tr key={groupRow.label}>
+                    {/* Frozen metric rail with unit suffix */}
+                    <th scope="row" className="cmp-vt-rail">
                       {groupRow.label}
-                    </td>
+                      {groupRow.unit && (
+                        <span className="cmp-vt-rail-unit"> {groupRow.unit}</span>
+                      )}
+                    </th>
+
                     {cols.map((col, colIdx) => {
-                      const content = groupRow.render(col);
-                      const isEmpty =
-                        content === "—" ||
-                        content === null ||
-                        content === undefined;
-                      const isWinner = winnerIdx === colIdx;
-                      const barWidth = bars[colIdx];
+                      const isLeader = col.row.isLeader;
+                      const isWin = winnerIdx === colIdx;
+                      const isLoser = isDirectional && winnerIdx !== -1 && !isWin;
                       const metricVal = groupRow.metric ? groupRow.metric(col) : null;
 
-                      let tdClass = `cmp-dt-td cmp-dt-value-cell`;
-                      if (isEmpty) tdClass += " is-muted";
-                      if (isWinner) tdClass += " cmp-ct-winner";
+                      let tdClass = isLeader ? "cmp-vt-leader" : "";
+                      if (isWin) tdClass += " cmp-vt-win";
+                      else if (isLoser) tdClass += " cmp-vt-loser";
+
+                      // Pip meter rows
+                      if (isConviction || isAnalystScore) {
+                        const val = isConviction ? col.stock.conviction : col.stock.score;
+                        return (
+                          <td key={col.stock.tikr} className={tdClass.trim()}>
+                            <PipMeter value={val} isWin={isWin} />
+                          </td>
+                        );
+                      }
+
+                      // Position-in-range row
+                      if (isRange) {
+                        return (
+                          <td key={col.stock.tikr} className={tdClass.trim()}>
+                            <RangeTrack row={col.row} stock={col.stock} isLeader={isLeader} />
+                          </td>
+                        );
+                      }
+
+                      // Standard cell
+                      const content = groupRow.render(col);
+                      const hasBar = barStyle != null && metricVal != null;
 
                       return (
-                        <td
-                          key={col.stock.tikr}
-                          className={tdClass}
-                        >
-                          {content ?? "—"}
-                          {groupRow.bar && barWidth != null && (
-                            <div className="cmp-ct-bar" aria-hidden="true">
-                              <div
-                                className={`cmp-ct-bar-fill ${barFillClass(groupRow.bar, metricVal)}`}
-                                style={{ width: `${Math.round(barWidth * 100)}%` }}
-                              />
-                            </div>
-                          )}
+                        <td key={col.stock.tikr} className={tdClass.trim()}>
+                          <span className="cmp-vt-stack">
+                            <span className="cmp-vt-primary">
+                              {isWin && (
+                                <span className="cmp-vt-win-mark" aria-label="best in row">
+                                  &#x25B8;
+                                </span>
+                              )}
+                              {content ?? "—"}
+                            </span>
+                            {hasBar && barStyle && (
+                              <MagBar value={metricVal} rowMaxAbs={rowMaxAbs} barStyle={barStyle} />
+                            )}
+                          </span>
                         </td>
                       );
                     })}
@@ -237,10 +278,19 @@ export default function ComparisonTable({
           ))}
         </table>
       </div>
-      <p className="cmp-km-note" style={{ padding: "0 var(--space-4) var(--space-3)" }}>
+
+      {/* Legend */}
+      <div className="cmp-vt-legend" aria-hidden="true">
+        <span><span className="k">★</span> risk-adjusted leader</span>
+        <span><span className="k">▸</span> best in row (directional metrics only)</span>
+        <span>— not available</span>
+        <span>prices &amp; multiples shown for reference, not ranked</span>
+      </div>
+
+      <p className="cmp-km-note" style={{ padding: "0 var(--space-1) var(--space-3)" }}>
         P/E · P/B show the analyst base-case band;{" "}
-        <span className="cmp-ct-cur">cur</span> = current (live) multiple
-        where no band exists. EV/EBITDA and Street data load lazily.
+        <span className="cmp-ct-cur">cur</span> = current (live) multiple where no
+        band exists. EV/EBITDA and Street data load lazily.
       </p>
     </section>
   );

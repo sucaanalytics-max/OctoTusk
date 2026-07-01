@@ -1,17 +1,22 @@
 // Row definitions for ComparisonTable — extracted to keep the component under 400 lines.
-// Each group has a title + rows; each row has a label and a render function.
+// Each group has a title + rows; each row has a label, optional unit suffix, and a render fn.
 // The render function receives a Col (pre-resolved) and returns a ReactNode.
 //
 // Change 2 (2026-06-30): ComparisonRow gains optional `metric`, `goal`, `bar` fields so
 // ComparisonTable can compute per-row winner highlights and inline magnitude bars.
+// Change 3 (2026-07-01): `unit` field added for the frozen metric-rail unit suffix.
+// Cell helpers extracted to comparisonHelpers.tsx.
 
 import type { ReactNode } from "react";
-import { fmtRupee, fmtPct, fmtNum } from "@/lib/format";
+import { fmtPct, fmtNum } from "@/lib/format";
 import { scenarioUpside } from "@/lib/scenarioUpside";
-import type { CompareStock, CompareQuote, CompareEnrichment, ScorecardRow } from "@/lib/compare/types";
-
-export const EMPTY = "—";
-export const LOADING = "…";
+import { EMPTY, LOADING, priceWithUpside, multipleCell, RecChip } from "./comparisonHelpers";
+import type {
+  CompareStock,
+  CompareQuote,
+  CompareEnrichment,
+  ScorecardRow,
+} from "@/lib/compare/types";
 
 /** Column context passed to every render fn */
 export interface Col {
@@ -29,11 +34,13 @@ export type CellRender = (col: Col) => ReactNode;
 /** Direction of "better": max = higher wins; minAbs = smallest magnitude wins. */
 export type Goal = "max" | "minAbs";
 
-/** Bar style: signed = green≥0/red<0; risk = amber; false = no bar. */
+/** Bar style: signed = center-zero green≥0/red<0; risk = amber right-to-center; false = no bar. */
 export type BarStyle = "signed" | "risk" | false;
 
 export interface ComparisonRow {
   label: string;
+  /** Muted unit suffix shown in the frozen rail label (e.g. "·₹", "·p.a.", "·/5"). */
+  unit?: string;
   render: CellRender;
   /** Returns the comparable numeric value for a column. null = not comparable. */
   metric?: (col: Col) => number | null;
@@ -45,44 +52,9 @@ export interface ComparisonRow {
 
 export interface ComparisonGroup {
   title: string;
+  /** Muted secondary note shown in the group band. */
+  note?: string;
   rows: ComparisonRow[];
-}
-
-// Helper: price + upside % inline.
-function priceWithUpside(price: number | null, cmp: number | null): ReactNode {
-  if (price == null) return EMPTY;
-  const up = scenarioUpside(price, cmp);
-  const upText = up != null ? fmtPct(up) : null;
-  const upCls = up == null ? "" : up >= 0 ? " is-pos" : " is-neg";
-  return (
-    <>
-      {fmtRupee(price)}
-      {upText && <span className={`cmp-ct-upside${upCls}`}>{upText}</span>}
-    </>
-  );
-}
-
-// Helper: base-band multiple, else live current multiple with "cur" flag, else "—".
-function multipleCell(band: number | null, live: number | null): ReactNode {
-  if (band != null) return <>{`${fmtNum(band, 1)}×`}</>;
-  if (live != null)
-    return (
-      <>
-        {`${fmtNum(live, 1)}×`}
-        <span className="cmp-ct-cur">cur</span>
-      </>
-    );
-  return EMPTY;
-}
-
-function RecChip({ rec }: { rec: string | null }) {
-  if (!rec) return <span className="cmp-ct-dash">{EMPTY}</span>;
-  const upper = rec.toUpperCase();
-  let cls = "cmp-rec-chip";
-  if (upper === "BUY" || upper === "STRONG_BUY") cls += " is-buy";
-  else if (upper === "SELL" || upper === "STRONG_SELL") cls += " is-sell";
-  else cls += " is-hold";
-  return <span className={cls}>{upper.replace("_", " ")}</span>;
 }
 
 export const COMPARISON_GROUPS: ComparisonGroup[] = [
@@ -91,10 +63,12 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
     rows: [
       {
         label: "CMP",
+        unit: "·₹",
         render: ({ cmp, isLive }) =>
           cmp != null ? (
             <>
-              {fmtRupee(cmp)}
+              {/* CMP row rendered in the two-tier header; this cell is a fallback. */}
+              {String(cmp)}
               {isLive && <span className="cmp-ct-live">live</span>}
             </>
           ) : (
@@ -106,9 +80,11 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
   },
   {
     title: "Our Research",
+    note: "prices not ranked",
     rows: [
       {
         label: "Bear",
+        unit: "·₹",
         render: ({ stock, cmp }) => priceWithUpside(stock.bear, cmp),
         metric: ({ stock, cmp }) => scenarioUpside(stock.bear, cmp),
         goal: "max",
@@ -116,6 +92,7 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Base",
+        unit: "·₹",
         render: ({ stock, cmp }) => priceWithUpside(stock.base, cmp),
         metric: ({ stock, cmp }) => scenarioUpside(stock.base, cmp),
         goal: "max",
@@ -123,6 +100,7 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Bull",
+        unit: "·₹",
         render: ({ stock, cmp }) => priceWithUpside(stock.bull, cmp),
         metric: ({ stock, cmp }) => scenarioUpside(stock.bull, cmp),
         goal: "max",
@@ -130,6 +108,7 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Target 1Y",
+        unit: "·₹",
         render: ({ stock, cmp }) => priceWithUpside(stock.target1y, cmp),
         metric: ({ stock, cmp }) => scenarioUpside(stock.target1y, cmp),
         goal: "max",
@@ -137,6 +116,7 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Target 2Y",
+        unit: "·₹",
         render: ({ stock, cmp }) => priceWithUpside(stock.target2y, cmp),
         metric: ({ stock, cmp }) => scenarioUpside(stock.target2y, cmp),
         goal: "max",
@@ -148,7 +128,8 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
     title: "Model",
     rows: [
       {
-        label: "Exp. return p.a.",
+        label: "Exp. return",
+        unit: "·p.a.",
         render: ({ row }) => {
           const er = row.expReturnAnn;
           if (er == null) return <span className="is-muted">{EMPTY}</span>;
@@ -161,10 +142,14 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Up / Down ratio",
+        unit: "·×",
         render: ({ row }) => {
           if (row.upDownNote === "below-bear")
             return (
-              <span className="cmp-sc-below-bear" title="CMP below bear — entire band is upside">
+              <span
+                className="cmp-sc-below-bear"
+                title="CMP below bear — entire band is upside"
+              >
                 &#x25B2; below bear
               </span>
             );
@@ -186,29 +171,23 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Position in range",
+        // No unit — rendered as a mini-track widget in ComparisonTable.
         render: ({ row }) => {
           const zone = row.scenarioZone;
           if (zone == null) return <span className="is-muted">{EMPTY}</span>;
           const bp = row.bandPos;
           const bpText = bp != null ? ` (${Math.round(bp * 100)}%)` : "";
           const cls =
-            zone === "cheap"
-              ? "is-pos"
-              : zone === "rich"
-              ? "is-neg"
-              : "is-muted";
+            zone === "cheap" ? "is-pos" : zone === "rich" ? "is-neg" : "is-muted";
           const label =
             zone === "cheap" ? "Cheap" : zone === "rich" ? "Rich" : "Fair";
-          return (
-            <span className={cls}>
-              {label}{bpText}
-            </span>
-          );
+          return <span className={cls}>{label}{bpText}</span>;
         },
         // Categorical — no metric/goal/bar; no winner highlight.
       },
       {
         label: "Downside to bear",
+        unit: "·%",
         render: ({ row }) => {
           const c = row.cushionToBear;
           if (c == null) return <span className="is-muted">{EMPTY}</span>;
@@ -216,10 +195,10 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
           return <span className="is-warn">{fmtPct(-c)}</span>;
         },
         // cushionToBear > 0 means downside exists; 0 or below means already safe.
-        // goal:"minAbs" → smallest (most-negative) cushion = least downside = safest.
+        // goal:"minAbs" → smallest magnitude = least downside = safest.
         metric: ({ row }) => row.cushionToBear,
         goal: "minAbs",
-        bar: "risk", // bar magnitude = the downside; ≤0 → empty bar (no downside)
+        bar: "risk",
       },
     ],
   },
@@ -228,6 +207,7 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
     rows: [
       {
         label: "Conviction",
+        unit: "·/5",
         render: ({ stock }) =>
           stock.conviction != null ? String(Math.round(stock.conviction)) : EMPTY,
         metric: ({ stock }) => (stock.conviction != null ? stock.conviction : null),
@@ -235,7 +215,8 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
         bar: false,
       },
       {
-        label: "Analyst Score (1–5)",
+        label: "Analyst Score",
+        unit: "·/5",
         render: ({ stock }) =>
           stock.score != null ? fmtNum(stock.score, 0) : EMPTY,
         metric: ({ stock }) => stock.score,
@@ -243,34 +224,36 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
         bar: false,
       },
       {
-        label: "VP",
-        render: ({ stock }) => stock.vp ?? EMPTY,
+        label: "VP · SA",
+        render: ({ stock }) =>
+          stock.vp || stock.sa
+            ? `${stock.vp ?? "—"} · ${stock.sa ?? "—"}`
+            : EMPTY,
         // No metric — text field; ambiguous comparison.
-      },
-      {
-        label: "SA",
-        render: ({ stock }) => stock.sa ?? EMPTY,
-        // No metric — text field.
       },
     ],
   },
   {
     title: "Multiples",
+    note: "not ranked — cheaper isn't always better",
     rows: [
       {
         label: "P/E",
+        unit: "·×",
         render: ({ stock, q }) =>
           multipleCell(stock.basePe, q?.trailingPE ?? null),
         // No metric — negatives + ambiguous "better".
       },
       {
         label: "P/B",
+        unit: "·×",
         render: ({ stock, q }) =>
           multipleCell(stock.basePb, q?.priceToBook ?? null),
         // No metric.
       },
       {
         label: "EV/EBITDA",
+        unit: "·×",
         render: ({ stock, e, enrichmentLoading }) => {
           if (enrichmentLoading)
             return <span className="is-muted">{LOADING}</span>;
@@ -284,7 +267,8 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
     title: "Street",
     rows: [
       {
-        label: "Target (mean)",
+        label: "Target mean",
+        unit: "·₹",
         render: ({ e, cmp, enrichmentLoading }) => {
           if (enrichmentLoading) return <span className="is-muted">{LOADING}</span>;
           if (!e?.targetMeanPrice) return EMPTY;
@@ -293,12 +277,11 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
           const upCls = up == null ? "" : up >= 0 ? " is-pos" : " is-neg";
           return (
             <>
-              {fmtRupee(e.targetMeanPrice)}
+              {String(e.targetMeanPrice)}
               {upText && <span className={`cmp-ct-upside${upCls}`}>{upText}</span>}
             </>
           );
         },
-        // null while enrichment loading — no comparison until resolved.
         metric: ({ e, cmp, enrichmentLoading }) => {
           if (enrichmentLoading || !e?.targetMeanPrice) return null;
           return scenarioUpside(e.targetMeanPrice, cmp);
@@ -331,12 +314,14 @@ export const COMPARISON_GROUPS: ComparisonGroup[] = [
       },
       {
         label: "Trailing P/E",
+        unit: "·×",
         render: ({ q }) =>
           q?.trailingPE != null ? fmtNum(q.trailingPE, 1) : EMPTY,
         // No metric.
       },
       {
         label: "Forward P/E",
+        unit: "·×",
         render: ({ q }) =>
           q?.forwardPE != null ? fmtNum(q.forwardPE, 1) : EMPTY,
         // No metric.

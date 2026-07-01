@@ -212,33 +212,416 @@
   overflow: hidden;
 }
 
-/* ── ComparisonTable: winner highlight + inline bar (Change 2) ─ */
-/* Winner cell: bold + a very subtle positive-tint background.
-   We keep the tint light so it also reads on the zebra-stripe and leader-column tint. */
-.cmp-ct-winner {
-  font-weight: 700;
-  background: color-mix(in srgb, var(--color-positive-bg) 55%, transparent) !important;
+/* ── Verdict Table (Change 3) — two-tier header + leader spine + new bars ── */
+
+/* Scoped shadow vars — rgba only (no hex) */
+[data-compare-root] {
+  --shadow-freeze: 0 6px 14px -8px rgba(0, 0, 0, 0.45);
+  --shadow-rail: 6px 0 10px -6px rgba(0, 0, 0, 0.35);
+}
+[data-compare-root][data-theme="light"] {
+  --shadow-freeze: 0 6px 12px -8px rgba(17, 24, 39, 0.28);
+  --shadow-rail: 6px 0 8px -6px rgba(17, 24, 39, 0.20);
 }
 
-/* Bar track under value — height 3px, rounded */
-.cmp-ct-bar {
-  height: 3px;
-  border-radius: var(--radius-full);
-  margin-top: 3px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--color-text-primary) 9%, transparent);
-  /* Right-align the bar under right-aligned numerics */
+/* Scroll container: relative so JS can measure; --hdr-1-h CSS fallback */
+.cmp-vt-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+.cmp-vt-scroll:focus-visible { outline: 2px solid var(--color-accent-blue); outline-offset: -2px; }
+
+/* Table */
+.cmp-vt-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: calc(var(--vt-rail-w, 190px) + 3 * var(--vt-col-w, 172px));
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Shared cell defaults — right-aligned, solid bg */
+.cmp-vt-table th,
+.cmp-vt-table td {
+  text-align: right;
+  padding: var(--space-2) var(--space-4);
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-card);
+}
+.cmp-vt-table td { min-width: var(--vt-col-w, 172px); }
+
+/* ── Frozen metric rail (first column) ── */
+.cmp-vt-rail {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  text-align: left !important;
+  width: var(--vt-rail-w, 190px);
+  min-width: var(--vt-rail-w, 190px);
+  background: var(--color-bg-card);
+  border-right: 1px solid var(--color-border);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+.cmp-vt-rail-unit {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+/* Shadow when scrolled horizontally */
+.cmp-vt-scroll.scrolled-x .cmp-vt-rail {
+  box-shadow: var(--shadow-rail);
+}
+
+/* ── Leader column tint (ambient verdict) ── */
+.cmp-vt-leader {
+  background: color-mix(in srgb, var(--color-accent-blue) 6%, var(--color-bg-card)) !important;
+}
+
+/* ── Two-tier sticky header ── */
+.cmp-vt-table thead th {
+  position: sticky;
+  z-index: 3;
+}
+/* Row 1: identity (TIKR, name, leader chip) */
+.cmp-vt-r-identity th {
+  top: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+/* Row 2: CMP sub-strip — pinned just below row 1 */
+.cmp-vt-r-cmp th {
+  top: var(--hdr-1-h, 66px);
+  border-bottom: 1px solid var(--color-border);
+}
+/* Freeze shadow when the header is stuck */
+.cmp-vt-scroll.scrolled-y .cmp-vt-table thead th {
+  box-shadow: 0 1px 0 var(--color-border), var(--shadow-freeze);
+}
+/* Corner cell: sticky on both axes — z-index above both row and column stickies */
+.cmp-vt-corner {
+  position: sticky !important;
+  left: 0;
+  z-index: 5 !important;
+  background: var(--color-bg-card) !important;
+  border-right: 1px solid var(--color-border);
+  text-align: left !important;
+}
+.cmp-vt-scroll.scrolled-x .cmp-vt-corner {
+  box-shadow: var(--shadow-rail);
+}
+/* Leader border-top accent on header identity cell */
+.cmp-vt-r-identity th.cmp-vt-leader {
+  border-top: 2px solid var(--color-accent-blue);
+}
+
+/* Identity block inside each header cell */
+.cmp-vt-id-block {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.cmp-vt-id-tikr {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.cmp-vt-id-name {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmp-vt-star { color: var(--color-accent-blue); font-size: var(--text-base); line-height: 1; }
+.cmp-vt-leader-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  color: var(--color-accent-blue);
+  background: color-mix(in srgb, var(--color-accent-blue) 14%, transparent);
+  border-radius: var(--radius-full);
+  padding: 2px var(--space-2);
+  margin-top: 3px;
+}
+
+/* Corner caption */
+.cmp-vt-corner-cap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+.cmp-vt-corner-eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.cmp-vt-corner-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* CMP sub-strip */
+.cmp-vt-cmp-cell {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.cmp-vt-cmp-val {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+.cmp-vt-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+.cmp-vt-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-positive);
+  animation: cmp-vt-pulse 2s ease-in-out infinite;
+}
+@keyframes cmp-vt-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .cmp-vt-live-dot { animation: none; } }
+.cmp-vt-cmp-corner {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Group band header row ── */
+tr.cmp-vt-group td {
+  background: var(--color-bg-card-alt);
+  text-align: left;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+tr.cmp-vt-group .cmp-vt-rail {
+  background: var(--color-bg-card-alt);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.cmp-vt-scroll.scrolled-x tr.cmp-vt-group .cmp-vt-rail {
+  box-shadow: var(--shadow-rail);
+}
+.cmp-vt-group-label {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+.cmp-vt-group-note {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-text-muted);
+}
+
+/* ── Data cell composition ── */
+.cmp-vt-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.cmp-vt-primary {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+.cmp-vt-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.cmp-vt-glyph { font-size: 0.72em; }
+.cmp-vt-delta-pos { color: var(--color-positive); }
+.cmp-vt-delta-neg { color: var(--color-negative); }
+
+/* ── Winner + loser treatment ── */
+/* Winner: bold + inset left accent. NEVER color-only — weight is mandatory. */
+td.cmp-vt-win .cmp-vt-primary,
+td.cmp-vt-win .cmp-vt-single { font-weight: 700; color: var(--color-text-primary); }
+td.cmp-vt-win { box-shadow: inset 2px 0 0 var(--color-accent-blue); }
+/* Loser: weight-drop only — not opacity, not color */
+td.cmp-vt-loser .cmp-vt-primary,
+td.cmp-vt-loser .cmp-vt-single { font-weight: 500; color: var(--color-text-secondary); }
+/* Win-mark glyph */
+.cmp-vt-win-mark {
+  color: var(--color-accent-blue);
+  font-size: 0.82em;
+  font-weight: 700;
+  margin-right: 3px;
+}
+.cmp-vt-single { font-size: var(--text-base); font-weight: 600; }
+
+/* ── Center-zero signed magnitude bar ── */
+.cmp-vt-magbar {
+  position: relative;
+  width: 78px;
+  height: 4px;
+  margin-top: 2px;
+  background: var(--color-border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.cmp-vt-magbar-zero {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--color-text-muted);
+  opacity: 0.55;
+}
+.cmp-vt-magbar-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+.cmp-vt-magbar-fill.is-pos { left: 50%; background: var(--color-positive); }
+.cmp-vt-magbar-fill.is-neg { right: 50%; background: var(--color-negative); }
+.cmp-vt-magbar-fill.is-risk {
+  /* risk bars extend from right side inward — amber */
+  right: 50%;
+  background: var(--color-warning);
+}
+
+/* ── Position in range (bear→bull mini-track) ── */
+.cmp-vt-range-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 132px;
+  margin-left: auto;
+}
+.cmp-vt-range-verdict {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+}
+.cmp-vt-range-verdict.is-cheap {
+  color: var(--color-positive);
+  background: color-mix(in srgb, var(--color-positive) 15%, transparent);
+}
+.cmp-vt-range-verdict.is-fair {
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+}
+.cmp-vt-range-verdict.is-rich {
+  color: var(--color-negative);
+  background: color-mix(in srgb, var(--color-negative) 15%, transparent);
+}
+.cmp-vt-range-track {
+  position: relative;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--color-positive) 22%, transparent),
+    color-mix(in srgb, var(--color-warning) 20%, transparent),
+    color-mix(in srgb, var(--color-negative) 22%, transparent));
+}
+.cmp-vt-range-base {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--color-text-muted);
+  opacity: 0.6;
+}
+.cmp-vt-range-dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--color-accent-blue);
+  box-shadow: 0 0 0 2px var(--color-bg-card);
+}
+.cmp-vt-leader .cmp-vt-range-dot {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-blue) 6%, var(--color-bg-card));
+}
+.cmp-vt-range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── 5-pip meter ── */
+.cmp-vt-pips {
+  display: inline-flex;
+  gap: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.cmp-vt-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+.cmp-vt-pip.on { background: var(--color-accent-blue); }
+.cmp-vt-rating-line {
+  display: inline-flex;
+  align-items: center;
   justify-content: flex-end;
 }
-.cmp-ct-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-full);
-  min-width: 2px;
+
+/* ── Legend row below the table ── */
+.cmp-vt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  padding: var(--space-3) var(--space-1) 0;
 }
-.cmp-ct-bar-fill.is-pos { background: var(--color-positive); }
-.cmp-ct-bar-fill.is-neg { background: var(--color-negative); }
-.cmp-ct-bar-fill.is-risk { background: var(--color-warning); }
+.cmp-vt-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.cmp-vt-legend .k { color: var(--color-accent-blue); font-weight: 700; }
 
 /* ── Scorecard: position-in-range track (v2) ────────────────── */
 .cmp-sc-range-track {
