@@ -226,8 +226,12 @@
 
 /* Scroll container: relative so JS can measure; --hdr-1-h CSS fallback */
 .cmp-vt-scroll {
-  overflow-x: auto;
-  overflow-y: visible;
+  /* Bounded pane so BOTH axes scroll inside it: the two-tier <thead> then stays
+     pinned at the top of the table while its rows scroll (an overflow-x-only
+     container with no height cannot pin a sticky header on page scroll). Also
+     activates the scrolled-y header shadow. */
+  overflow: auto;
+  max-height: calc(100vh - 2rem);
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
   position: relative;
