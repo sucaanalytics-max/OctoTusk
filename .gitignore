@@ -56,3 +56,4 @@ tasks/todo.md
 
 # Claude Code local overrides (settings.json IS committed; .local.json is per-user)
 .claude/settings.local.json
+.env*
