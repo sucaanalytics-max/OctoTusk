@@ -202,7 +202,7 @@ export default function ComparisonTable({
                 const winnerIdx = findWinner(groupRow, cols);
                 const rowMaxAbs = computeRowMaxAbs(groupRow, cols);
                 const isConviction = groupRow.label === "Conviction";
-                const isAnalystScore = groupRow.label === "Analyst Score";
+                const isUnderstanding = groupRow.label === "Understanding";
                 const isRange = groupRow.label === "Position in range";
                 const isDirectional = !!groupRow.metric && !!groupRow.goal;
                 const barStyle =
@@ -231,8 +231,8 @@ export default function ComparisonTable({
                       else if (isLoser) tdClass += " cmp-vt-loser";
 
                       // Pip meter rows
-                      if (isConviction || isAnalystScore) {
-                        const val = isConviction ? col.stock.conviction : col.stock.score;
+                      if (isConviction || isUnderstanding) {
+                        const val = isConviction ? col.stock.conviction : col.stock.understanding;
                         return (
                           <td key={col.stock.tikr} className={tdClass.trim()}>
                             <PipMeter value={val} isWin={isWin} />

@@ -68,7 +68,6 @@ export const DETAIL_SECTIONS: DetailSection[] = [
       },
       { label: "Conviction", getValue: (s) => s.conviction != null ? fmtNum(s.conviction, 0) : "—" },
       { label: "Understanding", getValue: (s) => s.understanding != null ? fmtNum(s.understanding, 0) : "—" },
-      { label: "Score", getValue: (s) => s.score != null ? fmtNum(s.score, 0) : "—" },
       { label: "VP", getValue: (s) => s.vp ?? "—" },
       { label: "SA", getValue: (s) => s.sa ?? "—" },
     ],
