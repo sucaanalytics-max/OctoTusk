@@ -1,5 +1,5 @@
 {
-  "_generatedAt": "2026-06-22T11:02:38.920Z",
+  "_generatedAt": "2026-07-01T06:07:29.099Z",
   "_note": "Front-month MCX commodities — gold/silver for the daily digest, +aluminium/crude for the /octopus wall strip. Re-run scripts/build-mcx-commodities.ts after a contract expires.",
   "gold": {
     "securityId": 466583,
@@ -14,9 +14,9 @@
     "segment": "MCX_COMM"
   },
   "aluminium": {
-    "securityId": 552706,
-    "displayName": "ALUMINIUM JUN FUT",
-    "expiry": "2026-06-30",
+    "securityId": 562047,
+    "displayName": "ALUMINIUM JUL FUT",
+    "expiry": "2026-07-31",
     "segment": "MCX_COMM"
   },
   "crude": {
