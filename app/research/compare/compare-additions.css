@@ -651,6 +651,65 @@ td.cmp-vt-loser .cmp-vt-single { font-weight: 500; color: var(--color-text-secon
   font-variant-numeric: tabular-nums;
 }
 
+/* ── DetailTable: collapsible wrapper (cmp-vt-* chrome) ─────── */
+/* summary trigger — sits outside the scroll pane */
+.cmp-dt-details {
+  margin-top: var(--space-4);
+}
+.cmp-dt-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card-alt);
+}
+.cmp-dt-summary::-webkit-details-marker { display: none; }
+.cmp-dt-summary::before {
+  content: "▸";
+  font-size: 0.8em;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+  flex: none;
+}
+details[open] .cmp-dt-summary::before { transform: rotate(90deg); }
+.cmp-dt-summary:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-hover);
+  border-color: var(--color-border);
+}
+/* The scroll pane inside <details> gets a top border to separate from summary */
+.cmp-dt-details .cmp-vt-scroll {
+  border: 1px solid var(--color-border-subtle);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+
+/* Muted value cells — null / loading placeholders */
+.cmp-dt-val-muted .cmp-vt-single {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* Zebra striping scoped to the detail table for scanability on a 57-row exhaustive table.
+   Every other <tr> inside a <tbody> (skipping the group-band row which is its own <tbody>). */
+.cmp-dt-details tbody tr:nth-child(even):not(.cmp-vt-group) td,
+.cmp-dt-details tbody tr:nth-child(even):not(.cmp-vt-group) th {
+  background: color-mix(in srgb, var(--color-text-primary) 3%, var(--color-bg-card));
+}
+/* Leader column tint wins over zebra — re-apply on even rows */
+.cmp-dt-details tbody tr:nth-child(even):not(.cmp-vt-group) td.cmp-vt-leader,
+.cmp-dt-details tbody tr:nth-child(even):not(.cmp-vt-group) th.cmp-vt-leader {
+  background: color-mix(in srgb, var(--color-accent-blue) 6%, var(--color-bg-card)) !important;
+}
+
 /* ── Spacing / typography pass (Elevation 5) ────────────────── */
 /* Consistent section eyebrow across scorecard + FF + verdict */
 .cmp-scorecard-heading,

@@ -90,6 +90,7 @@ export default function CompareClient({ seed, embedded = false }: Props) {
           />
 
           <DetailTable
+            rows={rows}
             stocks={selectedStocks}
             quotes={quotes}
             enrichment={enrichment}
