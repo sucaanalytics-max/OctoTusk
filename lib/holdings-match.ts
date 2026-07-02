@@ -106,6 +106,15 @@ const RAW_OVERRIDES: Record<string, string> = {
   // holdings show MODEL/UPSIDES instead of "—".
   "Vedanta Iron and Steel": "VISL",
   "Five Star Business Finance": "FIVESTAR",
+  // Held positions outside research coverage — mapped to a tikr so the holdings
+  // tab shows a live CMP (MODEL/UPSIDES stay "—" until a vF valuation exists).
+  // Each is paired with a ticker_map entry in data/database.json.
+  "Nuvama Wealth Management": "NUVAMA",
+  "Pennar Industries": "PENIND",
+  "Supreme Infrastructure": "SUPREMEINF",
+  "West Coast Paper Mills": "WSTCSTPAPR",
+  "Ideaforge Technology": "IDEAFORGE",
+  "Skipper": "SKIPPER",
 };
 
 export const HOLDING_TIKR_OVERRIDES: Record<string, string> = Object.fromEntries(

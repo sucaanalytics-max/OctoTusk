@@ -5262,7 +5262,9 @@
   "holdings": [],
   "fo_positions": [],
   "ticker_map": {
+    "500068": "500068.BO",
     "505192": "SMLMAH.NS",
+    "517417": "517417.BO",
     "533278": "COALINDIA.NS",
     "538734": "CEINSYS.NS",
     "BSE": "BSE.NS",
@@ -5377,7 +5379,18 @@
     "Capitaland India REIT": "CY6U.SI",
     "EPACK DURABLE LIMITED (XNSE:EPACK)": "EPACK.NS",
     "ITC HOTELS LIMITED (XNSE:ITCHOTELS)": "ITCHOTELS.NS",
-    "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)": "VOEPL.BO"
+    "VIRTUOSO OPTOELECTRONICS LIMITED (XBOM:543597)": "VOEPL.BO",
+    "NUVAMA": "NUVAMA.NS",
+    "PENIND": "PENIND.NS",
+    "SUPREMEINF": "SUPREMEINF.NS",
+    "WSTCSTPAPR": "WSTCSTPAPR.NS",
+    "IDEAFORGE": "IDEAFORGE.NS",
+    "360ONE": "360ONE.NS",
+    "RPSGVENT": "RPSGVENT.NS",
+    "MONARCH": "MONARCH.NS",
+    "DAMCAPITAL": "DAMCAPITAL.NS",
+    "ELECON ENGINEERING COMPANY LIMITED (XNSE:ELECON)": "ELECON.NS",
+    "somanycera": "SOMANYCERA.NS"
   },
   "metadata": {
     "source": "Octopus Dashboard - JVB Output",
