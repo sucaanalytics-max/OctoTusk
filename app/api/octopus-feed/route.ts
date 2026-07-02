@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { buildQuotesMap } from "../quotes/route";
 import { getSectorInfo } from "@/lib/sectors";
 import { isSupabaseConfigured, getSupabase } from "@/lib/supabase";
+import { scenarioUpside } from "@/lib/scenarioUpside";
 import database from "@/data/database.json";
 
 export const dynamic = "force-dynamic";
@@ -181,10 +182,16 @@ async function buildPayload(): Promise<OctopusFeedPayload> {
       subsector: info.subsector,
       dayPct: q && typeof q.changePct === "number" ? q.changePct : null,
       cmp,
-      bearUpside: pickUpside(s.upside_bear),
-      baseUpside: pickUpside(s.upside_base),
-      bullUpside: pickUpside(s.upside_bull),
-      oneYearUpside: pickUpside(s.upside_1y),
+      // Recompute upside LIVE from the resolved CMP against the vF targets —
+      // NOT the snapshot's stored upside_* (frozen at each vF's authoring price,
+      // so it drifts as CMP moves and can even be a -1 sentinel). Uses the same
+      // canonical helper as the dashboard/mobile (lib/scenarioUpside.ts) so the
+      // Octopus wall display shows the SAME numbers as the website. null when
+      // CMP is unavailable (honest blank instead of a stale figure).
+      bearUpside: scenarioUpside(s.bear_current, cmp),
+      baseUpside: scenarioUpside(s.base_current, cmp),
+      bullUpside: scenarioUpside(s.bull_current, cmp),
+      oneYearUpside: scenarioUpside(s.target_1y, cmp),
       bearPrice: pickUpside(s.bear_current),
       basePrice: pickUpside(s.base_current),
       bullPrice: pickUpside(s.bull_current),

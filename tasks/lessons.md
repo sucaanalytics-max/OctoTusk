@@ -41,3 +41,13 @@ Entry template:
 - **Trigger:** `GET /api/snapshot` was leaking holdings unauthenticated (V1); `data/database.json` had real holdings in git (V2).
 - **Rule:** holdings/P&L/PIN/note bodies never go to localStorage/sessionStorage/IndexedDB/CacheStorage; never in URLs or push payloads; holdings only via PIN-gated `/api/holdings`. The committed `database.json` carries `stocks`+`ticker_map` only.
 - **Scope:** `app/m/**`, `lib/mobile/**`, `app/api/holdings/route.ts`, `app/api/snapshot/route.ts`.
+
+## 2026-07-02 — Validate data against Supabase (live), not `data/database.json`
+- **Trigger:** a data-accuracy audit read `data/database.json` and flagged ABREL as inverted + 75/116 stale upsides. Wrong: the committed `database.json` is a **stale fallback** (was dated 2026-02-22, 205 fields diverged); the live site reads the daily-synced Supabase `sync_snapshot` (id=1, cols: stocks/holdings/ticker_map/synced_at/fo_positions). Against live Supabase + the real vF sheets, bear/base/bull matched to the paisa.
+- **Rule:** to verify "what users see," read Supabase `sync_snapshot` (id=1) via `SUPABASE_URL`+`SUPABASE_SERVICE_ROLE_KEY`, then cross-check the vF source in OneDrive ("Tusk - Summary" sheet, B2=TIKR, **B9/C9/D9 = bear/base/bull**, B10/C10/D10 = upsides). Never treat `database.json` as current.
+- **Scope:** data audits, `scripts/sync-to-supabase.ts` outputs, `app/api/octopus-feed/route.ts`.
+
+## 2026-07-02 — Upside is recomputed from live CMP; never render stored `upside_*`
+- **Trigger:** `/octopus` (via `app/api/octopus-feed/route.ts`) served the snapshot's stored `upside_bear/base/bull`, which is frozen at each vF's authoring price (and can be a `-1` sentinel) — so the wall display showed VEDL +165% / NSE -100% next to a live CMP. Dashboard + mobile were correct because they recompute.
+- **Rule:** every surface derives upside as `(target - liveCMP)/liveCMP` via the canonical `lib/scenarioUpside.ts` `scenarioUpside()`. Stored `upside_*` fields are point-in-time only — do not display them. `app/octopus/**` is frozen, but `app/api/octopus-feed/**` is editable — fix live-value bugs in the feed so the frozen client renders correct data.
+- **Scope:** `app/api/octopus-feed/route.ts`, any consumer of `upside_bear/base/bull`.
