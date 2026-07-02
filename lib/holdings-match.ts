@@ -100,6 +100,12 @@ const RAW_OVERRIDES: Record<string, string> = {
   "Vedanta Oil and Gas": "VOGL",
   "Vedanta Power": "VEDPOWER",
   "Vedanta Aluminium Metal": "VAML",
+  // Hyphen cases: the stock `official_name` carries a hyphen the DeMAT `asset_name`
+  // lacks ("Vedanta- Iron and Steel", "FIVE-STAR ..."), so exact + fuzzy both miss
+  // (lightNorm doesn't collapse internal punctuation). Curated so these covered
+  // holdings show MODEL/UPSIDES instead of "—".
+  "Vedanta Iron and Steel": "VISL",
+  "Five Star Business Finance": "FIVESTAR",
 };
 
 export const HOLDING_TIKR_OVERRIDES: Record<string, string> = Object.fromEntries(
