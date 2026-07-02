@@ -31,6 +31,7 @@ export interface RawSnapshotRow {
   sa?: string | null;
   div_yield?: number | null;
   in_fno?: boolean;
+  last_updated?: string | null;
 }
 
 /**
@@ -79,5 +80,6 @@ export function buildCompareStock(r: RawSnapshotRow): CompareStock {
     sa: str(r.sa),
     divYield: fin(r.div_yield),
     inFno: r.in_fno === true,
+    lastUpdated: r.last_updated ?? null,
   };
 }

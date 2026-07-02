@@ -1,7 +1,7 @@
 // Football field on a %-FROM-CMP axis: every stock's CMP is pinned at 0%, so bear/base/bull
 // and 1Y/2Y targets are plotted as % moves and become directly comparable regardless of price
-// level. Downside (left of 0) is red-tinted, upside (right of 0) green-tinted; the conviction-
-// weighted model return is a ◆ marker. SVG viewBox, fluid width, no @media.
+// level. Downside (left of 0) is red-tinted, upside (right of 0) green-tinted.
+// SVG viewBox, fluid width, no @media.
 // Guards: domain-collapse, missing-CMP, missing-band.
 // Layout: bear% label ABOVE band-left-edge; bull% label ABOVE band-right-edge;
 //         1Y/2Y ticks and labels BELOW band to avoid overlap. Base notch spans the band.
@@ -12,8 +12,8 @@
 //   Long AMC names no longer clip because the HTML label uses text-overflow:ellipsis.
 //   The SVG no longer contains a PAD_L gutter — it owns only the chart area (0..W domain).
 
-import { Fragment } from "react";
-import { resolveCmp, convictionWeightedReturn } from "@/lib/compare/riskAdjusted";
+import { Fragment, memo } from "react";
+import { resolveCmp } from "@/lib/compare/riskAdjusted";
 import { fmtRupee, fmtPctRaw } from "@/lib/format";
 import { getCompanyShort } from "@/lib/companyName";
 import type { CompareStock, CompareQuotesMap } from "@/lib/compare/types";
@@ -21,6 +21,16 @@ import type { CompareStock, CompareQuotesMap } from "@/lib/compare/types";
 interface Props {
   stocks: CompareStock[];
   quotes: CompareQuotesMap;
+  /**
+   * Sector Scan "Chart" view only. When true: bounds the layout in a
+   * `.cmp-ff-scan-scroll` pane (max-height ~60vh) and pins the axis-header row via
+   * `position:sticky` on its two grid cells (reusing the SAME `.cmp-ff-layout` grid
+   * template, not a hand-sized flex row, so the CMP·0 gridlines stay aligned). Also
+   * marks each row's chart cell with `data-tikr` so a delegated listener in
+   * SectorScanView (ScenarioTip) can identify the hovered/clicked/focused row.
+   * Default false → the Comparison-mode render is byte-identical to before.
+   */
+  scroll?: boolean;
 }
 
 // SVG chart area — no label pad here; labels are HTML.
@@ -42,7 +52,7 @@ interface RowData {
   stock: CompareStock;
   cmp: number | null;
   bearP: number | null; baseP: number | null; bullP: number | null;
-  t1P: number | null; t2P: number | null; evP: number | null;
+  t1P: number | null; t2P: number | null;
   bandMin: number | null; bandMax: number | null;
   hasBand: boolean;
 }
@@ -53,7 +63,6 @@ function buildRow(stock: CompareStock, quotes: CompareQuotesMap): RowData {
   const bearP = pctOf(stock.bear, c);
   const baseP = pctOf(stock.base, c);
   const bullP = pctOf(stock.bull, c);
-  const erFrac = convictionWeightedReturn(c, stock.bear, stock.base, stock.bull, stock.conviction);
   const present = [bearP, baseP, bullP].filter((v): v is number => v != null);
   const hasBand = present.length >= 2;
   return {
@@ -61,14 +70,13 @@ function buildRow(stock: CompareStock, quotes: CompareQuotesMap): RowData {
     bearP, baseP, bullP,
     t1P: pctOf(stock.target1y, c),
     t2P: pctOf(stock.target2y, c),
-    evP: erFrac != null ? erFrac * 100 : null,
     bandMin: hasBand ? Math.min(...present) : null,
     bandMax: hasBand ? Math.max(...present) : null,
     hasBand,
   };
 }
 
-export default function FootballField({ stocks, quotes }: Props) {
+function FootballField({ stocks, quotes, scroll = false }: Props) {
   if (stocks.length === 0) return null;
   const rows = stocks.map((s) => buildRow(s, quotes));
 
@@ -76,7 +84,7 @@ export default function FootballField({ stocks, quotes }: Props) {
   const vals: number[] = [0];
   for (const r of rows) {
     if (!r.hasBand) continue;
-    [r.bearP, r.baseP, r.bullP, r.t1P, r.t2P, r.evP].forEach((v) => {
+    [r.bearP, r.baseP, r.bullP, r.t1P, r.t2P].forEach((v) => {
       if (v != null) vals.push(v);
     });
   }
@@ -115,17 +123,21 @@ export default function FootballField({ stocks, quotes }: Props) {
         <span><i className="cmp-ff-key cmp-ff-key-down" />Bear (downside)</span>
         <span><i className="cmp-ff-key cmp-ff-key-up" />Bull (upside)</span>
         <span className="cmp-ff-legend-base"><i className="cmp-ff-key cmp-ff-key-base" />Base</span>
-        <span><i className="cmp-ff-key cmp-ff-key-ev" />&#x25C6; Model EV</span>
         <span className="cmp-ff-legend-tick">&#x25B8; 1Y / 2Y target</span>
       </div>
 
-      {/* Outer scroll wrapper — the two-column layout scrolls as a unit */}
-      <div className="cmp-ff-svg-wrap">
+      {/* Outer scroll wrapper — the two-column layout scrolls as a unit.
+          Compare mode (scroll=false): plain horizontal-only wrap, unchanged.
+          Sector Scan chart (scroll=true): bounded vertical pane + sticky axis row. */}
+      <div className={scroll ? "cmp-ff-scan-scroll" : "cmp-ff-svg-wrap"}>
         <div className="cmp-ff-layout" style={{ minWidth: 520 }}>
 
-          {/* ── Axis header row ── */}
-          <div className="cmp-ff-label-col" aria-hidden="true" />
-          <div className="cmp-ff-chart-col">
+          {/* ── Axis header row — sticky (both cells) only in scan-scroll mode ── */}
+          <div
+            className={scroll ? "cmp-ff-label-col cmp-ff-axis-sticky" : "cmp-ff-label-col"}
+            aria-hidden="true"
+          />
+          <div className={scroll ? "cmp-ff-chart-col cmp-ff-axis-sticky" : "cmp-ff-chart-col"}>
             <svg
               viewBox={`0 0 ${W} ${HEADER_SVG_H}`}
               style={{ width: "100%", display: "block" }}
@@ -174,8 +186,20 @@ export default function FootballField({ stocks, quotes }: Props) {
                   )}
                 </div>
 
-                {/* SVG chart cell */}
-                <div className="cmp-ff-chart-col">
+                {/* SVG chart cell — data-tikr + focus affordance only in Sector Scan chart mode,
+                    so ScenarioTip's delegated listener (mount in SectorScanView) can identify
+                    the row; compare mode gets neither attribute (byte-identical DOM). */}
+                <div
+                  className="cmp-ff-chart-col"
+                  {...(scroll
+                    ? {
+                        "data-tikr": r.stock.tikr,
+                        tabIndex: 0,
+                        role: "button",
+                        "aria-label": `Show bear, base, bull for ${r.stock.name}`,
+                      }
+                    : {})}
+                >
                   <svg
                     viewBox={`0 0 ${W} ${svgH}`}
                     style={{ width: "100%", display: "block" }}
@@ -299,17 +323,6 @@ export default function FootballField({ stocks, quotes }: Props) {
                             </g>
                           ) : null
                         )}
-
-                        {/* Model EV marker ◆ */}
-                        {r.evP != null && (
-                          <rect
-                            x={x(r.evP) - 4}
-                            y={bandTop - 10}
-                            width={8} height={8}
-                            transform={`rotate(45 ${x(r.evP)} ${bandTop - 6})`}
-                            fill="var(--color-accent-blue)"
-                          />
-                        )}
                       </>
                     ) : (
                       <text
@@ -349,3 +362,8 @@ export default function FootballField({ stocks, quotes }: Props) {
     </section>
   );
 }
+
+// Memoized: used both in Comparison mode (stable `selectedStocks`/`quotes` from CompareClient)
+// and Sector Scan's Chart view (stable `sortedStocks`/`quotes` from SectorScanView) — a
+// tip-position-only re-render in either parent leaves these props referentially unchanged.
+export default memo(FootballField);

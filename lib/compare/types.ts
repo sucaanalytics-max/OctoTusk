@@ -34,6 +34,8 @@ export interface CompareStock {
   sa: string | null;        // sell-analyst code (e.g. "KS")
   divYield: number | null;
   inFno: boolean;
+  /** ISO date string from the snapshot's last_updated; null = never synced (treated as stale). */
+  lastUpdated: string | null;
 }
 
 /** Live quote fields read from GET /api/quotes (a superset of lib/mobile's Quote). */
